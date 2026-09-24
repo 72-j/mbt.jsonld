@@ -34,15 +34,28 @@
 - 展开后的节点对象图（expansion）
 - RDF 四元组集合（toRDF）
 
-## 4 表结构（初稿，开工后迭代）
+## 4 表结构（`jsonld_gen.toml`；字段形制承 src/fsm TOML 2.0，schema 独立）
+口径绑定器 = `src/fsm/jsonld_toml_gen.mbt`（`parse_jsonld_gen` / `validate_jsonld_gen` /
+`emit_jsonld_gen`；统一入口落 src/fsm，低耦合只依赖通用 `hnlyxiaobing/toml` 库，不碰 FsmIR）。
+词表封闭、引用完整、步骤图无环（递归红线钉子）、规则顺序连续、handler_hook 须为
+`Trait::method` 形——均由 validate 把关（drift = 红）。
 ### [[steps]] 步骤表
-- id, name, phase（expansion/toRDF）, order, next, handler_hook
+- id, name, phase（expansion/toRDF）, order, next（单值；缺省 = 本阶段终点）,
+  dispatch（可选：形态 → 步骤 映射，骨架生成 match 分派）, handler_hook（手写 trait 方法；
+  无手写的行不得带此键）
 
 ### [[keyword_dispatch]] 关键字分派表
-- keyword, condition, action, result
+- keyword, condition（可枚举形态判断词表）, action, result（展开形态词表）,
+  args（可选，封闭旗标）, handler_hook（可选）
 
 ### [[iri_rules]] IRI 规则表
-- kind（relative/absolute/compact/vocab/bnode）, condition, action
+- order（求值顺序）, kind（keyword/absolute/bnode/compact/vocab/relative/term）,
+  condition（可枚举形态判断词表）, action, handler_hook（可选）
+
+### 红线与判据（2026-09-25 定）
+- 递归策略、搜索剪枝、工程权衡一律不进表；condition 只收可枚举的形态判断；
+  handler_hook 只指向手写 trait 方法。
+- 判据：表里能 grep 出"递归/深度/策略"的行级编码，就是设计错误。
 
 ## 5 对账
 - 骨架：从 TOML 生成的接口与调度

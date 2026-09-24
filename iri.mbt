@@ -1,4 +1,5 @@
-///| IRI 展开接口
+///|
+/// IRI 展开接口
 pub(open) trait IriExpander {
   /// 展开 IRI：相对/绝对/compact/vocab 相对/bnode
   fn expand_iri(

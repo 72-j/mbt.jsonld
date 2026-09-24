@@ -1,4 +1,5 @@
-///| Expansion 接口 —— 手写实现（树递归）
+///|
+/// Expansion 接口 —— 手写实现（树递归）
 pub(open) trait Expander {
   /// 展开一个 element（递归入口）
   fn expand_element(

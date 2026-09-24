@@ -1,0 +1,103 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "thy1016/bitbang/jsonld"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn parse_json(String) -> Result[JsonValue, JsonLdError]
+
+// Errors
+
+// Types and methods
+pub(all) struct ActiveContext {
+  base : String?
+  terms : Map[String, TermDefinition]
+}
+
+pub(all) enum ContainerType {
+  List
+  Set
+  Language
+  Index
+  Id
+  Type
+  Graph
+}
+
+pub(all) struct ExpandedLiteral {
+  value : String
+  datatype : String?
+  language : String?
+  direction : String?
+} derive(@debug.Debug)
+
+pub(all) struct ExpandedNode {
+  id : String?
+  types : Array[String]
+  properties : Array[(String, Array[ExpandedValue])]
+} derive(@debug.Debug)
+
+pub(all) enum ExpandedValue {
+  Node(ExpandedNode)
+  Value(ExpandedLiteral)
+  List(Array[ExpandedValue])
+} derive(@debug.Debug)
+
+pub(all) enum JsonLdError {
+  InvalidContext(String)
+  InvalidIri(String)
+  InvalidValue(String)
+  InvalidList(String)
+  Unsupported(String)
+}
+
+pub(all) struct JsonLdOptions {
+  base : String?
+  expand_context : JsonValue?
+  processing_mode : ProcessingMode
+} derive(@debug.Debug)
+
+pub(all) struct JsonLdQuad {
+  subject : String
+  predicate : String
+  object : String
+  graph : String?
+} derive(@debug.Debug)
+
+pub(all) enum JsonValue {
+  Null
+  Bool(Bool)
+  Number(Double)
+  String(String)
+  Array(Array[JsonValue])
+  Object(Array[(String, JsonValue)])
+} derive(@debug.Debug)
+
+pub(all) enum ProcessingMode {
+  JsonLd10
+  JsonLd11
+} derive(@debug.Debug)
+
+pub(all) struct TermDefinition {
+  iri : String?
+  datatype : String?
+  container : ContainerType?
+}
+
+// Type aliases
+
+// Traits
+pub(open) trait ContextProcessor {
+  fn process_context(Self, ActiveContext, JsonValue, JsonLdOptions) -> Result[ActiveContext, JsonLdError]
+}
+
+pub(open) trait Expander {
+  fn expand_element(Self, ActiveContext, JsonValue, String?, JsonLdOptions) -> Result[ExpandedValue, JsonLdError]
+  fn expand_value(Self, ActiveContext, JsonValue, String?) -> Result[ExpandedValue, JsonLdError]
+}
+
+pub(open) trait IriExpander {
+  fn expand_iri(Self, ActiveContext, String, Bool, Bool) -> Result[String, JsonLdError]
+}
