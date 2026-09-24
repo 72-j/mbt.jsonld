@@ -1,0 +1,33 @@
+# JSON-LD 一致性基线（consistency baseline）
+# 用途：W3C json-ld-api 套件一致性基线（J0 立账，2026-09-25）
+# 状态：统计中，未设阈值（非红门；棘轮阈值待 J1 有首个能跑的骨架后再议——门不开即红纪律）
+# 快照：W3C json-ld-api @ ffdb326121ea89b7b8280e76a5caea923834bcef（tests 目录，2026-08-04 版）
+# 口径四注脚：套件版本 = ffdb326（本文件字段）；冷缓存 / target / 探针协议自 J1 实现起随读数记录
+#   （实现未起，暂不适用；manifest 驱动计数即当前探针口径）
+# 复现命令（仓根 = src/jsonld）：
+#   sha256sum -c .rdf-tests/SHA256SUMS
+#   grep -c '"@id": "#t' .rdf-tests/json-ld-api/expand-manifest.jsonld    # 385
+#   grep -c '"@id": "#t' .rdf-tests/json-ld-api/toRdf-manifest.jsonld     # 467
+#   grep -o '"jld:PositiveEvaluationTest"\|"jld:NegativeEvaluationTest"\|"jld:PositiveSyntaxTest"' \
+#     .rdf-tests/json-ld-api/expand-manifest.jsonld | sort | uniq -c      # 276 / 109
+
+suite_commit = ffdb326121ea89b7b8280e76a5caea923834bcef
+files_pinned = 2626
+expand_entries = 385
+expand_positive = 276
+expand_negative = 109
+tordf_entries = 467
+tordf_positive = 345
+tordf_negative = 106
+tordf_positive_syntax = 16
+cases_total = 852
+passed = 0
+failed = 0
+not_implemented = 852
+
+# 缺口解释表（J0；全缺口 = 实现未起，逐族挂役）
+#   expand 385（正 276 / 负 109）        -> 实现未起，挂 J2（context 处理 / IRI 展开 / 值对象族；
+#                                             键序损失 vs 1.1 "ordered by property" 实证挂本族对拍收口）
+#   toRdf 467（正 345 / 负 106 / 正句法 16）-> 实现未起，挂 J3（节点对象图 -> 四元组 / blank node / 词形；
+#                                             数词形按值推导还是按原文实证挂本族对拍收口）
+# 重评估条件：J2 / J3 任一役首批实现落地，本基线转真判（passed/failed 起算，棘轮阈值另立）

@@ -53,6 +53,9 @@
 - 共享库：TOML 读、代码 emit、测试 harness
 - 不共享：schema 语义、生成器框架、FSM 形状
 - 复核面：新增 "JSON-LD 一致性面"
+- 套件：W3C json-ld-api @ `ffdb326` 自包含于本目录 `.rdf-tests/json-ld-api/`
+  （`.rdf-tests/SHA256SUMS` 钉版 2626 件；路径以本目录为仓根——将来独立出项目整目录随迁）；
+  一致性基线 = `consistency-baseline.txt`（统计中未设阈值）
 
 ## 7 与调研卷（bangto/jsonld）的差异对照（勘定 2026-09-25）
 
