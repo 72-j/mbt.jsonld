@@ -53,3 +53,19 @@
 - 共享库：TOML 读、代码 emit、测试 harness
 - 不共享：schema 语义、生成器框架、FSM 形状
 - 复核面：新增 "JSON-LD 一致性面"
+
+## 7 与调研卷（bangto/jsonld）的差异对照（勘定 2026-09-25）
+
+调研卷（`bangto/jsonld/` 五份，2026-09-14）是立项前的调研产物；本目录四卷为实施权威。
+分歧不散写正文，统一收此表——调研卷 ADR-JL-001~008 描述的是调研期"四层编译式架构"，
+凡与本表冲突处以本表为准。
+
+| 事项 | 调研卷口径 | 实施卷口径（权威） | 处置 |
+|---|---|---|---|
+| JSON 词法/语法层 | 自建四层（惰性 Lexer→Parser，GB 级流式；ADR-JL-001/003） | 不做（§2 红线）；用 core `@json.parse` | 已定案；core 语义勘定见 ctx.md §2 |
+| 键序/重复键 | ADR-JL-002 红线：`Array[(String, RawValue)]` 全量保留 | core `Object(Map)` 无序，重复键 last-wins 折叠 | J0 实证：可容（1.1 算法按属性排序 + JS 等价折叠）；J2 对拍收口 |
+| 数词形 | `RawNumber(Double, String)` 保留词形 | core 常见路径仅 Double；超 2^53-1 / strconv 回退时 `repr~` 留原文 | J0 实证注记；J3 toRDF 对拍收口 |
+| compaction | 核心层（Expander 的逆操作） | 暂不做（§1，看擂台） | 立案不排期；套件 compact 246 例规模在册 |
+| N3 互操作（@graph↔Formula） | 规格 + ADR 在册 | 不在本子项目范围 | 两面各自收口后另立 |
+| Datalog / GraphDB Sink | 物化层规格在册 | 不做 | 同上 |
+| 性能底线（1μs/token 等） | 宪法量化条款 | 缓打（todo：先测后优化） | 性能优化立案不排期 |
