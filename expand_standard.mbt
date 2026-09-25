@@ -25,10 +25,16 @@ extend StandardExpander with Expander::{
 ///|
 /// IRI 合法性（形态 A 片）：含 scheme 冒号且无空白（"baz z" 类拒之——#t0123）
 fn is_valid_absolute_iri(value : String) -> Bool {
-  // scheme 冒号须在非首位（":fish" 空 scheme 非绝对——#t0118 oracle：走 vocab 拼接）
+  // scheme 冒号须在非首位（":fish" 空 scheme 非绝对——#t0118 oracle：走 vocab 拼接）；
+  // scheme 首字符须为 ALPHA（RFC 3986 scheme 文法，规范 IRI 正则同款——"_:dt"
+  // 的 scheme "_" 非法 ⇒ 非绝对，#ter40 oracle：bnode 不得作 datatype）
   let mut i = 0
   let mut has_colon = false
+  let mut scheme_initial_alpha = false
   for ch in value {
+    if i == 0 {
+      scheme_initial_alpha = ch is ('a'..='z' | 'A'..='Z')
+    }
     if ch is ':' && i > 0 {
       has_colon = true
     }
@@ -37,7 +43,7 @@ fn is_valid_absolute_iri(value : String) -> Bool {
     }
     i += 1
   }
-  has_colon
+  scheme_initial_alpha && has_colon
 }
 
 ///|
@@ -330,18 +336,20 @@ fn StandardExpander::expand_object(
   // current：@context 处理后的当前 context（③批；循环内可被 @context 键更新）
   let mut current = active
   for pair in pairs {
-    let is_keyword = match pair.0.get_char(0) {
-      Some('@') => true
-      _ => false
+    // 键归一（#ter51 oracle）：字面 @ 键原样；term 键经 IRI 链展开一次——
+    // 别名 term（IRI 即关键字）归一到关键字位，与字面关键字同路分派
+    let expanded_key = match pair.0.get_char(0) {
+      Some('@') => pair.0
+      _ =>
+        match IriExpander::expand_iri(self, current, pair.0, false, true) {
+          Ok(k) => k
+          Err(e) => return Err(e)
+        }
     }
-    if !is_keyword {
-      // term 位（_term 缺省路由）：键经 IRI 链展开（term 查表/compact/absolute），
-      // 属性值展开，键合法即累加
-      let expanded_key = match
-        IriExpander::expand_iri(self, current, pair.0, false, true) {
-        Ok(k) => k
-        Err(e) => return Err(e)
-      }
+    // 关键字位判定按归一键：字面关键字与别名 term 汇流
+    let routes_to_keyword = expanded_key.get_char(0) is Some('@')
+    if !routes_to_keyword {
+      // term 位（_term 缺省路由）：键已归一；属性值展开，键合法即累加
       let values = match
         StandardExpander::expand_term(
           self,
@@ -354,14 +362,21 @@ fn StandardExpander::expand_object(
         Ok(values) => values
         Err(e) => return Err(e)
       }
-      if values.length() > 0 && is_valid_absolute_iri(expanded_key) {
+      // 键合法性：绝对 IRI 或 bnode 标签（规范：expanded property 可为 blank
+      // node identifier——scheme-ALPHA 收紧后 bnode 在此显式放行）
+      if values.length() > 0 &&
+        (is_valid_absolute_iri(expanded_key) || is_bnode_label(expanded_key)) {
         properties.push((expanded_key, values))
       }
       continue
     }
     // 关键字分派（按键名；@vocab/@base 等 context 层七键走手写——@context 批）
-    match pair.0 {
-      "@id" =>
+    match expanded_key {
+      "@id" => {
+        // 值对象内 @id = 意外关键字（#ter37 oracle）
+        if is_value_object {
+          return Err(JsonLdError::InvalidValue("invalid value object"))
+        }
         match pair.1 {
           JsonValue::String(iri) =>
             match IriExpander::expand_iri(self, current, iri, true, false) {
@@ -378,6 +393,7 @@ fn StandardExpander::expand_object(
           _ =>
             return Err(JsonLdError::InvalidValue("@id value must be a string"))
         }
+      }
       "@type" =>
         // @type 双侧：值对象内 = datatype（coercion 形态 A）；节点侧 = 类型数组
         match pair.1 {
@@ -585,7 +601,15 @@ fn StandardExpander::expand_object(
   // 形态判定：值对象（@value 键已见）优先于节点对象
   if is_value_object {
     match literal {
-      Some(found) => Ok(Some(ExpandedValue::Value(found)))
+      Some(found) => {
+        // @language 只配字符串 @value（#ter39 oracle）：@value 非串（raw 记录
+        // Number/Bool 词形）而带 @language → invalid language-tagged value；
+        // @value: null 在臂内已置 literal=None，先于本校验丢弃（规范次序）
+        if has_language && found.raw is Some(_) {
+          return Err(JsonLdError::InvalidValue("invalid language-tagged value"))
+        }
+        Ok(Some(ExpandedValue::Value(found)))
+      }
       None => Ok(None) // @value: null → 整个值对象丢弃
     }
   } else {
@@ -880,6 +904,7 @@ impl ContextProcessor for StandardExpander with fn process_context(
       Ok(current)
     }
     JsonValue::Object(pairs) => {
+      let keyword_owner : Map[String, String] = Map([])
       for pair in pairs {
         match pair.0 {
           "@vocab" =>
@@ -944,6 +969,18 @@ impl ContextProcessor for StandardExpander with fn process_context(
               ),
             )
           other => {
+            // 关键字别名冲突（#ter26 oracle）：同关键字第二别名 → colliding keywords
+            if other is "id" || other is "ID" {
+              match keyword_owner.get("@id") {
+                Some(prev_owner) =>
+                  if prev_owner != other {
+                    return Err(
+                      JsonLdError::InvalidContext("colliding keywords"),
+                    )
+                  }
+                None => keyword_owner["@id"] = other
+              }
+            }
             // term 名不得为相对 IRI 路径（#ter48 oracle："./something" →
             // invalid IRI mapping）——"." 开头的键是相对路径形态，不能作 term
             if other.get_char(0) is Some('.') {
