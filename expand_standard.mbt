@@ -949,14 +949,23 @@ impl ContextProcessor for StandardExpander with fn process_context(
             if other.get_char(0) is Some('.') {
               return Err(JsonLdError::InvalidIri("invalid IRI mapping"))
             }
-            // term 定义（简单形态：term → IRI 字符串；null = 移除）
+            // term 定义（简单形态：term → IRI 字符串；null = 移除）。
+            // 值 IRI 展开：vocab 位、对 in-progress terms 查表
+            // （#t0072 oracle：重定义为自身时用 @vocab，非旧 term 定义）
             match pair.1 {
-              JsonValue::String(iri) =>
+              JsonValue::String(iri) => {
+                let building = ActiveContext::{ base, vocab, terms: new_terms, }
+                let expanded = match
+                  IriExpander::expand_iri(_self, building, iri, false, true) {
+                  Ok(k) => k
+                  Err(e) => return Err(e)
+                }
                 new_terms[other] = TermDefinition::{
-                  iri: Some(iri),
+                  iri: Some(expanded),
                   datatype: None,
                   container: None,
                 }
+              }
               JsonValue::Null => new_terms.remove(other)
               _ =>
                 return Err(

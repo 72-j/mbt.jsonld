@@ -455,3 +455,28 @@ test "debug t0091 chain (throwaway)" {
   }
   assert_true(a2.base is Some("http://foo.bar/baz/example/"))
 }
+
+///|
+/// ③细化对拍：简单 term 定义的值 IRI 展开（#t0072 oracle：重定义为自身时用 @vocab）
+test "term value expands against in-progress vocab (t0072 对拍)" {
+  let e = StandardExpander::{ }
+  let active = ActiveContext::{ base: None, vocab: None, terms: Map([]), }
+  let options = JsonLdOptions::{
+    base: None,
+    expand_context: None,
+    processing_mode: JsonLd11,
+  }
+  let ctx = JsonValue::Object([
+    ("@vocab", JsonValue::String("http://example.com/anotherVocab#")),
+    ("term", JsonValue::String("term")),
+  ])
+  let built = match ContextProcessor::process_context(e, active, ctx, options) {
+    Ok(built) => built
+    Err(_) => fail("process failed")
+  }
+  match built.terms.get("term") {
+    Some(td) =>
+      assert_true(td.iri is Some("http://example.com/anotherVocab#term"))
+    None => fail("term missing")
+  }
+}
