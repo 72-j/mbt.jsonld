@@ -96,12 +96,45 @@ fn split_first_colon(value : String, at : Int) -> (String, String) {
 /// "." 与 "" 段保留（#t0091 期望保留 /./）；value 绝对 → 原样（不做点段归一）
 
 ///|
-/// RFC 3986 5.2.3 merge：value 相对 → base 截最后 "/"（含）+ value；
-/// base 无 "/" → 补根 "/"（#t0129/#t0130 oracle：/example + relative-iri →
-/// /example/relative-iri）
+/// authority 根截取（scheme://authority——绝对路径引用替换 path 时的保留段；
+/// 平台中立字符迭代，避免切片抛错面差异）。无 scheme 冒号或 scheme 后非 "//"
+/// → None（链式相对 base 无 authority 形态，落回相对合并）
+fn authority_root(value : String) -> String? {
+  let scheme_end = match colon_index(value) {
+    Some(at) => at
+    None => return None
+  }
+  if !(value.get_char(scheme_end + 1) is Some('/') &&
+    value.get_char(scheme_end + 2) is Some('/')) {
+    return None
+  }
+  // scheme:// 后逐字符累加至首个 "/"（authority 终点；无 → 至串尾）
+  let root = StringBuilder()
+  let mut i = 0
+  for ch in value {
+    if i > scheme_end + 2 && ch is '/' {
+      break
+    }
+    root <+ "\{ch}"
+    i += 1
+  }
+  Some(root.to_string())
+}
+
+///|
+/// RFC 3986 5.2.3 merge：value 绝对路径引用（"/" 开头）→ authority 保留、
+/// path 整体替换（#t0051 oracle：/issue/1 → https://w3c.github.io/issue/1）；
+/// value 相对 → base 截最后 "/"（含）+ value；base 无 "/" → 补根 "/"
+/// （#t0129/#t0130 oracle：/example + relative-iri → /example/relative-iri）
 fn merge_base_reference(base : String, reference : String) -> String {
   if base is "" {
     return reference
+  }
+  if reference.get_char(0) is Some('/') {
+    match authority_root(base) {
+      Some(root) => return "\{root}\{reference}"
+      None => () // 无 authority 形态 → 落相对合并
+    }
   }
   // authority 后无 "/"（base 仅到 host）→ 补根 "/"；有 → 截最后 "/"（含）
   match base.rev_find("/") {

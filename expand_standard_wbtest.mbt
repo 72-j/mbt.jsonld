@@ -428,6 +428,33 @@ test "debug resolve_base_value dotdot (throwaway)" {
 }
 
 ///|
+/// merge 绝对路径引用对拍（#t0051 oracle："/" 开头引用 → authority 保留、
+/// path 整体替换；相对引用仍截最后段——#t0129/#t0130 回归钉）
+test "merge_base_reference absolute-path reference (t0051 对拍)" {
+  assert_true(
+    merge_base_reference(
+      "https://w3c.github.io/json-ld-api/tests/expand/", "/issue/1",
+    )
+    is "https://w3c.github.io/issue/1",
+  )
+  assert_true(
+    merge_base_reference("http://example/base", "/x") is "http://example/x",
+  )
+  // 无 authority 形态（链式相对 base，契约外输入）→ 落回相对合并补根分支，
+  // 引用自带 "/" → 退化出双斜杠（仅此退化形态，正规 base 不经此路）
+  assert_true(merge_base_reference("a/b", "/c") is "a/b//c")
+  // 相对引用回归钉
+  assert_true(
+    merge_base_reference("http://example", "relative-iri")
+    is "http://example/relative-iri",
+  )
+  assert_true(
+    merge_base_reference("http://example/base", "relative-iri")
+    is "http://example/relative-iri",
+  )
+}
+
+///|
 /// t0091 链路调试（一次性）
 test "debug t0091 chain (throwaway)" {
   let e = StandardExpander::{ }

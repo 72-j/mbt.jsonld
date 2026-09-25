@@ -56,6 +56,10 @@ fn options_for(entry : @jsonld.JsonValue) -> @jsonld.JsonLdOptions {
     }
     None => ()
   }
+  // 默认 base 注入（document location 约定，#t0051 需要）**不可全局开**：
+  // vocab 位键展开（无 @vocab）规范语义 = 原样返回、不落 base merge（#t0003
+  // oracle：未映射 term 必须丢弃——全局 base 会把它解析成绝对而保留）。
+  // 挂账：expand_iri vocab 位 base 门控勘定批 + 本注入同批落
   { base, expand_context: None, processing_mode: mode, }
 }
 
@@ -94,6 +98,8 @@ async test "expand suite harness: manifest-driven buckets, all deferred pre-J2" 
      "#t0129", "#t0130",
     // #t0072（③细化）：term 重定义为自身 + @vocab → anotherVocab#term
      "#t0072",
+    //（#t0051 挂账：别名链已通，还差 harness 默认 base + vocab 位 base 门控——
+    // 见 options_for 注记；merge 绝对路径分支已落码，wbtest 对拍在案）
     // —— base 解析批（resolve_base_value：合并 + ".." 弹段 + "." 保留，oracle #t0090/#t0091）——
     // #t0076：base option 覆盖文档位置（option.base 接线）
      "#t0076",
