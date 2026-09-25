@@ -88,6 +88,29 @@ fn split_first_colon(value : String, at : Int) -> (String, String) {
 /// @base 相对值解析（套件 oracle #t0090/#t0091；算法移植子仓 gen_nquads/iri.mbt
 /// fn_remove_dot_segments）：合并 = raw 拼接 + ".." 段弹出；
 /// "." 与 "" 段保留（#t0091 期望保留 /./）；value 绝对 → 原样（不做点段归一）
+
+///|
+/// RFC 3986 5.2.3 merge：value 相对 → base 截最后 "/"（含）+ value；
+/// base 无 "/" → 补根 "/"（#t0129/#t0130 oracle：/example + relative-iri →
+/// /example/relative-iri）
+fn merge_base_reference(base : String, reference : String) -> String {
+  if base is "" {
+    return reference
+  }
+  // authority 后无 "/"（base 仅到 host）→ 补根 "/"；有 → 截最后 "/"（含）
+  match base.rev_find("/") {
+    Some(idx) =>
+      if idx > 6 {
+        let head = base[:idx + 1].to_string()
+        "\{head}\{reference}"
+      } else {
+        "\{base}/\{reference}"
+      }
+    None => "\{base}/\{reference}"
+  }
+}
+
+///|
 fn resolve_base_value(value : String, previous : String?) -> String {
   if is_valid_absolute_iri(value) {
     return value
@@ -96,7 +119,7 @@ fn resolve_base_value(value : String, previous : String?) -> String {
     Some(b) => b
     None => ""
   }
-  let merged = "\{prev}\{value}"
+  let merged = merge_base_reference(prev, value)
   let segs : Array[String] = []
   for seg in merged.split("/").to_array() {
     let seg = seg.to_owned()
