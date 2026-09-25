@@ -142,8 +142,29 @@ pub(open) trait ContextProcessor {
 pub(open) trait Expander {
   fn expand_element(Self, ActiveContext, JsonValue, String?, JsonLdOptions) -> Result[ExpandedValue, JsonLdError]
   fn expand_value(Self, ActiveContext, JsonValue, String?) -> Result[ExpandedValue, JsonLdError]
+  fn expand_array(Self, ActiveContext, Array[JsonValue], String?, JsonLdOptions) -> Result[ExpandedValue, JsonLdError]
+  fn expand_term(Self, ActiveContext, String, JsonValue, String?, JsonLdOptions) -> Result[ExpandedValue, JsonLdError]
+  fn postprocess_value(Self, ActiveContext, ExpandedValue) -> Result[ExpandedValue, JsonLdError]
+  fn set_language(Self, ActiveContext, JsonValue) -> Result[ExpandedValue, JsonLdError]
+  fn set_direction(Self, ActiveContext, JsonValue) -> Result[ExpandedValue, JsonLdError]
+  fn expand_list(Self, ActiveContext, JsonValue, String?, JsonLdOptions) -> Result[ExpandedValue, JsonLdError]
+  fn expand_set(Self, ActiveContext, JsonValue, String?, JsonLdOptions) -> Result[ExpandedValue, JsonLdError]
+  fn expand_graph(Self, ActiveContext, JsonValue, String?, JsonLdOptions) -> Result[ExpandedValue, JsonLdError]
+  fn expand_reverse(Self, ActiveContext, JsonValue, String?, JsonLdOptions) -> Result[ExpandedValue, JsonLdError]
+  fn expand_nest(Self, ActiveContext, JsonValue, String?, JsonLdOptions) -> Result[ExpandedValue, JsonLdError]
+  fn expand_included(Self, ActiveContext, JsonValue, String?, JsonLdOptions) -> Result[ExpandedValue, JsonLdError]
+  fn set_index(Self, ActiveContext, JsonValue) -> Result[ExpandedValue, JsonLdError]
 }
 
 pub(open) trait IriExpander {
   fn expand_iri(Self, ActiveContext, String, Bool, Bool) -> Result[String, JsonLdError]
+  fn handle_keyword(Self, String) -> Result[String, JsonLdError]
+  fn expand_compact(Self, ActiveContext, String, Bool, Bool) -> Result[String, JsonLdError]
+  fn concat_vocab(Self, ActiveContext, String) -> Result[String, JsonLdError]
+  fn resolve_base(Self, ActiveContext, String) -> Result[String, JsonLdError]
+  fn lookup_term(Self, ActiveContext, String) -> Result[String, JsonLdError]
+}
+
+pub(open) trait ToRdfProcessor {
+  fn node_to_quads(Self, Array[ExpandedValue], JsonLdOptions) -> Result[Array[JsonLdQuad], JsonLdError]
 }
