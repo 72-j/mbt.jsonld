@@ -35,7 +35,7 @@ pub(open) trait ContextProcessor {
   fn process_context(
     Self,
     active : ActiveContext,
-    local : JsonValue,
+    local_context : JsonValue,
     options : JsonLdOptions,
   ) -> Result[ActiveContext, JsonLdError]
 }

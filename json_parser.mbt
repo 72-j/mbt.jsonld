@@ -15,6 +15,10 @@ pub(all) enum JsonValue {
 } derive(Debug)
 
 ///|
+/// [0079] 消警：Debug 派生的 to_repr 显式升格为常规方法（2026-09-25）
+pub extend JsonValue with @moonbitlang/core/debug.Debug::{to_repr}
+
+///|
 /// JSON 解析接口：官方解析器包装
 /// 挂账注记（J0）：数词形超 double 精确域时 core 留 `repr~`，本层暂弃——
 /// toRDF 数词形按值还是按原文，J3 对套件实证（DataRoundTripping 族 + useJCS 23 例）后再定。

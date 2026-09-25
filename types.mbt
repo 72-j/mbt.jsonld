@@ -18,6 +18,30 @@ pub(all) struct JsonLdOptions {
 } derive(Debug)
 
 ///|
+/// [0079] 消警：Debug 派生的 to_repr 显式升格（2026-09-25）
+pub extend JsonLdQuad with @moonbitlang/core/debug.Debug::{to_repr}
+
+///|
+/// [0079] 消警：Debug 派生的 to_repr 显式升格（2026-09-25）
+pub extend ExpandedLiteral with @moonbitlang/core/debug.Debug::{to_repr}
+
+///|
+/// [0079] 消警：Debug 派生的 to_repr 显式升格（2026-09-25）
+pub extend ExpandedValue with @moonbitlang/core/debug.Debug::{to_repr}
+
+///|
+/// [0079] 消警：Debug 派生的 to_repr 显式升格（2026-09-25）
+pub extend ExpandedNode with @moonbitlang/core/debug.Debug::{to_repr}
+
+///|
+/// [0079] 消警：Debug 派生的 to_repr 显式升格（2026-09-25）
+pub extend ProcessingMode with @moonbitlang/core/debug.Debug::{to_repr}
+
+///|
+/// [0079] 消警：Debug 派生的 to_repr 显式升格（2026-09-25）
+pub extend JsonLdOptions with @moonbitlang/core/debug.Debug::{to_repr}
+
+///|
 /// 处理模式：json-ld-1.0 / json-ld-1.1
 pub(all) enum ProcessingMode {
   JsonLd10

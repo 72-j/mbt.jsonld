@@ -57,6 +57,14 @@
   handler_hook 只指向手写 trait 方法。
 - 判据：表里能 grep 出"递归/深度/策略"的行级编码，就是设计错误。
 
+### 表的层级归属（2026-09-25 定案）
+三表只收 **element expansion 层**的分派；context 处理层键（`@vocab` / `@base` / `@container` /
+`@prefix` / `@protected` / `@propagate` / `@import`）**不进三表**，走手写
+`ContextProcessor::process_context`（keyword_dispatch 的 `@context` 行只是 element 层入口，
+指向该手写方法）。J2 不存在「context 处理没表可依」——它本来就不该有表。
+复核条件：J1 schema 定稿时，若 context 键分派实测为「机械枚举且多处复用」，再议第四表
+（`[[context_keyword_dispatch]]`）——须同笔走绑定器词表与黄金门，禁止手改生成物。
+
 ## 5 对账
 - 骨架：从 TOML 生成的接口与调度
 - 手写：在骨架钩子里实现递归
