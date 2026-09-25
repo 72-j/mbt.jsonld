@@ -78,6 +78,19 @@ async test "expand suite harness: manifest-driven buckets, all deferred pre-J2" 
      "#ter38",
     // #ter54（负）：值对象 @type 多值 → invalid typed value
      "#ter54",
+    // —— ④批 A 组（依赖分组勘定 + 探针实测 74/101 通过；逐例端到端对拍由本 harness 执行）——
+    // A 组 = 只依赖已落语义（@context 简单声明 + term 字符串定义 + 值对象 + coercion 形态 A）
+    // 27 例挂账留 deferred：mismatch ×10 / unexpected-error ×9 / should-error ×7（详见 todo §J2 ④批）
+     "#t0003", "#t0075", "#t0092", "#tc029", "#tc030", "#tc032", "#tc033", "#tdi08",
+    "#tec02", "#tem01", "#ten01", "#ten02", "#ten03", "#ten04", "#ten05", "#tep02",
+    "#tep03", "#ter04", "#ter05", "#ter06", "#ter07", "#ter10", "#ter12", "#ter13",
+    "#ter21", "#ter22", "#ter23", "#ter24", "#ter25", "#ter27", "#ter29", "#ter30",
+    "#ter31", "#ter33", "#ter34", "#ter35", "#ter36", "#ter41", "#ter42", "#ter53",
+    "#ter55", "#ter56", "#tes01", "#tes02", "#tin07", "#tin08", "#tin09", "#tm020",
+    "#tpi05", "#tpr01", "#tpr03", "#tpr04", "#tpr05", "#tpr08", "#tpr09", "#tpr11",
+    "#tpr12", "#tpr17", "#tpr18", "#tpr20", "#tpr21", "#tpr26", "#tpr28", "#tpr31",
+    "#tpr32", "#tpr42", "#tso01", "#tso02", "#tso03", "#tso07", "#tso10", "#tso12",
+    "#tso13", "#ttn01",
   ]
   let default_options = @jsonld.JsonLdOptions::{
     base: None,
@@ -167,8 +180,8 @@ async test "expand suite harness: manifest-driven buckets, all deferred pre-J2" 
     }
   }
   // pin 闭合：桶总和 == 普查数；plain = 已迁移数
-  assert_eq(deferred.length(), 377)
-  assert_eq(plain.length(), 8)
+  assert_eq(deferred.length(), 303)
+  assert_eq(plain.length(), 82)
   // 解析覆盖闭合：每个有 input 的条目都走了解析通道
   assert_eq(parsed_ok + parse_err, 385)
   // 首例钉：#t0001 已迁 plain（manifest 顺序首条；J2 首件验收 = 此例端到端绿）
