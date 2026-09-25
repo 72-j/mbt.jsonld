@@ -92,8 +92,9 @@ fn split_first_colon(value : String, at : Int) -> (String, String) {
 
 ///|
 /// @base 相对值解析（套件 oracle #t0090/#t0091；算法移植子仓 gen_nquads/iri.mbt
-/// fn_remove_dot_segments）：合并 = raw 拼接 + ".." 段弹出；
-/// "." 与 "" 段保留（#t0091 期望保留 /./）；value 绝对 → 原样（不做点段归一）
+/// fn_remove_dot_segments）：合并 = raw 拼接，点段消除只作用于合并结果——
+/// ".." 弹前段并补根段、"." 丢弃（#t0091 oracle：base1 绝对原样、base2 合并后
+/// /./ 消除）；value 绝对 → 原样（不做点段归一）
 
 ///|
 /// authority 根截取（scheme://authority——绝对路径引用替换 path 时的保留段；

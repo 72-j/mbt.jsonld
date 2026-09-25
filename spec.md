@@ -52,6 +52,27 @@
 - order（求值顺序）, kind（keyword/absolute/bnode/compact/vocab/relative/term）,
   condition（可枚举形态判断词表）, action, handler_hook（可选）
 
+### IRI 解析实现边界（2026-09-26 定案；三者皆 RFC 3986 实现边界）
+- **merge_base_reference（5.2.3 merge，authority-only）**：相对引用 = base 截最后
+  "/"（含）+ 引用；base 仅到 authority（无路径 "/"）→ 补根 "/"（#t0129/#t0130
+  oracle）。**绝对路径引用（"/" 开头）= authority 保留、path 整体替换**
+  （#t0051 oracle：/issue/1 → https://w3c.github.io/issue/1；authority_root
+  助手截 scheme://authority，无 authority 形态落回相对合并）。
+- **resolve_base_value（5.2.4 点段消除，窄化）**：".." 弹前段并补根段、"." 丢弃，
+  **只作用于合并结果**——绝对 base 置位时原样保留（/./ 可暂存；#t0091 oracle：
+  base1 绝对原样、base2 合并后 /./ 消除）；value 绝对 → 原样返回不做归一
+  （#t0092 oracle：raw 拼接即预期，完整 5.2.4 挂后续）。
+- **is_valid_absolute_iri（scheme 文法）**：scheme 冒号须在非首位（":fish" 空方案
+  非绝对 → 走 vocab 拼接，#t0118 oracle）+ **scheme 首字符须 ALPHA**（RFC 3986
+  `scheme = ALPHA *( ALPHA / DIGIT / "+" / "-" / "." )`，JSON-LD 规范 IRI 正则
+  同款）——"_:dt" 的 scheme "_" 非法 ⇒ 非绝对（#ter40 oracle：bnode 不得作
+  datatype）。波及面：expand_iri 第 5 步绝对判定 / 值对象 @type datatype 合法性 /
+  属性门（bnode 键在此**显式放行**——规范允许 blank node predicate）。
+- **vocab 位 base 门控（勘定挂账，2026-09-26）**：vocab 位键展开在无 @vocab 时
+  规范语义 = 原样返回、**不落 base merge**（#t0003 oracle：未映射 term 必须丢弃，
+  全局 base 注入实测破之）；harness 默认 base 注入（document location 约定）
+  与此门控**同批落**（t0051 解挂前置）。
+
 ### 红线与判据（2026-09-25 定）
 - 递归策略、搜索剪枝、工程权衡一律不进表；condition 只收可枚举的形态判断；
   handler_hook 只指向手写 trait 方法。
