@@ -855,7 +855,22 @@ impl ContextProcessor for StandardExpander with fn process_context(
                   JsonLdError::InvalidContext("@base must be string or null"),
                 )
             }
-          "@version" | "@language" | "@direction" | "@propagate" | "@import" =>
+          "@version" =>
+            // 1.1 API：@version 仅接受 json-ld-1.1（本引擎默认即 1.1 语义 = no-op）；
+            // 其他值 → invalid @version value。1.0 模式切换（ActiveContext 载入
+            // processing_mode）挂后续批
+            match pair.1 {
+              JsonValue::String("json-ld-1.1") => ()
+              JsonValue::String(v) =>
+                return Err(
+                  JsonLdError::InvalidContext("invalid @version value (\{v})"),
+                )
+              _ =>
+                return Err(
+                  JsonLdError::InvalidContext("@version must be a string"),
+                )
+            }
+          "@language" | "@direction" | "@propagate" | "@import" =>
             return Err(
               JsonLdError::Unsupported(
                 "context keyword pending later batches (\{pair.0})",

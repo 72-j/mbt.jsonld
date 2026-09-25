@@ -380,3 +380,36 @@ test "debug ter48 full input (throwaway)" {
     is Err(_),
   )
 }
+
+///|
+/// ③批 @version 落码对拍：接受 json-ld-1.1 / 拒绝其他值
+test "@version declaration (③批对拍)" {
+  let e = StandardExpander::{ }
+  let active = ActiveContext::{ base: None, vocab: None, terms: Map([]), }
+  let options = JsonLdOptions::{
+    base: None,
+    expand_context: None,
+    processing_mode: JsonLd11,
+  }
+  let ctx = JsonValue::Object([("@version", JsonValue::String("json-ld-1.1"))])
+  assert_true(
+    ContextProcessor::process_context(e, active, ctx, options) is Ok(_),
+  )
+}
+
+///|
+test "invalid @version rejected (③批对拍)" {
+  let e = StandardExpander::{ }
+  let active = ActiveContext::{ base: None, vocab: None, terms: Map([]), }
+  let options = JsonLdOptions::{
+    base: None,
+    expand_context: None,
+    processing_mode: JsonLd11,
+  }
+  let ctx = JsonValue::Object([("@version", JsonValue::String("json-ld-1.2"))])
+  match ContextProcessor::process_context(e, active, ctx, options) {
+    Err(JsonLdError::InvalidContext(m)) =>
+      assert_true(m.contains("invalid @version"))
+    _ => fail("expected @version rejection")
+  }
+}
