@@ -45,19 +45,18 @@ fn json_string_get(value : @jsonld.JsonValue, key : String) -> String? {
 /// （③细化勘定：@vocab 判定模式分叉——#t0092[1.1] vs #t0115/#t0116[1.0]）
 fn options_for(entry : @jsonld.JsonValue) -> @jsonld.JsonLdOptions {
   let mut mode = @jsonld.ProcessingMode::JsonLd11
+  let mut base : String? = None
   match json_object_get(entry, "option") {
-    Some(option_value) =>
+    Some(option_value) => {
       match json_string_get(option_value, "specVersion") {
         Some("json-ld-1.0") => mode = @jsonld.ProcessingMode::JsonLd10
         _ => ()
       }
+      base = json_string_get(option_value, "base")
+    }
     None => ()
   }
-  @jsonld.JsonLdOptions::{
-    base: None,
-    expand_context: None,
-    processing_mode: mode,
-  }
+  { base, expand_context: None, processing_mode: mode, }
 }
 
 ///|
@@ -91,6 +90,15 @@ async test "expand suite harness: manifest-driven buckets, all deferred pre-J2" 
      "#t0115",
     // #t0116（负·1.0 模式）：@vocab 相对值 → invalid vocab mapping
      "#t0116",
+    // —— base 解析批（resolve_base_value：合并 + ".." 弹段 + "." 保留，oracle #t0090/#t0091）——
+    // #t0076：base option 覆盖文档位置（option.base 接线）
+     "#t0076",
+    // #t0089：空 @base = 保留 option base（相对解析合并且无 ".." 弹出）
+     "#t0089",
+    // #t0090：相对 @base ".." 弹段（/base/.. → /）
+     "#t0090",
+    // #t0091：绝对 @base 原样（/./ 保留）+ 相对叠加（raw 合并）
+     "#t0091",
     // —— ①批 coercion（形态 A：显式 @type → datatype）——
     // #t0013：已展开文档再展开——@type 节点侧数组、属性累加（多值）、number 保形、
     // 值对象 @type/@language/@value 合成
@@ -205,8 +213,8 @@ async test "expand suite harness: manifest-driven buckets, all deferred pre-J2" 
     }
   }
   // pin 闭合：桶总和 == 普查数；plain = 已迁移数
-  assert_eq(deferred.length(), 300)
-  assert_eq(plain.length(), 85)
+  assert_eq(deferred.length(), 296)
+  assert_eq(plain.length(), 89)
   // 解析覆盖闭合：每个有 input 的条目都走了解析通道
   assert_eq(parsed_ok + parse_err, 385)
   // 首例钉：#t0001 已迁 plain（manifest 顺序首条；J2 首件验收 = 此例端到端绿）

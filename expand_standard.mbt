@@ -82,6 +82,46 @@ fn split_first_colon(value : String, at : Int) -> (String, String) {
 }
 
 ///|
+/// @base 相对值解析（套件 oracle #t0090/#t0091；算法移植子仓 gen_nquads/iri.mbt
+/// fn_remove_dot_segments）：合并 = raw 拼接 + ".." 段弹出；
+/// "." 与 "" 段保留（#t0091 期望保留 /./）；value 绝对 → 原样（不做点段归一）
+fn resolve_base_value(value : String, previous : String?) -> String {
+  if is_valid_absolute_iri(value) {
+    return value
+  }
+  let prev = match previous {
+    Some(b) => b
+    None => ""
+  }
+  let merged = "\{prev}\{value}"
+  let segs : Array[String] = []
+  for seg in merged.split("/").to_array() {
+    let seg = seg.to_owned()
+    if seg is ".." {
+      // RFC 3986 5.2.4：".." 弹前段并补根段（/base/.. → /）
+      if segs.length() > 1 {
+        let _ = segs.pop()
+        segs.push("")
+      } else {
+        segs.push("")
+      }
+    } else if seg is "." {
+      // "." 段消除（RFC 3986 5.2.4；#t0091 oracle 期望 /./ 不保留）
+    } else {
+      segs.push(seg)
+    }
+  }
+  let out = StringBuilder()
+  for i, seg in segs {
+    if i > 0 {
+      out <+ "/"
+    }
+    out <+ "\{seg}"
+  }
+  out.to_string()
+}
+
+///|
 /// 字面量构造（raw = 原始标量：number/bool 保形；string 为 None）
 fn literal_of(value : String, raw : JsonValue?) -> ExpandedValue {
   ExpandedValue::Value(ExpandedLiteral::{
@@ -213,10 +253,7 @@ impl IriExpander for StandardExpander with fn resolve_base(
   active : ActiveContext,
   value : String,
 ) -> Result[String, JsonLdError] {
-  match active.base {
-    Some(base) => Ok("\{base}\{value}")
-    None => Err(JsonLdError::Unsupported("resolve_base without base pending"))
-  }
+  Ok(resolve_base_value(value, active.base))
 }
 
 ///|
@@ -848,7 +885,9 @@ impl ContextProcessor for StandardExpander with fn process_context(
             }
           "@base" =>
             match pair.1 {
-              JsonValue::String(b) => base = Some(b)
+              // 相对 @base：合并 + ".." 弹段（resolve_base_value）；绝对 → 原样
+              JsonValue::String(b) =>
+                base = Some(resolve_base_value(b, active.base))
               JsonValue::Null => base = None
               _ =>
                 return Err(

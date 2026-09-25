@@ -134,7 +134,8 @@ test "contract smoke: pending hooks refuse politely (red-not-wrong)" {
     IriExpander::concat_vocab(e, active, "t")
     is Err(InvalidValue("@vocab not declared")),
   )
-  assert_true(IriExpander::resolve_base(e, active, "t") is Err(Unsupported(_)))
+  // resolve_base 已落码（②批）：无 base = 相对值原样保留（value 位语义）——烟雾活账翻转
+  assert_true(IriExpander::resolve_base(e, active, "t") is Ok("t"))
   assert_true(IriExpander::lookup_term(e, active, "t") is Err(Unsupported(_)))
 }
 
@@ -412,4 +413,45 @@ test "invalid @version rejected (③批对拍)" {
       assert_true(m.contains("invalid @version"))
     _ => fail("expected @version rejection")
   }
+}
+
+///|
+/// resolve_base_value 调试（一次性）
+test "debug resolve_base_value dotdot (throwaway)" {
+  assert_true(
+    resolve_base_value("..", Some("http://example/base/")) is "http://example/",
+  )
+  assert_true(
+    resolve_base_value("example/", Some("http://foo.bar/./baz/"))
+    is "http://foo.bar/baz/example/",
+  )
+}
+
+///|
+/// t0091 链路调试（一次性）
+test "debug t0091 chain (throwaway)" {
+  let e = StandardExpander::{ }
+  let active = ActiveContext::{ base: None, vocab: None, terms: Map([]), }
+  let options = JsonLdOptions::{
+    base: None,
+    expand_context: None,
+    processing_mode: JsonLd11,
+  }
+  let c1 = match parse_json("{\"@base\": \"http://foo.bar/./baz/\"}") {
+    Ok(c) => c
+    Err(_) => fail("c1")
+  }
+  let a1 = match ContextProcessor::process_context(e, active, c1, options) {
+    Ok(a) => a
+    Err(_) => fail("c1 process")
+  }
+  let c2 = match parse_json("{\"@base\": \"example/\"}") {
+    Ok(c) => c
+    Err(_) => fail("c2")
+  }
+  let a2 = match ContextProcessor::process_context(e, a1, c2, options) {
+    Ok(a) => a
+    Err(_) => fail("c2 process")
+  }
+  assert_true(a2.base is Some("http://foo.bar/baz/example/"))
 }
