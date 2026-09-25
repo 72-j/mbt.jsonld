@@ -1,8 +1,14 @@
 ///|
 /// expand 官方套件前置 harness（对拍流水线 J2 前置件）。
-/// 桶纪律（AGENTS.md 套件纪律）：plain（有真判据的例）/ deferred（planned：J2 运行器
-/// 未接，全部暂落 deferred）。pin 闭合断言：桶总和 == 清单条目数 == J0 普查数 385——
-/// J2 接入运行器后逐例 deferred→plain 迁移，pin 迫使账本同笔更新。
+/// 桶纪律（AGENTS.md 套件纪律）：plain（有真判据的例）/ deferred（planned）。
+/// **deferred 语义**：暂不判定，**非"已知不通过"**——迁移必须逐例（进 plain 前先有
+/// 真判据），禁止批量搬桶掩盖真通过/真失败。
+/// **pin 常驻**：闭合断言不是一次性检查——manifest 上游更新（条目增删）即 pin 红，
+/// 逼迫账本（本表 + 基线文件）同笔更新。
+/// **#t0001 首例语义**：manifest 顺序首条（顺序标记），非"最小可验证用例"之选；
+/// J2 首件验收 = 让 #t0001 单例端到端绿（deferred → plain）。
+/// **389/385 口径**：目录内 389 个 `*-in.jsonld` 文件 / manifest 条目 385，
+/// 差 4 为 option 变体件（同输入不同选项）；harness 与基线一律按 manifest 条目计。
 /// 解析通道走本包 `parse_json`（官方包装层喂官方语料，J0 解析器口径的活体验证）。
 
 ///|
@@ -76,6 +82,6 @@ async test "expand suite harness: manifest-driven buckets, all deferred pre-J2" 
   assert_eq(plain.length(), 0)
   // 解析覆盖闭合：每个有 input 的条目都走了解析通道
   assert_eq(parsed_ok + parse_err, 385)
-  // 首例钉：#t0001 在册
+  // 首例钉：#t0001 在册（manifest 顺序首条；J2 首件验收 = 此例端到端绿）
   assert_true(deferred.contains("#t0001"))
 }
