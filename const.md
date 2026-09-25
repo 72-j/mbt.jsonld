@@ -33,8 +33,9 @@
 - 禁止把"搜索框架"的形状套到 JSON-LD 上（JSON-LD 无搜索）。
 - 禁止为性能追 100% 覆盖率而造无断言测试。
 - 禁止"顺手清"——一笔一账，独立役独立门况。
-- 禁止新增 `derive(Debug)` 不同笔补显式实现 `pub extend <Type> with @moonbitlang/core/debug.Debug::{to_repr}`
-  ——隐式提升警告（[0079]）即 CI `--deny-warn` 红（2026-09-25 立，[0079]×7 实测）。
+- 禁止新增任何派生（derive）不同笔补其显式升格实现，**写类不写个例**——当前实例：
+  `derive(Debug)` 须同笔补 `pub extend <Type> with @moonbitlang/core/debug.Debug::{to_repr}`；
+  隐式提升警告（[0079]）即 CI `--deny-warn` 红（2026-09-25 立，[0079]×7 实测）。
 
 ## 6 教训回灌红线（trig/n3 复盘回灌，2026-09-25）
 
