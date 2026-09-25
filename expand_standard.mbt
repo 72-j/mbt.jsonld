@@ -6,9 +6,9 @@
 /// （deny-warn 双档含 stub 全过）——"全绿"≠"全实现"；落码进度 = 契约烟雾的
 /// Unsupported 计数（expand_standard_wbtest.mbt，常驻活账）。
 /// 当前覆盖：#t0001（@id + free-floating drop）+ #t0045（顶层值对象丢弃）+
-/// ①批 coercion **形态 A**（显式 @type → datatype；#t0013/#t0123/#tdi09/#ter28/#ter38/#ter54）。
-/// **形态边界**：本批仅形态 A（普通 datatype IRI）；形态 B（@id coercion）与
-/// 形态 C（@json）挂 term/IRI 批后。
+/// ①批 coercion **形态 A**（显式 @type → datatype）+ ②批 term/IRI 分拣链 +
+/// ③批 @context 简单形态（term→IRI / @vocab / @base）+ #ter48（@id 位相对拒绝）。
+/// **形态边界**：本批仅形态 A；形态 B（@id coercion）/ 形态 C（@json）挂 term/IRI 批后。
 
 ///|
 pub(all) struct StandardExpander {}
@@ -64,7 +64,8 @@ fn colon_index(value : String) -> Int? {
 }
 
 ///|
-/// 冒号切分（平台中立：字符迭代拼装，避免 StringView 切片的抛错面差异）
+/// 冒号切分（平台中立：字符迭代拼装，避免 StringView 切片的抛错面差异）。
+/// 语义：at 位为冒号本身——prefix = at 之前、suffix = at 之后（冒号丢弃）
 fn split_first_colon(value : String, at : Int) -> (String, String) {
   let pre = StringBuilder()
   let suf = StringBuilder()
@@ -75,7 +76,6 @@ fn split_first_colon(value : String, at : Int) -> (String, String) {
     } else if i > at {
       suf <+ "\{ch}"
     }
-    // i == at：冒号本身丢弃（compact 语义 = prefix 定义 IRI + suffix）
     i += 1
   }
   (pre.to_string(), suf.to_string())
@@ -94,30 +94,31 @@ fn literal_of(value : String, raw : JsonValue?) -> ExpandedValue {
 }
 
 ///|
-/// IRI 展开（②批）：分拣链对齐 iri_rules 表序
-/// （keyword → term 精确 → bnode → compact → absolute → vocab[挂③] → relative）。
-/// **边界行为**（§M.4 同层）：term 未命中/前缀未声明 = 非错误落链；
-/// value 位无 vocab 无 base 无 term = 原样返回；属性位丢弃由 expand_term 决定。
-/// concat_vocab 挂③批（ActiveContext 无 @vocab 字段）。
+/// IRI 展开（②批分拣链 + ③批 vocab/vocab 位门控）：对齐 iri_rules 表序
+/// （keyword → term[仅 vocab 位] → bnode → compact → absolute → vocab relative → relative）。
+/// **#ter48 oracle**：@id 位 terms-are-not-considered（vocab=false ⇒ 不查表不拼 vocab）。
+/// **边界行为**：term 未命中/前缀未声明 = 非错误落链；value 位无 vocab 无 base = 原样。
 impl IriExpander for StandardExpander with fn expand_iri(
   _self,
   active : ActiveContext,
   value : String,
   _document_relative : Bool,
-  _vocab : Bool,
+  vocab : Bool,
 ) -> Result[String, JsonLdError] {
   // 1 keyword：@ 前缀原样（未知 @word 不校验集合，挂负例校准）
   if value.get_char(0) is Some('@') {
     return Ok(value)
   }
-  // 2 term 精确查表（命中即返回定义 IRI）
-  match active.terms.get(value) {
-    Some(td) =>
-      match td.iri {
-        Some(iri) => return Ok(iri)
-        None => ()
-      }
-    None => ()
+  // 2 term 精确查表：仅 vocab 位
+  if vocab {
+    match active.terms.get(value) {
+      Some(td) =>
+        match td.iri {
+          Some(iri) => return Ok(iri)
+          None => ()
+        }
+      None => ()
+    }
   }
   // 3 bnode：_: 前缀原样
   if is_bnode_label(value) {
@@ -142,16 +143,15 @@ impl IriExpander for StandardExpander with fn expand_iri(
   if is_valid_absolute_iri(value) {
     return Ok(value)
   }
-  // 6 vocab relative：无冒号且 @vocab 已声明 → 拼接（③批解挂）
-  // 6.5 vocab relative：无冒号且 @vocab 已声明 → 拼接（③批解挂）
-  let has_colon = colon_index(value) is Some(_)
-  if !has_colon {
+  // 6 vocab relative：无冒号 + vocab 位为真 → 拼接（③批解挂；
+  // #ter48 oracle：@id 位 vocab=false ⇒ @vocab 不参与）
+  if !(colon_index(value) is Some(_)) && vocab {
     match active.vocab {
-      Some(vocab) => return Ok("\{vocab}\{value}")
+      Some(v) => return Ok("\{v}\{value}")
       None => ()
     }
   }
-  // 7 relative：base 拼接（简单拼接；RFC3986 完整解析挂后续）；无 base → 原样（value 位）
+  // 7 relative：base 拼接（raw 拼接；RFC3986 完整解析挂后续）；无 base → 原样（value 位）
   match active.base {
     Some(base) => Ok("\{base}\{value}")
     None => Ok(value)
@@ -194,12 +194,12 @@ impl IriExpander for StandardExpander with fn expand_compact(
 }
 
 ///|
+/// vocab 相对拼接（③批解挂）：@vocab 未声明 = Err 非静默拼接；命中 = vocab + value
 impl IriExpander for StandardExpander with fn concat_vocab(
   _self,
   active : ActiveContext,
   value : String,
 ) -> Result[String, JsonLdError] {
-  // ③批解挂（边界表钉）：@vocab 未声明 = Err 非静默拼接；命中 = vocab + value
   match active.vocab {
     Some(vocab) => Ok("\{vocab}\{value}")
     None => Err(JsonLdError::InvalidValue("@vocab not declared"))
@@ -238,15 +238,17 @@ impl IriExpander for StandardExpander with fn lookup_term(
 }
 
 ///|
-/// 对象展开（①批）：@id（节点身份）/ @type（节点类型数组 + 值对象 datatype 形态 A，
+/// 对象展开（①批 coercion + ③批 @context）：
+/// @id（节点身份，绝对/bnode 校验）/ @type（节点类型数组 + 值对象 datatype 形态 A
 /// 含四族验证）/ @value / @language / @direction（值对象族第一批）/
-/// 非关键字键 → expand_term 属性位累加。@context 与其余关键字挂后续批（红而非错）。
+/// @context（③批解挂：process_context 构建/继承新 context，循环内经 current 传播）/
+/// 非关键字键 → expand_term 属性位累加（键经 IRI 链展开）。
 fn StandardExpander::expand_object(
   self : StandardExpander,
   active : ActiveContext,
   element : JsonValue,
   _active_property : String?,
-  _options : JsonLdOptions,
+  options : JsonLdOptions,
 ) -> Result[ExpandedValue?, JsonLdError] {
   let pairs = match element {
     JsonValue::Object(pairs) => pairs
@@ -282,7 +284,7 @@ fn StandardExpander::expand_object(
           pair.0,
           pair.1,
           _active_property,
-          _options,
+          options,
         ) {
         Ok(values) => values
         Err(e) => return Err(e)
@@ -292,13 +294,20 @@ fn StandardExpander::expand_object(
       }
       continue
     }
-    // 关键字分派（按键名；@vocab/@base 等 context 层七键走手写——挂 @context 批）
+    // 关键字分派（按键名；@vocab/@base 等 context 层七键走手写——@context 批）
     match pair.0 {
       "@id" =>
         match pair.1 {
           JsonValue::String(iri) =>
             match IriExpander::expand_iri(self, current, iri, true, false) {
-              Ok(iri) => node_id = Some(iri)
+              Ok(expanded) => {
+                // @id 位：节点身份必须为绝对 IRI 或 bnode（#ter48 oracle：
+                // 相对 @id 不可用 → invalid IRI mapping）
+                if !(is_bnode_label(expanded) || is_valid_absolute_iri(expanded)) {
+                  return Err(JsonLdError::InvalidIri("invalid IRI mapping"))
+                }
+                node_id = Some(expanded)
+              }
               Err(e) => return Err(e)
             }
           _ =>
@@ -361,9 +370,7 @@ fn StandardExpander::expand_object(
                 }
               }
             }
-          _ =>
-            // 非串 @type → invalid type value（#ter28：{"@type": true}）
-            return Err(JsonLdError::InvalidValue("invalid type value"))
+          _ => return Err(JsonLdError::InvalidValue("invalid type value")) // #ter28
         }
       "@value" => {
         // @value：值对象核心（string/number/bool 词形保形；null → 值对象丢弃）
@@ -452,7 +459,6 @@ fn StandardExpander::expand_object(
             }
           }
           JsonValue::Null =>
-            // @language: null → 显式清语言
             match literal {
               Some(existing) => existing.language = None
               None => ()
@@ -495,10 +501,10 @@ fn StandardExpander::expand_object(
       "@context" =>
         // ③批解挂：@context 声明 → 构建/继承新 active context（后续键即用新 context）
         match pair.1 {
-          JsonValue::Null => current = initial_context(_options)
+          JsonValue::Null => current = initial_context(options)
           _ =>
             match
-              ContextProcessor::process_context(self, current, pair.1, _options) {
+              ContextProcessor::process_context(self, current, pair.1, options) {
               Ok(next) => current = next
               Err(e) => return Err(e)
             }
@@ -814,18 +820,16 @@ impl ContextProcessor for StandardExpander with fn process_context(
           "@vocab" =>
             match pair.1 {
               JsonValue::String(v) => {
-                // 模式依赖（套件 oracle：#t0092[1.1]=按 base 解析有效 vs
-                // #t0115/#t0116[1.0]=invalid vocab mapping）：
-                // 1.1 模式 = 相对 @vocab 对 base raw 拼接（空串 → base 本身）；
-                // 1.0 模式 = 非绝对 @vocab → invalid vocab mapping
-                // 1.0 模式：@vocab 非绝对（含相对/空串）即 invalid（不做 base 补全）
+                // 套件 oracle（#t0092[1.1] vs #t0115/#t0116[1.0]）：
+                // 1.0 模式 = @vocab 非绝对（含相对/空串）即 invalid——对原始值判，
+                // base 不补救；1.1 模式 = 对 base raw 拼接（#t0092：空串 → base
+                // 本身、`../` 原样不消点段）
                 if _options.processing_mode is JsonLd10 &&
                   !is_valid_absolute_iri(v) {
                   return Err(
                     JsonLdError::InvalidContext("invalid vocab mapping"),
                   )
                 }
-                // 1.1 模式：对 base raw 拼接（#t0092：空串 → base 本身、`../` 原样）
                 let resolved = if is_valid_absolute_iri(v) {
                   v
                 } else {
@@ -857,7 +861,12 @@ impl ContextProcessor for StandardExpander with fn process_context(
                 "context keyword pending later batches (\{pair.0})",
               ),
             )
-          other =>
+          other => {
+            // term 名不得为相对 IRI 路径（#ter48 oracle："./something" →
+            // invalid IRI mapping）——"." 开头的键是相对路径形态，不能作 term
+            if other.get_char(0) is Some('.') {
+              return Err(JsonLdError::InvalidIri("invalid IRI mapping"))
+            }
             // term 定义（简单形态：term → IRI 字符串；null = 移除）
             match pair.1 {
               JsonValue::String(iri) =>
@@ -874,6 +883,7 @@ impl ContextProcessor for StandardExpander with fn process_context(
                   ),
                 )
             }
+          }
         }
       }
       Ok(ActiveContext::{ base, vocab, terms: new_terms, })

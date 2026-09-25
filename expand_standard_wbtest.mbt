@@ -177,9 +177,10 @@ test "term/IRI chain with constructed context (②批对拍)" {
   assert_true(
     IriExpander::lookup_term(e, active, "name") is Ok("http://example.com/name"),
   )
-  // 链：term 命中（优先于 compact/absolute）
+  // 链：term 命中（vocab 位；#ter48 oracle：@id 位 vocab=false 不查表——本测为
+  // 键位对拍，vocab=true）
   assert_true(
-    IriExpander::expand_iri(e, active, "name", false, false)
+    IriExpander::expand_iri(e, active, "name", false, true)
     is Ok("http://example.com/name"),
   )
   // 链：compact（prefix 已声明）
@@ -323,5 +324,59 @@ test "@vocab declaration end-to-end (③批对拍)" {
         ]
       )
     ),
+  )
+}
+
+///|
+/// ter48 调试探针（一次性）：expand_iri("term", vocab=false) 应不查表
+test "debug ter48: vocab=false excludes term lookup" {
+  let e = StandardExpander::{ }
+  let terms : Map[String, TermDefinition] = Map([])
+  terms["term"] = TermDefinition::{
+    iri: Some("http://example.com/terms-are-not-considered-in-id"),
+    datatype: None,
+    container: None,
+  }
+  let active = ActiveContext::{
+    base: None,
+    vocab: Some("http://example.org/vocab-is-not-considered-for-id"),
+    terms,
+  }
+  assert_true(
+    IriExpander::expand_iri(e, active, "term", true, false) is Ok("term"),
+  )
+}
+
+///|
+/// ter48 端到端调试（一次性）：最小输入应 Err
+test "debug ter48 e2e minimal (throwaway)" {
+  let options = JsonLdOptions::{
+    base: None,
+    expand_context: None,
+    processing_mode: JsonLd11,
+  }
+  assert_true(
+    expand_document(
+      "{\"@context\": {\"term\": \"http://example.com/terms-are-not-considered-in-id\"}, \"@id\": \"term\"}",
+      options,
+    )
+    is Err(_),
+  )
+}
+
+///|
+/// ter48 完整输入调试（一次性）：与最小输入对照
+test "debug ter48 full input (throwaway)" {
+  let options = JsonLdOptions::{
+    base: None,
+    expand_context: None,
+    processing_mode: JsonLd11,
+  }
+  assert_true(
+    expand_document(
+      "{\"@context\": {\"term\": \"http://example.com/terms-are-not-considered-in-id\", \"compact-iris\": \"http://example.com/compact-iris#\", \"property\": \"http://example.com/property\", \"@vocab\": \"http://example.org/vocab-is-not-considered-for-id\"}, \"@id\": \"term\", \"property\": [{\"@id\": \"compact-iris:are-considered\", \"property\": \"a\"}]}",
+      options,
+    )
+    is Err(_),
   )
 }

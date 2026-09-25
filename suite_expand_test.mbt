@@ -105,6 +105,9 @@ async test "expand suite harness: manifest-driven buckets, all deferred pre-J2" 
      "#ter38",
     // #ter54（负）：值对象 @type 多值 → invalid typed value
      "#ter54",
+    // #ter48（负·③二轮修正）：@id 位相对 IRI 不可用 → invalid IRI mapping
+    // （term 查表按 vocab 位门控 + @id 位绝对/bnode 校验——与②批边界表同源）
+     "#ter48",
     // —— ④批 A 组（依赖分组勘定 + 探针实测 74/101 通过；逐例端到端对拍由本 harness 执行）——
     // A 组 = 只依赖已落语义（@context 简单声明 + term 字符串定义 + 值对象 + coercion 形态 A）
     // 27 例挂账留 deferred：mismatch ×10 / unexpected-error ×9 / should-error ×7（详见 todo §J2 ④批）
@@ -202,8 +205,8 @@ async test "expand suite harness: manifest-driven buckets, all deferred pre-J2" 
     }
   }
   // pin 闭合：桶总和 == 普查数；plain = 已迁移数
-  assert_eq(deferred.length(), 301)
-  assert_eq(plain.length(), 84)
+  assert_eq(deferred.length(), 300)
+  assert_eq(plain.length(), 85)
   // 解析覆盖闭合：每个有 input 的条目都走了解析通道
   assert_eq(parsed_ok + parse_err, 385)
   // 首例钉：#t0001 已迁 plain（manifest 顺序首条；J2 首件验收 = 此例端到端绿）
