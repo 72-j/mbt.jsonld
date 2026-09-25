@@ -25,14 +25,17 @@ extend StandardExpander with Expander::{
 ///|
 /// IRI 合法性（形态 A 片）：含 scheme 冒号且无空白（"baz z" 类拒之——#t0123）
 fn is_valid_absolute_iri(value : String) -> Bool {
+  // scheme 冒号须在非首位（":fish" 空 scheme 非绝对——#t0118 oracle：走 vocab 拼接）
+  let mut i = 0
   let mut has_colon = false
   for ch in value {
-    if ch is ':' {
+    if ch is ':' && i > 0 {
       has_colon = true
     }
     if ch is (' ' | '\t' | '\n' | '\r') {
       return false
     }
+    i += 1
   }
   has_colon
 }
@@ -185,7 +188,8 @@ impl IriExpander for StandardExpander with fn expand_iri(
   }
   // 6 vocab relative：无冒号 + vocab 位为真 → 拼接（③批解挂；
   // #ter48 oracle：@id 位 vocab=false ⇒ @vocab 不参与）
-  if !(colon_index(value) is Some(_)) && vocab {
+  let meaningful_colon = colon_index(value) is Some(at) && at > 0
+  if !meaningful_colon && vocab {
     match active.vocab {
       Some(v) => return Ok("\{v}\{value}")
       None => ()

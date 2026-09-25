@@ -99,6 +99,9 @@ async test "expand suite harness: manifest-driven buckets, all deferred pre-J2" 
      "#t0090",
     // #t0091：绝对 @base 原样 + 相对叠加触发 RFC 5.2.4 点段消除（期望 baz/ 前无点段）
      "#t0091",
+    // #t0118（空 scheme 修正）：":fish" 非绝对 → vocab 拼接（"foo:bar" colon 非
+    // 首位仍为绝对原样）——is_valid_absolute_iri 首位冒号排除
+     "#t0118",
     // —— ①批 coercion（形态 A：显式 @type → datatype）——
     // #t0013：已展开文档再展开——@type 节点侧数组、属性累加（多值）、number 保形、
     // 值对象 @type/@language/@value 合成
@@ -213,8 +216,8 @@ async test "expand suite harness: manifest-driven buckets, all deferred pre-J2" 
     }
   }
   // pin 闭合：桶总和 == 普查数；plain = 已迁移数
-  assert_eq(deferred.length(), 296)
-  assert_eq(plain.length(), 89)
+  assert_eq(deferred.length(), 295)
+  assert_eq(plain.length(), 90)
   // 解析覆盖闭合：每个有 input 的条目都走了解析通道
   assert_eq(parsed_ok + parse_err, 385)
   // 首例钉：#t0001 已迁 plain（manifest 顺序首条；J2 首件验收 = 此例端到端绿）
