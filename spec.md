@@ -57,6 +57,19 @@
   handler_hook 只指向手写 trait 方法。
 - 判据：表里能 grep 出"递归/深度/策略"的行级编码，就是设计错误。
 
+### 8. specVersion 依赖（模式分叉，勘定 2026-09-25）
+- 结构事实：@vocab 相对值/空串的判定**依赖 processing_mode**——
+  json-ld-1.1 模式 = 对 base raw 拼接有效（#t0092 oracle：空串 → base 本身、
+  `../` 原样不消点段）；json-ld-1.0 模式 = invalid vocab mapping
+  （#t0115/#t0116 oracle）。
+- 勘定结论（expand 套件全量 grep）：**无同输入多版本分叉对（0 对）**；真分叉仅
+  @vocab 相对值一条语义（2 例），其余 1.0 负例（ter02/03 递归包含、ter24 list of
+  lists）在 1.1 同判错误——窄依赖，已一次性勘清。
+- 实现纪律：模式分叉必须经 `options.processing_mode` 显式条件化
+  （expand_standard.mbt process_context @vocab 臂），禁止以单一模式行为充当全模式。
+- 挂账：harness per-case options（specVersion 注入）未实现 ⇒ 1.0 负例 6 条迁移挂此；
+  RFC3986 完整 IRI 解析（点段消除等）挂后续（#t0092 oracle 证实 raw 拼接即预期）。
+
 ### 表的层级归属（2026-09-25 定案）
 三表只收 **element expansion 层**的分派；context 处理层键（`@vocab` / `@base` / `@container` /
 `@prefix` / `@protected` / `@propagate` / `@import`）**不进三表**，走手写

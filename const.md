@@ -36,6 +36,10 @@
 - 禁止多个关键字共享同一 action 名后按 action 分流——必须按键名分流
   （分流语义随键而异的，action 名只作对账身份；实证：@id/@type 共用 expand_iri
   时 @type 的数组/bool 形态会被 @id 的串语义误拦——#ter28/#t0013，2026-09-25）。
+- 禁止处理模式（specVersion/processingMode）分叉的语义不经显式条件化而实现——
+  分叉点必须按 `options.processing_mode` 分支并注记 oracle 例号
+  （实证：@vocab 相对值 1.1=有效 / 1.0=invalid vocab mapping——#t0092 vs
+  #t0115/#t0116，2026-09-25）。
 - 禁止新增任何派生（derive）不同笔补其显式升格实现，**写类不写个例**——当前实例：
   `derive(Debug)` 须同笔补 `pub extend <Type> with @moonbitlang/core/debug.Debug::{to_repr}`；
   隐式提升警告（[0079]）即 CI `--deny-warn` 红（2026-09-25 立，[0079]×7 实测）。

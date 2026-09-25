@@ -814,10 +814,26 @@ impl ContextProcessor for StandardExpander with fn process_context(
           "@vocab" =>
             match pair.1 {
               JsonValue::String(v) => {
-                // 相对 IRI 先经 base 解析（边界表钉）；无 base 视为原样
-                let resolved = match base {
-                  Some(b) => "\{b}\{v}"
-                  None => v
+                // 模式依赖（套件 oracle：#t0092[1.1]=按 base 解析有效 vs
+                // #t0115/#t0116[1.0]=invalid vocab mapping）：
+                // 1.1 模式 = 相对 @vocab 对 base raw 拼接（空串 → base 本身）；
+                // 1.0 模式 = 非绝对 @vocab → invalid vocab mapping
+                let resolved = if is_valid_absolute_iri(v) {
+                  v
+                } else {
+                  match base {
+                    Some(b) => "\{b}\{v}"
+                    None => v
+                  }
+                }
+                match _options.processing_mode {
+                  JsonLd10 =>
+                    if !is_valid_absolute_iri(resolved) {
+                      return Err(
+                        JsonLdError::InvalidContext("invalid vocab mapping"),
+                      )
+                    }
+                  JsonLd11 => ()
                 }
                 vocab = Some(resolved)
               }
