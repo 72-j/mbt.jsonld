@@ -954,11 +954,21 @@ impl ContextProcessor for StandardExpander with fn process_context(
             // （#t0072 oracle：重定义为自身时用 @vocab，非旧 term 定义）
             match pair.1 {
               JsonValue::String(iri) => {
-                let building = ActiveContext::{ base, vocab, terms: new_terms, }
-                let expanded = match
-                  IriExpander::expand_iri(_self, building, iri, false, true) {
-                  Ok(k) => k
-                  Err(e) => return Err(e)
+                // #t0072 oracle：值 = term 自身 + @vocab 已声明 → @vocab 拼接
+                // （重定义为自身时 @vocab 生效，非旧 term 定义查表）
+                let expanded = if iri == other && vocab is Some(v) {
+                  "\{v}\{other}"
+                } else {
+                  let building = ActiveContext::{
+                    base,
+                    vocab,
+                    terms: new_terms,
+                  }
+                  match
+                    IriExpander::expand_iri(_self, building, iri, false, true) {
+                    Ok(k) => k
+                    Err(e) => return Err(e)
+                  }
                 }
                 new_terms[other] = TermDefinition::{
                   iri: Some(expanded),
