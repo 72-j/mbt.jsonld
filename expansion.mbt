@@ -29,7 +29,8 @@ pub(open) trait Expander {
     options : JsonLdOptions,
   ) -> Result[ExpandedValue, JsonLdError]
 
-  /// 非关键字键（term）展开：datatype coercion / 节点引用判定在此
+  /// 非关键字键（term）展开：属性位语义——返回该属性的值数组（滤 dropped；
+  /// 空数组 = 属性丢弃）。datatype coercion / 节点引用判定在此
   fn expand_term(
     Self,
     active : ActiveContext,
@@ -37,7 +38,7 @@ pub(open) trait Expander {
     value : JsonValue,
     active_property : String?,
     options : JsonLdOptions,
-  ) -> Result[ExpandedValue, JsonLdError]
+  ) -> Result[Array[ExpandedValue], JsonLdError]
 
   /// value object 归一：@value 形态、@type/@language/@direction 归位
   fn postprocess_value(Self, active : ActiveContext, value : ExpandedValue) -> Result[

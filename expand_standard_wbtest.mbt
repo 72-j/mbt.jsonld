@@ -1,0 +1,327 @@
+///|
+/// #t0001 方法级对拍：expand_iri 绝对 IRI 原样返回（@id 键的身份展开）
+
+///|
+test "expand_iri absolute passthrough (#t0001 对拍)" {
+  let e = StandardExpander::{ }
+  let active = ActiveContext::{ base: None, vocab: None, terms: Map([]), }
+  assert_true(
+    IriExpander::expand_iri(
+      e, active, "http://example.org/test#example", true, false,
+    )
+    is Ok("http://example.org/test#example"),
+  )
+}
+
+///|
+/// #t0001 方法级对拍：bnode 原样返回
+test "expand_iri bnode passthrough (#t0001 对拍)" {
+  let e = StandardExpander::{ }
+  let active = ActiveContext::{ base: None, vocab: None, terms: Map([]), }
+  assert_true(
+    IriExpander::expand_iri(e, active, "_:b0", true, false) is Ok("_:b0"),
+  )
+}
+
+///|
+/// #t0001 端到端：仅 @id 的顶层节点 → free-floating → []
+test "t0001 end-to-end: drop free-floating node (#t0001 对拍)" {
+  let options = JsonLdOptions::{
+    base: None,
+    expand_context: None,
+    processing_mode: JsonLd11,
+  }
+  assert_true(
+    expand_document("{\"@id\": \"http://example.org/test#example\"}", options)
+    is Ok(Array([])),
+  )
+}
+
+///|
+/// 空对象端到端：无 @id 无属性 → free-floating → []
+test "empty object end-to-end: free-floating (#t0001 同族判定)" {
+  let options = JsonLdOptions::{
+    base: None,
+    expand_context: None,
+    processing_mode: JsonLd11,
+  }
+  assert_true(expand_document("{}", options) is Ok(Array([])))
+}
+
+///|
+/// 契约烟雾：未落码钩子逐一调用，断言礼貌拒绝（Unsupported）——
+/// "红而非错"纪律的可执行钉子；同时使 extend 清单与 with-fn 实现非死码。
+/// **常驻活账**：Unsupported 断言数 = 未落码钩子数（当前 12；②批
+/// expand_compact/lookup_term/resolve_base 转真行为，③批 concat_vocab 解挂）——
+/// 每落一个方法，将其断言改为真行为断言；减到 0 = J2 expansion 完成。
+/// 禁止一次性化（否则掩盖"静默实现成 Ok"）。
+test "contract smoke: pending hooks refuse politely (red-not-wrong)" {
+  let e = StandardExpander::{ }
+  let active = ActiveContext::{ base: None, vocab: None, terms: Map([]), }
+  let options = JsonLdOptions::{
+    base: None,
+    expand_context: None,
+    processing_mode: JsonLd11,
+  }
+  // expand_term 已落码（①批）：属性位 null → 丢弃（空数组）——烟雾活账翻转示例
+  assert_true(
+    Expander::expand_term(e, active, "t", JsonValue::Null, None, options)
+    is Ok([]),
+  )
+  // postprocess_value（#t0045 批升级）：恒等对非值；值对象空语言清除
+  assert_true(Expander::postprocess_value(e, active, List([])) is Ok(List([])))
+  // （模式位不收 struct 更新字面量 ⇒ 先取值再逐字段断言）
+  match
+    Expander::postprocess_value(
+      e,
+      active,
+      ExpandedValue::Value(ExpandedLiteral::{
+        value: "x",
+        datatype: None,
+        language: Some(""),
+        direction: None,
+        raw: None,
+      }),
+    ) {
+    Ok(ExpandedValue::Value(lit)) => {
+      assert_eq(lit.value, "x")
+      assert_eq(lit.language, None)
+      assert_eq(lit.direction, None)
+    }
+    _ => fail("postprocess: expected normalized literal")
+  }
+  assert_true(
+    Expander::set_language(e, active, JsonValue::Null) is Err(Unsupported(_)),
+  )
+  assert_true(
+    Expander::set_direction(e, active, JsonValue::Null) is Err(Unsupported(_)),
+  )
+  assert_true(
+    Expander::expand_list(e, active, JsonValue::Null, None, options)
+    is Err(Unsupported(_)),
+  )
+  assert_true(
+    Expander::expand_set(e, active, JsonValue::Null, None, options)
+    is Err(Unsupported(_)),
+  )
+  assert_true(
+    Expander::expand_graph(e, active, JsonValue::Null, None, options)
+    is Err(Unsupported(_)),
+  )
+  assert_true(
+    Expander::expand_reverse(e, active, JsonValue::Null, None, options)
+    is Err(Unsupported(_)),
+  )
+  assert_true(
+    Expander::expand_nest(e, active, JsonValue::Null, None, options)
+    is Err(Unsupported(_)),
+  )
+  assert_true(
+    Expander::expand_included(e, active, JsonValue::Null, None, options)
+    is Err(Unsupported(_)),
+  )
+  assert_true(
+    Expander::set_index(e, active, JsonValue::Null) is Err(Unsupported(_)),
+  )
+  assert_true(IriExpander::handle_keyword(e, "@id") is Ok("@id"))
+  // expand_compact 已落码（②批）：未声明前缀 = 非错误拒绝（落链由 expand_iri）——烟雾活账翻转
+  assert_true(
+    IriExpander::expand_compact(e, active, "ex:t", true, false)
+    is Err(InvalidValue("compact prefix not declared")),
+  )
+  // concat_vocab 已落码（③批）：@vocab 未声明 = Err 非静默拼接——烟雾活账翻转
+  assert_true(
+    IriExpander::concat_vocab(e, active, "t")
+    is Err(InvalidValue("@vocab not declared")),
+  )
+  assert_true(IriExpander::resolve_base(e, active, "t") is Err(Unsupported(_)))
+  assert_true(IriExpander::lookup_term(e, active, "t") is Err(Unsupported(_)))
+}
+
+///|
+/// #t0045 方法级对拍：@value 词形保留 + @language 键序无关合并 + 顶层值对象丢弃
+test "value object family batch 1 (#t0045 对拍)" {
+  let options = JsonLdOptions::{
+    base: None,
+    expand_context: None,
+    processing_mode: JsonLd11,
+  }
+  assert_true(
+    expand_document("{\"@value\": \"free-floating value\"}", options)
+    is Ok(Array([])),
+  )
+  assert_true(
+    expand_document("{\"@language\": \"en\", \"@value\": \"hi\"}", options)
+    is Ok(Array([])),
+  )
+}
+
+///|
+/// ②批对拍：构造 context（terms 手工填充，不处理 @context 声明）下的
+/// IRI 分拣链——term 精确 / compact / absolute / bnode / value 位原样
+test "term/IRI chain with constructed context (②批对拍)" {
+  let e = StandardExpander::{ }
+  let terms : Map[String, TermDefinition] = Map([])
+  terms["ex"] = TermDefinition::{
+    iri: Some("http://example.com/"),
+    datatype: None,
+    container: None,
+  }
+  terms["name"] = TermDefinition::{
+    iri: Some("http://example.com/name"),
+    datatype: None,
+    container: None,
+  }
+  let active = ActiveContext::{ base: None, vocab: None, terms, }
+  // term 精确查表（lookup_term 真行为）
+  assert_true(
+    IriExpander::lookup_term(e, active, "name") is Ok("http://example.com/name"),
+  )
+  // 链：term 命中（优先于 compact/absolute）
+  assert_true(
+    IriExpander::expand_iri(e, active, "name", false, false)
+    is Ok("http://example.com/name"),
+  )
+  // 链：compact（prefix 已声明）
+  assert_true(
+    IriExpander::expand_iri(e, active, "ex:name", false, false)
+    is Ok("http://example.com/name"),
+  )
+  assert_true(
+    IriExpander::expand_compact(e, active, "ex:name", false, true)
+    is Ok("http://example.com/name"),
+  )
+  // 链：未声明前缀 + 合法 scheme → absolute 原样（非 compact 非错误）
+  assert_true(
+    IriExpander::expand_iri(e, active, "other:x", false, false) is Ok("other:x"),
+  )
+  // 链：bnode 原样
+  assert_true(
+    IriExpander::expand_iri(e, active, "_:b0", false, false) is Ok("_:b0"),
+  )
+  // 链：无 vocab 无 base 无 term → 原样（value 位行为）
+  assert_true(
+    IriExpander::expand_iri(e, active, "plain", false, false) is Ok("plain"),
+  )
+}
+
+///|
+/// ②批对拍：base 相对解析（resolve_base 真行为 + 链行为）
+test "base-relative resolution (②批对拍)" {
+  let e = StandardExpander::{ }
+  let terms : Map[String, TermDefinition] = Map([])
+  let based = ActiveContext::{
+    base: Some("http://example.org/"),
+    vocab: None,
+    terms,
+  }
+  assert_true(
+    IriExpander::resolve_base(e, based, "zzz") is Ok("http://example.org/zzz"),
+  )
+  assert_true(
+    IriExpander::expand_iri(e, based, "zzz", false, false)
+    is Ok("http://example.org/zzz"),
+  )
+}
+
+///|
+/// ②批对拍：属性键路由经链（term 键 → 定义 IRI）
+test "property key routing via chain (②批)" {
+  let e = StandardExpander::{ }
+  let terms : Map[String, TermDefinition] = Map([])
+  terms["name"] = TermDefinition::{
+    iri: Some("http://example.com/name"),
+    datatype: None,
+    container: None,
+  }
+  let active = ActiveContext::{ base: None, vocab: None, terms, }
+  let options = JsonLdOptions::{
+    base: None,
+    expand_context: None,
+    processing_mode: JsonLd11,
+  }
+  let doc = match parse_json("{\"name\": \"hi\"}") {
+    Ok(doc) => doc
+    Err(_) => fail("parse failed")
+  }
+  match StandardExpander::expand_object(e, active, doc, None, options) {
+    Ok(Some(ExpandedValue::Node(node))) => {
+      assert_eq(node.properties.length(), 1)
+      assert_eq(node.properties[0].0, "http://example.com/name")
+      assert_eq(node.properties[0].1.length(), 1)
+    }
+    _ => fail("expected node with routed property")
+  }
+}
+
+///|
+/// concat_vocab 挂③断言（②批边界钉：ActiveContext 无 @vocab 字段）
+test "concat_vocab stays unsupported until @context batch" {
+  let e = StandardExpander::{ }
+  let active = ActiveContext::{ base: None, vocab: None, terms: Map([]), }
+  // concat_vocab 已落码（③批）：@vocab 未声明 = Err 非静默拼接——烟雾活账翻转
+  assert_true(
+    IriExpander::concat_vocab(e, active, "t")
+    is Err(InvalidValue("@vocab not declared")),
+  )
+}
+
+///|
+/// ③批对拍：内嵌 @context（simple term 声明）端到端
+test "@context simple term declaration end-to-end (③批对拍)" {
+  let options = JsonLdOptions::{
+    base: None,
+    expand_context: None,
+    processing_mode: JsonLd11,
+  }
+  assert_true(
+    expand_document(
+      "{\"@context\": {\"name\": \"http://example.com/name\"}, \"name\": \"hi\"}",
+      options,
+    )
+    is Ok(
+      Array(
+        [
+          Object(
+            [
+              (
+                "http://example.com/name",
+                Array([Object([("@value", String("hi"))])]),
+              ),
+            ]
+          ),
+        ]
+      )
+    ),
+  )
+}
+
+///|
+/// ③批对拍：@vocab 声明端到端（无冒号键 → vocab 拼接）
+test "@vocab declaration end-to-end (③批对拍)" {
+  let options = JsonLdOptions::{
+    base: None,
+    expand_context: None,
+    processing_mode: JsonLd11,
+  }
+  assert_true(
+    expand_document(
+      "{\"@context\": {\"@vocab\": \"http://example.com/\"}, \"name\": \"hi\"}",
+      options,
+    )
+    is Ok(
+      Array(
+        [
+          Object(
+            [
+              (
+                "http://example.com/name",
+                Array([Object([("@value", String("hi"))])]),
+              ),
+            ]
+          ),
+        ]
+      )
+    ),
+  )
+}

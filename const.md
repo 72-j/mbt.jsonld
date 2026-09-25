@@ -33,6 +33,9 @@
 - 禁止把"搜索框架"的形状套到 JSON-LD 上（JSON-LD 无搜索）。
 - 禁止为性能追 100% 覆盖率而造无断言测试。
 - 禁止"顺手清"——一笔一账，独立役独立门况。
+- 禁止多个关键字共享同一 action 名后按 action 分流——必须按键名分流
+  （分流语义随键而异的，action 名只作对账身份；实证：@id/@type 共用 expand_iri
+  时 @type 的数组/bool 形态会被 @id 的串语义误拦——#ter28/#t0013，2026-09-25）。
 - 禁止新增任何派生（derive）不同笔补其显式升格实现，**写类不写个例**——当前实例：
   `derive(Debug)` 须同笔补 `pub extend <Type> with @moonbitlang/core/debug.Debug::{to_repr}`；
   隐式提升警告（[0079]）即 CI `--deny-warn` 红（2026-09-25 立，[0079]×7 实测）。

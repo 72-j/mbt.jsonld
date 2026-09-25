@@ -12,11 +12,15 @@ pub(all) enum JsonValue {
   Array(Array[JsonValue])
   /// 对象：有序对数组而非 Map——模型面保「键 → 值」成对形状（core 侧折叠语义见上）
   Object(Array[(String, JsonValue)])
-} derive(Debug)
+} derive(Eq, Debug)
 
 ///|
 /// [0079] 消警：Debug 派生的 to_repr 显式升格为常规方法（2026-09-25）
 pub extend JsonValue with @moonbitlang/core/debug.Debug::{to_repr}
+
+///|
+/// [0079] 消警：Eq 派生的 equal/not_equal 显式升格（2026-09-25，对拍结构相等用）
+pub extend JsonValue with Eq::{equal, not_equal}
 
 ///|
 /// JSON 解析接口：官方解析器包装

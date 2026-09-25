@@ -67,11 +67,14 @@ pub(all) enum ExpandedValue {
 
 ///|
 /// 展开后的字面量
+/// datatype = @type（IRI）；数值/布尔字面量以词形入 value（xsd 词形挂 toRDF 役）
 pub(all) struct ExpandedLiteral {
-  value : String
-  datatype : String?
-  language : String?
-  direction : String?
+  mut value : String
+  mut datatype : String?
+  mut language : String?
+  mut direction : String?
+  /// 原始标量（number/bool 保形用；string 为 None——序列化时按词形输出）
+  mut raw : JsonValue?
 } derive(Debug)
 
 ///|

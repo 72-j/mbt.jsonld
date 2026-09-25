@@ -3,8 +3,9 @@
 /// 作用域是树递归的关键——子节点继承父节点 context
 pub(all) struct ActiveContext {
   base : String?
+  vocab : String? // @vocab 声明（③批；相对 IRI 已按 base 解析为绝对）
   terms : Map[String, TermDefinition]
-  // 骨架阶段只列必要字段；@vocab/@language/@direction 待 J2 扩
+  // @language/@direction 默认值待后续批扩
 }
 
 ///|

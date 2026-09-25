@@ -6,6 +6,10 @@ import {
 }
 
 // Values
+pub fn expand_document(String, JsonLdOptions) -> Result[JsonValue, JsonLdError]
+
+pub fn json_canonical(JsonValue) -> JsonValue
+
 pub fn jsonld_iri_routes() -> Array[JsonLdIriRoute]
 
 pub fn jsonld_keyword_route(String) -> JsonLdKeywordRoute?
@@ -19,6 +23,7 @@ pub fn parse_json(String) -> Result[JsonValue, JsonLdError]
 // Types and methods
 pub(all) struct ActiveContext {
   base : String?
+  vocab : String?
   terms : Map[String, TermDefinition]
 }
 
@@ -33,10 +38,11 @@ pub(all) enum ContainerType {
 }
 
 pub(all) struct ExpandedLiteral {
-  value : String
-  datatype : String?
-  language : String?
-  direction : String?
+  mut value : String
+  mut datatype : String?
+  mut language : String?
+  mut direction : String?
+  mut raw : JsonValue?
 } derive(@debug.Debug)
 pub fn ExpandedLiteral::to_repr(Self) -> @debug.Repr
 
@@ -117,7 +123,9 @@ pub(all) enum JsonValue {
   String(String)
   Array(Array[JsonValue])
   Object(Array[(String, JsonValue)])
-} derive(@debug.Debug)
+} derive(Eq, @debug.Debug)
+pub fn JsonValue::equal(Self, Self) -> Bool
+pub fn JsonValue::not_equal(Self, Self) -> Bool
 pub fn JsonValue::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ProcessingMode {
@@ -125,6 +133,9 @@ pub(all) enum ProcessingMode {
   JsonLd11
 } derive(@debug.Debug)
 pub fn ProcessingMode::to_repr(Self) -> @debug.Repr
+
+pub(all) struct StandardExpander {
+}
 
 pub(all) struct TermDefinition {
   iri : String?
@@ -143,7 +154,7 @@ pub(open) trait Expander {
   fn expand_element(Self, ActiveContext, JsonValue, String?, JsonLdOptions) -> Result[ExpandedValue, JsonLdError]
   fn expand_value(Self, ActiveContext, JsonValue, String?) -> Result[ExpandedValue, JsonLdError]
   fn expand_array(Self, ActiveContext, Array[JsonValue], String?, JsonLdOptions) -> Result[ExpandedValue, JsonLdError]
-  fn expand_term(Self, ActiveContext, String, JsonValue, String?, JsonLdOptions) -> Result[ExpandedValue, JsonLdError]
+  fn expand_term(Self, ActiveContext, String, JsonValue, String?, JsonLdOptions) -> Result[Array[ExpandedValue], JsonLdError]
   fn postprocess_value(Self, ActiveContext, ExpandedValue) -> Result[ExpandedValue, JsonLdError]
   fn set_language(Self, ActiveContext, JsonValue) -> Result[ExpandedValue, JsonLdError]
   fn set_direction(Self, ActiveContext, JsonValue) -> Result[ExpandedValue, JsonLdError]

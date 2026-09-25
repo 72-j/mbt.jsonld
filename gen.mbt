@@ -387,10 +387,10 @@ pub fn jsonld_iri_routes() -> Array[JsonLdIriRoute] {
     },
     JsonLdIriRoute::{
       order: 2,
-      kind: "absolute",
-      condition: "has_valid_scheme",
-      action: "return_as_is",
-      handler: None,
+      kind: "term",
+      condition: "term_defined",
+      action: "lookup_term",
+      handler: Some("IriExpander::lookup_term"),
     },
     JsonLdIriRoute::{
       order: 3,
@@ -408,24 +408,24 @@ pub fn jsonld_iri_routes() -> Array[JsonLdIriRoute] {
     },
     JsonLdIriRoute::{
       order: 5,
+      kind: "absolute",
+      condition: "has_valid_scheme",
+      action: "return_as_is",
+      handler: None,
+    },
+    JsonLdIriRoute::{
+      order: 6,
       kind: "vocab",
       condition: "vocab_base_set",
       action: "concat_vocab",
       handler: Some("IriExpander::concat_vocab"),
     },
     JsonLdIriRoute::{
-      order: 6,
+      order: 7,
       kind: "relative",
       condition: "base_set",
       action: "resolve_base",
       handler: Some("IriExpander::resolve_base"),
-    },
-    JsonLdIriRoute::{
-      order: 7,
-      kind: "term",
-      condition: "term_defined",
-      action: "lookup_term",
-      handler: Some("IriExpander::lookup_term"),
     },
   ]
 }

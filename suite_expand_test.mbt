@@ -53,7 +53,38 @@ async test "expand suite harness: manifest-driven buckets, all deferred pre-J2" 
   }
   // J0 普查钉：清单条目数 == 385
   assert_eq(sequence.length(), 385)
-  // 两桶：v1 全 deferred（expansion 运行器 J2 接入）；plain 逐例迁移
+  // 已迁移 plain 的条目（逐例；每例附"为什么能迁"——覆盖/未覆盖关键字）
+  let migrated : Array[String] = [
+    // #t0001：覆盖 @id + free-floating drop + 顶层形态（[]）；未覆盖 @context /
+    // term 展开 / @value 值对象 / 数组滤 null——仍在 deferred
+    "#t0001",
+    // #t0045（值对象族第一批 · @value+@language 批）：覆盖顶层值对象丢弃
+    // （{"@value":…} → []）+ @value 词形保留（string/number/bool）+ @language 键序无关
+    // 合并 + postprocess 归一（空语言清除）；未覆盖 @context（默认语言/别名）、
+    // coercion（@type datatype 派生挂①批——显式 @type；B/C 挂 term/IRI 批后）、
+    // 嵌套位置值对象（挂 @context 批后）
+     "#t0045",
+    // —— ①批 coercion（形态 A：显式 @type → datatype）——
+    // #t0013：已展开文档再展开——@type 节点侧数组、属性累加（多值）、number 保形、
+    // 值对象 @type/@language/@value 合成
+     "#t0013",
+    // #t0123（负）：datatype 含空白 IRI → invalid typed value
+     "#t0123",
+    // #tdi09（负）：@direction 与 @type 互斥 → invalid value object
+     "#tdi09",
+    // #ter28（负）：@type 非串（bool）→ invalid type value
+     "#ter28",
+    // #ter38（负）：@value + @language + @type 同现 → invalid value object
+     "#ter38",
+    // #ter54（负）：值对象 @type 多值 → invalid typed value
+     "#ter54",
+  ]
+  let default_options = @jsonld.JsonLdOptions::{
+    base: None,
+    expand_context: None,
+    processing_mode: @jsonld.ProcessingMode::JsonLd11,
+  }
+  // 两桶：迁移例走端到端对拍（输入 → expansion → 对 expected）；其余 deferred
   let deferred : Array[String] = []
   let plain : Array[String] = []
   let mut parsed_ok = 0
@@ -63,6 +94,7 @@ async test "expand suite harness: manifest-driven buckets, all deferred pre-J2" 
       Some(id) => id
       None => continue
     }
+    // 解析覆盖通道：全部有 input 的条目都过 parse_json（J0 解析器口径持续验证）
     match json_string_get(entry, "input") {
       Some(input_path) => {
         let text = @utf8.decode(
@@ -75,13 +107,70 @@ async test "expand suite harness: manifest-driven buckets, all deferred pre-J2" 
       }
       None => ()
     }
-    deferred.push(id)
+    // 负性判定：manifest @type 含 jld:NegativeEvaluationTest
+    let is_negative = match json_object_get(entry, "@type") {
+      Some(@jsonld.JsonValue::Array(kinds)) => {
+        let mut neg = false
+        for kind in kinds {
+          match kind {
+            @jsonld.JsonValue::String(k) =>
+              if k == "jld:NegativeEvaluationTest" {
+                neg = true
+              }
+            _ => ()
+          }
+        }
+        neg
+      }
+      _ => false
+    }
+    if migrated.contains(id) {
+      // plain：端到端真判据——正例对拍 expected（键序归一）；负例必须报错
+      // （任意 Err 即负例通过；错误码细分挂账）
+      let input_path = match json_string_get(entry, "input") {
+        Some(path) => path
+        None => fail("\{id}: migrated but no input")
+      }
+      let input_text = @utf8.decode(
+        @fs.read_file("./src/jsonld/.rdf-tests/json-ld-api/" + input_path).binary(),
+      )
+      if is_negative {
+        match @jsonld.expand_document(input_text, default_options) {
+          Err(_) => ()
+          Ok(_) => fail("\{id}: negative case unexpectedly expanded")
+        }
+      } else {
+        let expect_path = match json_string_get(entry, "expect") {
+          Some(path) => path
+          None => fail("\{id}: migrated positive but no expect")
+        }
+        let actual = match
+          @jsonld.expand_document(input_text, default_options) {
+          Ok(value) => value
+          Err(_) => fail("\{id}: expansion error (hook 未落码?)")
+        }
+        let expected_text = @utf8.decode(
+          @fs.read_file("./src/jsonld/.rdf-tests/json-ld-api/" + expect_path).binary(),
+        )
+        let expected = match @jsonld.parse_json(expected_text) {
+          Ok(value) => value
+          Err(_) => fail("\{id}: expected output unparseable")
+        }
+        assert_eq(
+          @jsonld.json_canonical(actual),
+          @jsonld.json_canonical(expected),
+        )
+      }
+      plain.push(id)
+    } else {
+      deferred.push(id)
+    }
   }
-  // pin 闭合：桶总和 == 普查数；plain v1 为空
-  assert_eq(deferred.length(), 385)
-  assert_eq(plain.length(), 0)
+  // pin 闭合：桶总和 == 普查数；plain = 已迁移数
+  assert_eq(deferred.length(), 377)
+  assert_eq(plain.length(), 8)
   // 解析覆盖闭合：每个有 input 的条目都走了解析通道
   assert_eq(parsed_ok + parse_err, 385)
-  // 首例钉：#t0001 在册（manifest 顺序首条；J2 首件验收 = 此例端到端绿）
-  assert_true(deferred.contains("#t0001"))
+  // 首例钉：#t0001 已迁 plain（manifest 顺序首条；J2 首件验收 = 此例端到端绿）
+  assert_true(plain.contains("#t0001"))
 }

@@ -209,11 +209,11 @@ action       = "return_keyword"
 handler_hook = "IriExpander::handle_keyword"
 
 [[iri_rules]]
-order     = 2
-kind      = "absolute"
-condition = "has_valid_scheme"
-action    = "return_as_is"
-# 绝对 IRI 原样返回（骨架缺省实现）
+order        = 2
+kind         = "term"
+condition    = "term_defined"
+action       = "lookup_term"
+handler_hook = "IriExpander::lookup_term"
 
 [[iri_rules]]
 order     = 3
@@ -230,22 +230,22 @@ action       = "expand_compact"
 handler_hook = "IriExpander::expand_compact"
 
 [[iri_rules]]
-order        = 5
+order     = 5
+kind      = "absolute"
+condition = "has_valid_scheme"
+action    = "return_as_is"
+# 绝对 IRI 原样返回（骨架缺省实现）
+
+[[iri_rules]]
+order        = 6
 kind         = "vocab"
 condition    = "vocab_base_set"
 action       = "concat_vocab"
 handler_hook = "IriExpander::concat_vocab"
 
 [[iri_rules]]
-order        = 6
+order        = 7
 kind         = "relative"
 condition    = "base_set"
 action       = "resolve_base"
 handler_hook = "IriExpander::resolve_base"
-
-[[iri_rules]]
-order        = 7
-kind         = "term"
-condition    = "term_defined"
-action       = "lookup_term"
-handler_hook = "IriExpander::lookup_term"

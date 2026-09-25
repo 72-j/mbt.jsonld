@@ -310,7 +310,11 @@ async test "interface gate: every table handler resolves to a declared trait met
 /// mock 可用性烟雾：四 trait 各调一法，命中 Unsupported 即通过（impl 非死码）
 async test "interface gate smoke: mock surface is callable" {
   let mock = MockHooks::{ }
-  let active = @jsonld.ActiveContext::{ base: None, terms: Map([]), }
+  let active = @jsonld.ActiveContext::{
+    base: None,
+    vocab: None,
+    terms: Map([]),
+  }
   let options = @jsonld.JsonLdOptions::{
     base: None,
     expand_context: None,
