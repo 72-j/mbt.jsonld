@@ -67,6 +67,9 @@
   lists）在 1.1 同判错误——窄依赖，已一次性勘清。
 - 实现纪律：模式分叉必须经 `options.processing_mode` 显式条件化
   （expand_standard.mbt process_context @vocab 臂），禁止以单一模式行为充当全模式。
+- **第一实证（1.0 校验时序，2026-09-25）**：@vocab 非绝对的 invalid 判定必须在
+  base 解析**前**对原始值做——1.0 语义不做 base 补全，先解析后校验会把空串补成
+  绝对而漏拦（实测：#t0115 首轮误过）。后续模式分叉差异均记入本节。
 - 挂账：harness per-case options（specVersion 注入）未实现 ⇒ 1.0 负例 6 条迁移挂此；
   RFC3986 完整 IRI 解析（点段消除等）挂后续（#t0092 oracle 证实 raw 拼接即预期）。
 

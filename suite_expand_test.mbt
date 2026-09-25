@@ -39,6 +39,28 @@ fn json_string_get(value : @jsonld.JsonValue, key : String) -> String? {
 }
 
 ///|
+
+///|
+/// per-case options：manifest option.specVersion → processing_mode
+/// （③细化勘定：@vocab 判定模式分叉——#t0092[1.1] vs #t0115/#t0116[1.0]）
+fn options_for(entry : @jsonld.JsonValue) -> @jsonld.JsonLdOptions {
+  let mut mode = @jsonld.ProcessingMode::JsonLd11
+  match json_object_get(entry, "option") {
+    Some(option_value) =>
+      match json_string_get(option_value, "specVersion") {
+        Some("json-ld-1.0") => mode = @jsonld.ProcessingMode::JsonLd10
+        _ => ()
+      }
+    None => ()
+  }
+  @jsonld.JsonLdOptions::{
+    base: None,
+    expand_context: None,
+    processing_mode: mode,
+  }
+}
+
+///|
 async test "expand suite harness: manifest-driven buckets, all deferred pre-J2" {
   let manifest_text = @utf8.decode(
     @fs.read_file("./src/jsonld/.rdf-tests/json-ld-api/expand-manifest.jsonld").binary(),
@@ -64,6 +86,11 @@ async test "expand suite harness: manifest-driven buckets, all deferred pre-J2" 
     // coercion（@type datatype 派生挂①批——显式 @type；B/C 挂 term/IRI 批后）、
     // 嵌套位置值对象（挂 @context 批后）
      "#t0045",
+    // —— harness per-case options 批（specVersion 注入解锁 1.0 负例）——
+    // #t0115（负·1.0 模式）：@vocab 空串 → invalid vocab mapping（vocab 1.0 校验③细化已落）
+     "#t0115",
+    // #t0116（负·1.0 模式）：@vocab 相对值 → invalid vocab mapping
+     "#t0116",
     // —— ①批 coercion（形态 A：显式 @type → datatype）——
     // #t0013：已展开文档再展开——@type 节点侧数组、属性累加（多值）、number 保形、
     // 值对象 @type/@language/@value 合成
@@ -92,11 +119,6 @@ async test "expand suite harness: manifest-driven buckets, all deferred pre-J2" 
     "#tpr32", "#tpr42", "#tso01", "#tso02", "#tso03", "#tso07", "#tso10", "#tso12",
     "#tso13", "#ttn01",
   ]
-  let default_options = @jsonld.JsonLdOptions::{
-    base: None,
-    expand_context: None,
-    processing_mode: @jsonld.ProcessingMode::JsonLd11,
-  }
   // 两桶：迁移例走端到端对拍（输入 → expansion → 对 expected）；其余 deferred
   let deferred : Array[String] = []
   let plain : Array[String] = []
@@ -148,7 +170,7 @@ async test "expand suite harness: manifest-driven buckets, all deferred pre-J2" 
         @fs.read_file("./src/jsonld/.rdf-tests/json-ld-api/" + input_path).binary(),
       )
       if is_negative {
-        match @jsonld.expand_document(input_text, default_options) {
+        match @jsonld.expand_document(input_text, options_for(entry)) {
           Err(_) => ()
           Ok(_) => fail("\{id}: negative case unexpectedly expanded")
         }
@@ -158,7 +180,7 @@ async test "expand suite harness: manifest-driven buckets, all deferred pre-J2" 
           None => fail("\{id}: migrated positive but no expect")
         }
         let actual = match
-          @jsonld.expand_document(input_text, default_options) {
+          @jsonld.expand_document(input_text, options_for(entry)) {
           Ok(value) => value
           Err(_) => fail("\{id}: expansion error (hook 未落码?)")
         }
@@ -180,8 +202,8 @@ async test "expand suite harness: manifest-driven buckets, all deferred pre-J2" 
     }
   }
   // pin 闭合：桶总和 == 普查数；plain = 已迁移数
-  assert_eq(deferred.length(), 303)
-  assert_eq(plain.length(), 82)
+  assert_eq(deferred.length(), 301)
+  assert_eq(plain.length(), 84)
   // 解析覆盖闭合：每个有 input 的条目都走了解析通道
   assert_eq(parsed_ok + parse_err, 385)
   // 首例钉：#t0001 已迁 plain（manifest 顺序首条；J2 首件验收 = 此例端到端绿）

@@ -818,6 +818,14 @@ impl ContextProcessor for StandardExpander with fn process_context(
                 // #t0115/#t0116[1.0]=invalid vocab mapping）：
                 // 1.1 模式 = 相对 @vocab 对 base raw 拼接（空串 → base 本身）；
                 // 1.0 模式 = 非绝对 @vocab → invalid vocab mapping
+                // 1.0 模式：@vocab 非绝对（含相对/空串）即 invalid（不做 base 补全）
+                if _options.processing_mode is JsonLd10 &&
+                  !is_valid_absolute_iri(v) {
+                  return Err(
+                    JsonLdError::InvalidContext("invalid vocab mapping"),
+                  )
+                }
+                // 1.1 模式：对 base raw 拼接（#t0092：空串 → base 本身、`../` 原样）
                 let resolved = if is_valid_absolute_iri(v) {
                   v
                 } else {
@@ -825,15 +833,6 @@ impl ContextProcessor for StandardExpander with fn process_context(
                     Some(b) => "\{b}\{v}"
                     None => v
                   }
-                }
-                match _options.processing_mode {
-                  JsonLd10 =>
-                    if !is_valid_absolute_iri(resolved) {
-                      return Err(
-                        JsonLdError::InvalidContext("invalid vocab mapping"),
-                      )
-                    }
-                  JsonLd11 => ()
                 }
                 vocab = Some(resolved)
               }
