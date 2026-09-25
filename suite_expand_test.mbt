@@ -97,7 +97,7 @@ async test "expand suite harness: manifest-driven buckets, all deferred pre-J2" 
      "#t0089",
     // #t0090：相对 @base ".." 弹段（/base/.. → /）
      "#t0090",
-    // #t0091：绝对 @base 原样（/./ 保留）+ 相对叠加（raw 合并）
+    // #t0091：绝对 @base 原样 + 相对叠加触发 RFC 5.2.4 点段消除（期望 baz/ 前无点段）
      "#t0091",
     // —— ①批 coercion（形态 A：显式 @type → datatype）——
     // #t0013：已展开文档再展开——@type 节点侧数组、属性累加（多值）、number 保形、
