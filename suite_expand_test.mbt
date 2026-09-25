@@ -90,6 +90,8 @@ async test "expand suite harness: manifest-driven buckets, all deferred pre-J2" 
      "#t0115",
     // #t0116（负·1.0 模式）：@vocab 相对值 → invalid vocab mapping
      "#t0116",
+    // —— RFC 3986 5.2.3 merge 批（base 无尾斜杠：截最后段 + 相对引用；t0129/t0130）——
+     "#t0129", "#t0130",
     // —— base 解析批（resolve_base_value：合并 + ".." 弹段 + "." 保留，oracle #t0090/#t0091）——
     // #t0076：base option 覆盖文档位置（option.base 接线）
      "#t0076",
@@ -216,8 +218,8 @@ async test "expand suite harness: manifest-driven buckets, all deferred pre-J2" 
     }
   }
   // pin 闭合：桶总和 == 普查数；plain = 已迁移数
-  assert_eq(deferred.length(), 295)
-  assert_eq(plain.length(), 90)
+  assert_eq(deferred.length(), 293)
+  assert_eq(plain.length(), 92)
   // 解析覆盖闭合：每个有 input 的条目都走了解析通道
   assert_eq(parsed_ok + parse_err, 385)
   // 首例钉：#t0001 已迁 plain（manifest 顺序首条；J2 首件验收 = 此例端到端绿）

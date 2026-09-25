@@ -101,7 +101,7 @@ fn merge_base_reference(base : String, reference : String) -> String {
   match base.rev_find("/") {
     Some(idx) =>
       if idx > 6 {
-        let head = base[:idx + 1].to_string()
+        let head = base[:idx + 1].to_owned()
         "\{head}\{reference}"
       } else {
         "\{base}/\{reference}"
@@ -218,9 +218,10 @@ impl IriExpander for StandardExpander with fn expand_iri(
       None => ()
     }
   }
-  // 7 relative：base 拼接（raw 拼接；RFC3986 完整解析挂后续）；无 base → 原样（value 位）
+  // 7 relative：RFC 3986 5.2.3 merge（base 截最后 "/" 含 + 引用）；
+  // 无 base → 原样（value 位）
   match active.base {
-    Some(base) => Ok("\{base}\{value}")
+    Some(base) => Ok(merge_base_reference(base, value))
     None => Ok(value)
   }
 }
