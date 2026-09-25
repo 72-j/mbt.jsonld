@@ -1,6 +1,7 @@
 ///|
 /// JSON-LD 处理阶段的错误
 pub(all) enum JsonLdError {
+  Syntax(String) // JSON 文本语法错误（解析层包装，2026-09-25 增）
   InvalidContext(String) // context 处理失败
   InvalidIri(String) // IRI 展开失败
   InvalidValue(String) // @value 形态非法

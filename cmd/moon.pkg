@@ -1,10 +1,8 @@
 import {
-  "moonbitlang/core/json",
-}
-
-import {
   "moonbitlang/async",
   "moonbitlang/async/fs",
   "moonbitlang/core/encoding/utf8",
   "thy1016/bitbang/fsm",
-} for "test"
+}
+
+pkgtype(kind: "executable")

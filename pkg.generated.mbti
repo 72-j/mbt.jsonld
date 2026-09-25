@@ -6,6 +6,12 @@ import {
 }
 
 // Values
+pub fn jsonld_iri_routes() -> Array[JsonLdIriRoute]
+
+pub fn jsonld_keyword_route(String) -> JsonLdKeywordRoute?
+
+pub fn jsonld_keyword_routes() -> Array[JsonLdKeywordRoute]
+
 pub fn parse_json(String) -> Result[JsonValue, JsonLdError]
 
 // Errors
@@ -46,11 +52,30 @@ pub(all) enum ExpandedValue {
 } derive(@debug.Debug)
 
 pub(all) enum JsonLdError {
+  Syntax(String)
   InvalidContext(String)
   InvalidIri(String)
   InvalidValue(String)
   InvalidList(String)
   Unsupported(String)
+}
+
+pub(all) struct JsonLdIriRoute {
+  order : Int
+  kind : String
+  condition : String
+  action : String
+  handler : String?
+}
+
+pub(all) struct JsonLdKeywordRoute {
+  keyword : String
+  condition : String
+  action : String
+  result : String
+  args_vocab : Bool?
+  args_document_relative : Bool?
+  handler : String?
 }
 
 pub(all) struct JsonLdOptions {
@@ -65,6 +90,20 @@ pub(all) struct JsonLdQuad {
   object : String
   graph : String?
 } derive(@debug.Debug)
+
+pub(all) enum JsonLdStep {
+  ExpansionEntry
+  ExpansionExpandValue
+  ExpansionExpandArray
+  ExpansionExpandObject
+  ExpansionPostprocess
+  TorfEntry
+  TorfEmit
+}
+pub fn JsonLdStep::dispatch(Self, String) -> Self?
+pub fn JsonLdStep::handler(Self) -> String?
+pub fn JsonLdStep::id(Self) -> String
+pub fn JsonLdStep::next_step(Self) -> Self?
 
 pub(all) enum JsonValue {
   Null
