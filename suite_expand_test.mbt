@@ -441,6 +441,58 @@ async test "expand suite harness: manifest-driven buckets, all deferred pre-J2" 
      "#tpi11",
     // type-scoped / protected 叠加（scoped/protected 批已落 + 容器本批）
      "#tc025", "#tpr25", "#tpr43",
+    // —— 甲·直接迁移批（2026-09-27；25 例零码——判据 = canonical 对拍一致
+    //（deferred 清点探针 POS-PASS）；逐例归因）——
+    // #t0002/#t0024：@context 基础/数组多 context（③批 @context 臂顺带）
+     "#t0002", "#t0024",
+    // #t0005/#t0006：别名关键字（键归一批别名汇流 + @id/@type 臂）
+     "#t0005", "#t0006",
+    // #t0010：原生类型保形（值对象批 number/bool raw 保形）
+     "#t0010",
+    // #t0016：@context null 重置（③批 initial_context 解挂）
+     "#t0016",
+    // #t0025：问题 IRI 展开集（②批分拣链边界）
+     "#t0025",
+    // #t0028：@vocab 属性/@type 位（③批 vocab 拼接）
+     "#t0028",
+    // #t0032：null term + @vocab（scoped 批 null 映射语义）
+     "#t0032",
+    // #t0048：@id 位 term 不展开（ter48 vocab 位门控）
+     "#t0048",
+    // #t0052：term 定义 @vocab 相对值（t0072 定义期展开顺带）
+     "#t0052",
+    // #t0059：@vocab null 重置（③批 @vocab null 臂）
+     "#t0059",
+    // #t0066：reverse-map 键 vocab 展开（reverse 批顺带）
+     "#t0066",
+    // #t0068：_:suffix 非 compact（②批表序 bnode 先于 compact）
+     "#t0068",
+    // #t0070：等价 compact IRI 定义 term（term 查表先于 compact + 名一致性检查）
+     "#t0070",
+    // #t0074：@id 非首属性（键序无关——键归一后）
+     "#t0074",
+    // #t0081/#t0095：graph 容器值 = graph 对象（@graph 容器族裸包裹顺带）
+     "#t0081", "#t0095",
+    // #t0109：含冒号 fragment IRI（fragment 引用分支顺带）
+     "#t0109",
+    // #t0113：JS 对象属性名键（键名任意串）
+     "#t0113",
+    // #t0114：多属性同 IRI 累加（属性累加语义）
+     "#t0114",
+    // #tp001~#tp004：@version 序列（@version 臂 + processingMode 并行注入顺带）
+     "#tp001", "#tp002", "#tp003", "#tp004",
+    // —— 乙·NEG-OK 负例直迁批（2026-09-27；11 例零码——判据 = Err 即过
+    //（must-error 满足）；拒绝理由真化程度逐组注记）——
+    // 真拒绝组：#ter08（1.0 @vocab 校验臂）、#ter11（td 未知键禁静默——
+    // @protected 批）、#ter18（td @id 非串）、#tpi02（@container 不含 @index
+    // 时索引映射报错——@index mapping 批）、#tec01（td 内关键字非法——
+    // 关键字重定义/互斥检查）
+     "#ter08", "#ter11", "#ter18", "#tpi02", "#tec01",
+    // 兜底拒绝组（拒绝理由 = US/II 兜底臂，语义细化各归其批挂账）：
+    // #ter02/#ter03（context 递归——递归检测批细化）、#ter09（@language 键
+    // Unsupported——默认语言批细化）、#ter20/#ter49（no vocab/relative prefix
+    // II 细化）、#tpr33（关键字别名 prefix——细化挂账）
+     "#ter02", "#ter03", "#ter09", "#ter20", "#ter49", "#tpr33",
   ]
   // 两桶：迁移例走端到端对拍（输入 → expansion → 对 expected）；其余 deferred
   let deferred : Array[String] = []
@@ -533,8 +585,8 @@ async test "expand suite harness: manifest-driven buckets, all deferred pre-J2" 
     }
   }
   // pin 闭合：桶总和 == 普查数；plain = 已迁移数
-  assert_eq(deferred.length(), 113)
-  assert_eq(plain.length(), 272)
+  assert_eq(deferred.length(), 77)
+  assert_eq(plain.length(), 308)
   // 解析覆盖闭合：每个有 input 的条目都走了解析通道
   assert_eq(parsed_ok + parse_err, 385)
   // 首例钉：#t0001 已迁 plain（manifest 顺序首条；J2 首件验收 = 此例端到端绿）
