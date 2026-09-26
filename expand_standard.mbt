@@ -1641,6 +1641,28 @@ fn StandardExpander::expand_term_values(
           )
         _ => ()
       }
+    Some(ContainerType::Id) =>
+      match value {
+        JsonValue::Object(entries) =>
+          return StandardExpander::expand_container_map(
+            self,
+            active,
+            term,
+            entries,
+            ContainerType::Id,
+            options,
+          )
+        _ => ()
+      }
+    // @container @language（REC 13.8.2 language map）：值为 map 才走语言映射分支
+    Some(ContainerType::Language) =>
+      match value {
+        JsonValue::Object(entries) =>
+          return StandardExpander::expand_language_map(
+            self, active, term, entries, options,
+          )
+        _ => ()
+      }
     _ => ()
   }
   StandardExpander::expand_term_values_inner(
@@ -1755,10 +1777,82 @@ fn StandardExpander::expand_container_map(
                   }
                 _ => ()
               }
+            ContainerType::Id =>
+              // 条目无 @id 时写 @id = **document-relative、非 vocab 位**展开的索引
+              // （REC："expanded index is set to the result of IRI expanding index
+              // using true for document relative and false for vocab"；#tm005 oracle）
+              match item_value {
+                ExpandedValue::Node(node) =>
+                  if node.id is None {
+                    node.id = Some(
+                      match
+                        IriExpander::expand_iri(
+                          self, item_context, index_key, true, false,
+                        ) {
+                        Ok(expanded_id) => expanded_id
+                        Err(e) => return Err(e)
+                      },
+                    )
+                  }
+                _ => ()
+              }
             _ => ()
           }
         }
         expanded.push(item_value)
+      }
+    }
+  }
+  Ok(expanded)
+}
+
+///|
+/// language map 展开（@container @language；REC 13.8.2）：
+/// 逐条目（语言键 → 值，值非数组则归一数组）：条目值为 **null 跳过**、**非串 →
+/// invalid language map value**；产出 `{@value: item}`，语言键**非 @none**（含
+/// **展开为 @none 的别名**）时加 `@language: 原始语言键`。
+/// 本引擎暂无默认 base direction / td direction mapping ⇒ direction 恒 null（不产出
+/// @direction）——#tdi04~#tdi07（term direction 面）挂「@direction 批」。
+/// oracle：#tm009/#tm010（@none 与别名）/ #t0030（基本）/ #tl001（null 跳过）
+fn StandardExpander::expand_language_map(
+  self : StandardExpander,
+  active : ActiveContext,
+  term : String,
+  entries : Array[(String, JsonValue)],
+  options : JsonLdOptions,
+) -> Result[Array[ExpandedValue], JsonLdError] {
+  let _ = term
+  let _ = options
+  let expanded : Array[ExpandedValue] = []
+  for entry in entries {
+    let language = entry.0
+    let items = match entry.1 {
+      JsonValue::Array(items) => items
+      single => [single]
+    }
+    // @none 判定：键本身为 @none **或展开为 @none**（别名——#tm010 oracle）
+    let is_none = match
+      IriExpander::expand_iri(self, active, language, false, true) {
+      Ok(expanded_language) => expanded_language is "@none"
+      Err(_) => language is "@none"
+    }
+    for item in items {
+      match item {
+        JsonValue::Null => () // 条目值 null：跳过（#tl001 oracle）
+        JsonValue::String(text) => {
+          let language_tag = if is_none { None } else { Some(language) }
+          expanded.push(
+            ExpandedValue::Value(ExpandedLiteral::{
+              value: text,
+              datatype: None,
+              language: language_tag,
+              direction: None,
+              raw: None,
+              included: None,
+            }),
+          )
+        }
+        _ => return Err(JsonLdError::InvalidValue("invalid language map value"))
       }
     }
   }
@@ -1830,34 +1924,9 @@ fn StandardExpander::expand_term_values_inner(
           }
         _ => ()
       }
-      // @language 容器值检查（⑤后半——#ter35 oracle）：语言映射值仅收
-      // 字符串/对象；标量/数组 → invalid language map value（应用挂语言映射批）
-      match active.terms.get(term) {
-        Some(term_definition) =>
-          match term_definition.container {
-            Some(ContainerType::Language) =>
-              match value {
-                JsonValue::Object(entries) =>
-                  for entry in entries {
-                    match entry.1 {
-                      JsonValue::String(_) | JsonValue::Object(_) => ()
-                      _ =>
-                        return Err(
-                          JsonLdError::InvalidValue(
-                            "invalid language map value",
-                          ),
-                        )
-                    }
-                  }
-                _ =>
-                  return Err(
-                    JsonLdError::InvalidValue("invalid language map value"),
-                  )
-              }
-            _ => ()
-          }
-        None => ()
-      }
+      // @language 容器的值检查已由语言映射分支（expand_language_map，REC 13.8.2）
+      // 承担：条目值 null 跳过、非串 → invalid language map value（#ter35 oracle：
+      // {"en": true} → 非串即错）；非 map 值走通用分支（REC 分支条件要求 map）
       match
         StandardExpander::expand_object(
           self,
@@ -1880,8 +1949,11 @@ fn StandardExpander::expand_term_values_inner(
     JsonValue::Array(items) => {
       let out : Array[ExpandedValue] = []
       for item in items {
+        // 数组项走**内层**（REC 5.1.2：容器逻辑只作用于键的值一次；数组项按
+        // 元素语义逐项展开——重入容器壳会把映射分支误施于项，实测 #t0040
+        // `{"@id": …}` 项被当成 index map 处理 ⇒ 值对象而非节点）
         match
-          StandardExpander::expand_term_values(
+          StandardExpander::expand_term_values_inner(
             self, active, term, item, active_property, options,
           ) {
           Ok(vs) =>
@@ -2545,6 +2617,7 @@ fn StandardExpander::process_expanded_term_definition(
                 td_container = Some(ContainerType::Type)
               JsonValue::String("@index") =>
                 td_container = Some(ContainerType::Index)
+              JsonValue::String("@id") => td_container = Some(ContainerType::Id)
               _ => ()
             }
             // 容器含 @type 的原始形态标记（数组形态亦算——REC 4.2.2 隐式 type

@@ -52,7 +52,9 @@ pub(all) enum ProcessingMode {
 /// 展开后的节点对象（树递归的中间态）
 /// 字段只列骨架需要的；完整字段待 J2 扩
 pub(all) struct ExpandedNode {
-  id : String?
+  /// 节点标识（@container @id 映射批起为 mut：条目无 @id 时由 id map 索引写入——
+  /// REC "if item does not have the entry @id, add …"，#tm001/#tm005 oracle）
+  mut id : String?
   types : Array[String]
   properties : Array[(String, Array[ExpandedValue])]
   reverse_props : Array[(String, Array[ExpandedValue])] // @reverse 映射（reverse 批）

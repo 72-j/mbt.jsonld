@@ -392,6 +392,19 @@ async test "expand suite harness: manifest-driven buckets, all deferred pre-J2" 
     // #tm020（负）：容器 @type + 非 @id/@vocab 的 @type → invalid type mapping
      "#tc013", "#tm003", "#tm004", "#tm006", "#tm007", "#tm008", "#tm012", "#tm017",
     "#tm018", "#tm019", "#tm020",
+    // —— @id 容器 + language map 批（2026-09-26；批名统一，合成一批）——
+    // 机制 = REC 13.8.3 @id map（map context 用 previous；条目无 @id ⇒ 写
+    // **document-relative、非 vocab 位**展开的索引；已有 @id 保留；@none/别名跳过）
+    // + REC 13.8.2 language map（逐条目：null 跳过、非串 → invalid language map
+    // value；`{@value}` 且语言键非 @none/别名 ⇒ 加 @language；**非 map 值落通用分支**）
+    // #tm001/#tm002/#tm005/#tm011：@id map——绝对/bnode 键、既有 @id 保留、
+    //   **相对键按 base 展开**（option.base）、@none 与别名不写 @id
+    // #tm009/#tm010：language map——en 串 / de 数组逐项、@none 与**别名**不写 @language
+    // #t0030：language map 基本形态；#tl001：条目值与数组内 null 均跳过
+    // #t0040（连带修出重入 bug）：map 类容器但**值为数组** ⇒ 逐项按元素语义展开
+    //   （不重入容器壳）；数组内 `{"@id": …}` 项仍是节点（base 相对解析）
+     "#tm001", "#tm002", "#tm005", "#tm011", "#tm009", "#tm010", "#t0030", "#tl001",
+    "#t0040",
   ]
   // 两桶：迁移例走端到端对拍（输入 → expansion → 对 expected）；其余 deferred
   let deferred : Array[String] = []
@@ -484,8 +497,8 @@ async test "expand suite harness: manifest-driven buckets, all deferred pre-J2" 
     }
   }
   // pin 闭合：桶总和 == 普查数；plain = 已迁移数
-  assert_eq(deferred.length(), 165)
-  assert_eq(plain.length(), 220)
+  assert_eq(deferred.length(), 156)
+  assert_eq(plain.length(), 229)
   // 解析覆盖闭合：每个有 input 的条目都走了解析通道
   assert_eq(parsed_ok + parse_err, 385)
   // 首例钉：#t0001 已迁 plain（manifest 顺序首条；J2 首件验收 = 此例端到端绿）

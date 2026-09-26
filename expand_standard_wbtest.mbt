@@ -890,3 +890,121 @@ test "container @type restricts type mapping to @id/@vocab (#tm020 对拍)" {
   let vocab_ok = "{\"@context\": {\"@vocab\": \"ex:\", \"foo\": {\"@type\": \"@vocab\", \"@container\": \"@type\"}}, \"foo\": {\"bar\": \"baz\"}}"
   assert_true(expand_document(vocab_ok, options) is Ok(_))
 }
+
+///|
+/// @id 容器 + language map 批对拍①（#tm001/#tm002/#tm005 oracle）：id map——
+/// 条目无 @id ⇒ 写**document-relative**展开的索引；已有 @id 保留
+test "id map: writes document-relative @id, keeps existing (#tm001/#tm005 对拍)" {
+  let options = JsonLdOptions::{
+    base: Some("http://example.org/"),
+    expand_context: None,
+    processing_mode: JsonLd11,
+  }
+  let input = "{\"@context\": {\"@vocab\": \"http://example/\", \"idmap\": {\"@container\": \"@id\"}}, \"idmap\": {\"foo\": {\"label\": \"x\"}, \"http://example.org/bar\": {\"@id\": \"http://example.org/baz\"}}}"
+  assert_true(
+    expand_document(input, options)
+    is Ok(
+      Array(
+        [
+          Object(
+            [
+              (
+                "http://example/idmap",
+                Array(
+                  [
+                    Object(
+                      [
+                        ("@id", String("http://example.org/foo")),
+                        (
+                          "http://example/label",
+                          Array([Object([("@value", String("x"))])]),
+                        ),
+                      ]
+                    ),
+                    Object([("@id", String("http://example.org/baz"))]),
+                  ]
+                ),
+              ),
+            ]
+          ),
+        ]
+      )
+    ),
+  )
+}
+
+///|
+/// @id 容器 + language map 批对拍②（#tm009/#tm010/#tl001 oracle）：language map——
+/// 语言键非 @none（含**别名**）加 @language；条目值与数组内 null 跳过
+test "language map: @none alias and null skip (#tm010/#tl001 对拍)" {
+  let options = JsonLdOptions::{
+    base: None,
+    expand_context: None,
+    processing_mode: JsonLd11,
+  }
+  let input = "{\"@context\": {\"vocab\": \"ex:v/\", \"label\": {\"@id\": \"ex:v/label\", \"@container\": \"@language\"}, \"none\": \"@none\"}, \"label\": {\"en\": \"The Queen\", \"none\": null, \"de\": [\"K\", null]}}"
+  assert_true(
+    expand_document(input, options)
+    is Ok(
+      Array(
+        [
+          Object(
+            [
+              (
+                "ex:v/label",
+                Array(
+                  [
+                    Object(
+                      [
+                        ("@value", String("The Queen")),
+                        ("@language", String("en")),
+                      ]
+                    ),
+                    Object(
+                      [("@value", String("K")), ("@language", String("de"))]
+                    ),
+                  ]
+                ),
+              ),
+            ]
+          ),
+        ]
+      )
+    ),
+  )
+}
+
+///|
+/// @id 容器 + language map 批对拍③（#t0040 oracle）：容器为 map 类但**值非 map**
+/// ⇒ 落通用分支；数组逐项按元素语义展开（**不重入容器壳**——否则 `{"@id": …}`
+/// 项会被误当索引键条目）
+test "map container with array value falls through per element (#t0040 对拍)" {
+  let options = JsonLdOptions::{
+    base: Some("http://example.com/base/"),
+    expand_context: None,
+    processing_mode: JsonLd11,
+  }
+  let input = "{\"@context\": {\"indexes\": {\"@id\": \"ex:index\", \"@container\": \"@index\"}}, \"indexes\": [\"No\", {\"@id\": \"isn\"}]}"
+  assert_true(
+    expand_document(input, options)
+    is Ok(
+      Array(
+        [
+          Object(
+            [
+              (
+                "ex:index",
+                Array(
+                  [
+                    Object([("@value", String("No"))]),
+                    Object([("@id", String("http://example.com/base/isn"))]),
+                  ]
+                ),
+              ),
+            ]
+          ),
+        ]
+      )
+    ),
+  )
+}
