@@ -96,6 +96,7 @@ test "contract smoke: pending hooks refuse politely (red-not-wrong)" {
         language: Some(""),
         direction: None,
         raw: None,
+        index: None,
         included: None,
       }),
     ) {
@@ -186,6 +187,7 @@ test "term/IRI chain with constructed context (②批对拍)" {
     reverse: None,
     local_context: None,
     is_protected: false,
+    index_mapping: None,
   }
   terms["name"] = TermDefinition::{
     iri: Some("http://example.com/name"),
@@ -194,6 +196,7 @@ test "term/IRI chain with constructed context (②批对拍)" {
     reverse: None,
     local_context: None,
     is_protected: false,
+    index_mapping: None,
   }
   let active = ActiveContext::{
     base: None,
@@ -271,6 +274,7 @@ test "property key routing via chain (②批)" {
     reverse: None,
     local_context: None,
     is_protected: false,
+    index_mapping: None,
   }
   let active = ActiveContext::{
     base: None,
@@ -386,6 +390,7 @@ test "debug ter48: vocab=false excludes term lookup" {
     reverse: None,
     local_context: None,
     is_protected: false,
+    index_mapping: None,
   }
   let active = ActiveContext::{
     base: None,
@@ -799,7 +804,15 @@ test "td unknown key vs unimplemented key (#ter56 同族对拍)" {
       assert_true(message.contains("invalid term definition"))
     _ => fail("expected invalid term definition")
   }
-  let unimplemented = "{\"@context\": {\"p\": {\"@id\": \"ex:p\", \"@index\": \"i\"}}}"
+  // @index mapping 已落码（@index mapping 批）：容器不含 @index ⇒ invalid term definition
+  let index_without_container = "{\"@context\": {\"p\": {\"@id\": \"ex:p\", \"@index\": \"i\"}}}"
+  match expand_document(index_without_container, options) {
+    Err(InvalidContext(message)) =>
+      assert_true(message.contains("invalid term definition"))
+    _ => fail("expected invalid term definition")
+  }
+  // 仍未落码的 td 键走 Unsupported（落码活账）
+  let unimplemented = "{\"@context\": {\"p\": {\"@id\": \"ex:p\", \"@direction\": \"ltr\"}}}"
   assert_true(expand_document(unimplemented, options) is Err(Unsupported(_)))
 }
 
@@ -998,6 +1011,128 @@ test "map container with array value falls through per element (#t0040 对拍)" 
                   [
                     Object([("@value", String("No"))]),
                     Object([("@id", String("http://example.com/base/isn"))]),
+                  ]
+                ),
+              ),
+            ]
+          ),
+        ]
+      )
+    ),
+  )
+}
+
+///|
+/// @index mapping 批对拍①（#tpi06/#tpi07/#tpi10 oracle）：index key ≠ @index ⇒
+/// 索引键写成**一条属性**（值 = 索引，追加在既有值之前）；`@none` 条目不写属性
+test "index mapping: index written as property, appended before existing (#tpi 对拍)" {
+  let options = JsonLdOptions::{
+    base: Some("http://example.com/"),
+    expand_context: None,
+    processing_mode: JsonLd11,
+  }
+  let input = "{\"@context\": {\"@version\": 1.1, \"@base\": \"http://example.com/\", \"@vocab\": \"http://example.com/\", \"author\": {\"@type\": \"@id\", \"@container\": \"@index\", \"@index\": \"prop\"}}, \"@id\": \"article\", \"author\": {\"regular\": \"person/1\", \"@none\": \"person/9\"}}"
+  assert_true(
+    expand_document(input, options)
+    is Ok(
+      Array(
+        [
+          Object(
+            [
+              ("@id", String("http://example.com/article")),
+              (
+                "http://example.com/author",
+                Array(
+                  [
+                    Object(
+                      [
+                        ("@id", String("http://example.com/person/1")),
+                        (
+                          "http://example.com/prop",
+                          Array([Object([("@value", String("regular"))])]),
+                        ),
+                      ]
+                    ),
+                    Object([("@id", String("http://example.com/person/9"))]),
+                  ]
+                ),
+              ),
+            ]
+          ),
+        ]
+      )
+    ),
+  )
+}
+
+///|
+/// @index mapping 批对拍②（#tpi01/#tpi03/#tpi04/#tpi05 oracle）：索引映射校验——
+/// 1.0 / 非串 / 展开非 IRI → invalid term definition；值对象条目加索引属性 →
+/// invalid value object
+test "index mapping validation + value object rejection (#tpi 负例对拍)" {
+  let options = JsonLdOptions::{
+    base: None,
+    expand_context: None,
+    processing_mode: JsonLd11,
+  }
+  let keyword_value = "{\"@context\": {\"@version\": 1.1, \"p\": {\"@id\": \"ex:p\", \"@container\": \"@index\", \"@index\": \"@id\"}}}"
+  match expand_document(keyword_value, options) {
+    Err(InvalidContext(message)) =>
+      assert_true(message.contains("invalid term definition"))
+    _ => fail("expected invalid term definition")
+  }
+  let not_a_string = "{\"@context\": {\"@version\": 1.1, \"p\": {\"@id\": \"ex:p\", \"@container\": \"@index\", \"@index\": 7}}}"
+  assert_true(expand_document(not_a_string, options) is Err(InvalidContext(_)))
+  let options_10 = JsonLdOptions::{
+    base: None,
+    expand_context: None,
+    processing_mode: JsonLd10,
+  }
+  let in_10 = "{\"@context\": {\"p\": {\"@id\": \"ex:p\", \"@container\": \"@index\", \"@index\": \"q\"}}}"
+  assert_true(expand_document(in_10, options_10) is Err(InvalidContext(_)))
+  let value_object = "{\"@context\": {\"@version\": 1.1, \"@vocab\": \"ex:\", \"p\": {\"@container\": \"@index\", \"@index\": \"q\"}}, \"p\": {\"k\": {\"@value\": \"v\"}}}"
+  match expand_document(value_object, options) {
+    Err(InvalidValue(message)) =>
+      assert_true(message.contains("invalid value object"))
+    _ => fail("expected invalid value object")
+  }
+}
+
+///|
+/// @index mapping 批对拍③（#t0063/#t0131 oracle）：reverse 项**允许** @set/@index
+/// 容器（白名单放宽）；**reverse-bearing 节点不是自由浮动**（仅 @reverse 的根节点保留）
+test "reverse term with index container keeps reverse-only node (#t0063/#t0131 对拍)" {
+  let options = JsonLdOptions::{
+    base: None,
+    expand_context: None,
+    processing_mode: JsonLd11,
+  }
+  let input = "{\"@context\": {\"isKnownBy\": {\"@reverse\": \"ex:knows\", \"@container\": \"@index\"}}, \"@id\": \"ex:me\", \"isKnownBy\": {\"Dave\": {\"@id\": \"ex:dave\"}}}"
+  assert_true(
+    expand_document(input, options)
+    is Ok(
+      Array(
+        [
+          Object(
+            [
+              ("@id", String("ex:me")),
+              (
+                "@reverse",
+                Object(
+                  [
+                    (
+                      "ex:knows",
+                      Array(
+                        [
+                          Object(
+                            [
+                              ("@id", String("ex:dave")),
+                              ("@index", String("Dave")),
+                            ]
+                          ),
+                        ]
+                      ),
+                    ),
                   ]
                 ),
               ),

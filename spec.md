@@ -95,6 +95,8 @@
 | #tm017/#tm018/#tm019 vs #tm020 | **定义面分叉**（container @type × type mapping） | 显式 `@type` 是否 ∈ {@id,@vocab} | 容器含 `@type`：未声明 ⇒ **隐式 @id**（#tm017）；显式 `@id`（#tm018）/`@vocab`（#tm019）合法；其它值（如 `"literal"` 经 vocab 展开成 IRI）⇒ **invalid type mapping**（#tm020 负） |
 | #tm003/#tm006 vs #tm001/#tm005 | 容器种类分叉（**索引键的展开旗位**） | 容器 ∈ {@type} vs {@id} | **@type map 索引键 = 键位旗**（`vocab=true` / `document_relative=false`；#tm006 "Foo" → http://example/Foo）；**@id map 索引键 = @id 值位旗**（`vocab=false` / `document_relative=true`，REC 明文"using true for document relative and false for vocab"；#tm005 相对键 "foo" 经 base → http://example.org/foo；#tm001 绝对/bnode 原样）。**对照**：`@id` 值位（节点身份）与 `@type` 值位旗位见 §4 旗位语义表——@id map 索引键复用的正是**@id 值位**那一行 |
 | #tl001 vs #ter35 | 形态分叉（**language map 条目值**） | 条目值 null vs 非串标量 | null ⇒ **跳过**（#tl001，数组内 null 同）；非串（如 `true`）⇒ **invalid language map value**（#ter35 负） |
+| #t0036 vs #tpi05 | 形态分叉（**index map 条目为字面量**） | 索引映射**有无**（缺省写 @index / 映射写属性） | 缺省：**值对象条目可写 @index**（#t0036）；有索引映射：值对象条目**不得再带属性** ⇒ **invalid value object**（#tpi05 负） |
+| #tpi10 vs #tpi06 | 键形态分叉（**@none 与索引属性**） | 索引（map 键）是否展开为 `@none` | 普通键 ⇒ 索引写成属性；`@none` 及其别名 ⇒ **不写属性**（条目仍产出——#tpi10） |
 | #t0040 vs #tm003 | 形态分叉（**值是否 map**） | 容器为 map 类时值形态 | 值为 map ⇒ 走映射分支（#tm003）；值**非 map** ⇒ 落通用分支逐项按元素语义展开——数组内 `{"@id":…}` 项仍是节点（#t0040；重入容器壳会把它误当索引条目，实测即此红） |
 
 ### term 名一致性检查（REC 4.2.2 @id 臂 "must be consistent"；2026-09-26 修正）
@@ -176,7 +178,7 @@ type-scoped 快照必须以"元素 @context 已生效"的 active context 为底�
 | `@list` | ✅ 白名单（1.1/1.0 分叉） | ✅ 元素展开 + List 包裹 | **已落**（C 组批：#t0004/#t0023/#tli01~#tli10/#ter24/#ter32） |
 | `@set` | ✅ | ✅ 摊平即塌缩（no-op） | **已落**（C 组批：#t0015） |
 | `@type` | ✅ + **隐式 type mapping 规则**（本批：容器含 @type ⇒ 缺省 @id、显式须 @id/@vocab） | ✅ type map（REC 13.8.3；键前插 @type、@none 跳过） | **已落**（@container 映射批：11 例）；**数组形态**含 @type 未落（无 oracle，挂账） |
-| `@index` | ✅（容器合法性） | ⚠️ **仅最小子集**：值为 map 时"条目无 @index ⇒ 写原始键" | **部分落**（解锁 #tc013）；**td `@index` mapping（索引属性）未落** ⇒ 余挂「@index mapping + index map 校验批」 |
+| `@index` | ✅（容器合法性 + `@index` **索引映射**校验：1.0/容器不含 @index/非串/展开非 IRI → invalid term definition） | ✅ index map：缺省 ⇒ 写 `@index`（条目已有则保留；值对象位亦可写——#t0036）；**索引映射 ≠ @index ⇒ 索引键写成一条属性**（属性 IRI = 展开 index key；值 = 以 index key 为 active property 的 Value Expansion；**追加在既有值之前**；`@none` 条目跳过——#tpi06~#tpi10） | **已落**（#tc013 + #t0036/#t0063/#t0131 + #tpi01/#tpi03~#tpi10）；**graph 组合**（#tpi11/#tm013/#tm014）挂 @graph 容器族批 |
 | `@id` | ✅（容器合法性；1.0 拒绝见 #ter21） | ✅ @id map（REC 13.8.3：条目无 @id ⇒ 写 **document-relative、非 vocab 位**展开的索引；已有 @id 保留；@none/别名跳过） | **已落**（@id 容器 + language map 批：#tm001/#tm002/#tm005/#tm011） |
 | `@language` | ✅（含条目值检查：null 跳过 / 非串 → invalid language map value） | ✅ language map（REC 13.8.2：`{@value}` + 语言键；@none/别名不加 @language；direction 面挂 @direction 批） | **已落**（同批：#tm009/#tm010/#t0030/#tl001；#t0040 为"值非 map ⇒ 落通用分支"对照） |
 | `@graph` | ⚠️ **验证过窄**（3 元素组合 ["@graph","@index","@set"] 等被误拒——REC 允许 "@graph + either @id or @index optionally including @set"+ 挂「[@set,…] 任意组合」；实测 5 例现红：#t0083/#t0086/#t0097/#t0100） | ❌ **@graph 容器应用未落**（值包裹 graph object + 与 @id/@index/@set 组合；实测 25 例 MISMATCH + 4 例 @none 键 ERR-US） | 挂「**@graph 容器族批**」：33 deferred + #tpr26（plain 负例）= 34 例（#t0079~#t0108/#tc025/#tpr25/#tpr43/#tpi11 + graph index/id map #tm013~#tm016）；**依赖分层**：①验证放宽 ②应用 ③graph map（index/id map 基础已落） |
@@ -188,6 +190,31 @@ type-scoped 快照必须以"元素 @context 已生效"的 active context 为底�
 **共享 context 面规则**（map context 来源 / from-map 语境），合并降低机制切换成本；
 仍按**逐例归因**记账（@id map #tm001/#tm002/#tm005/#tm011 + language map #tm009/#tm010，
 开工时按现状复勘"直接相关同族例"再定终稿）。
+
+### @index mapping + index map 校验批已落实现注记（2026-09-26）
+- **td `@index` 索引映射**（REC 4.2.2）：仅 1.1 模式且容器含 `@index` 时合法；值须为串
+  且 IRI 展开结果须为 **IRI**（关键字/非绝对 → invalid term definition——#tpi01 1.0 /
+  #tpi03 关键字值 / #tpi04 非串）。**存原始值**（term 名，如 `"prop"`）：展开期两用
+  ——① **re-expanded index** 以 index key 为 **active property** 走 Value Expansion
+  （故 `@index:"prop"` 且 `prop` 有 `@type:@vocab` ⇒ 索引成**节点引用**——#tpi08/#tpi10）；
+  ② **expanded index key** = 用时期 IRI 展开得属性 IRI。
+- **索引属性（REC 13.8.3 子案例 1）**：index key ≠ `@index` 且 expanded index ≠ `@none`
+  ⇒ 索引键写成**一条属性**，其值 = `[re-expanded index] ++ 既有同 IRI 值`（追加在前——
+  #tpi06/#tpi07/#tpi08/#tpi09）；`@none` 条目跳过（#tpi10）。**值对象条目 ⇒ invalid
+  value object**（#tpi05）。
+- **子案例 2（缺省）**：条目无 `@index` ⇒ 写 `@index` = 原始索引键；**节点与值对象
+  （字面量）位均可写**（#t0036：`ExpandedLiteral.index` 新字段 + 序列化；已有 @index
+  保留、null 条目跳过）。
+- **reverse 项容器白名单放宽**（REC 4.2.2 明文：reverse 只支持 `@set`/`@index`/null）——
+  原实现把任何容器与 reverse 同 td 一律判错 ⇒ 放宽（#t0063 reverse+index 容器 / #t0131
+  属性型 index 容器 + 反向）。
+- **连带修复：reverse-bearing 节点非自由浮动**（#t0131 oracle）——@reverse 项落在
+  `reverse_props` 而非 `properties`，原 free-floating 门只看 properties/types/graph/
+  included ⇒ 仅 @reverse 的根节点被误弃；补 `reverse_props.is_empty()`（free-floating 门
+  豁免清单第三次扩展：@graph → @included → @reverse）。
+- **迁移**：**12 例**（A 亚类 10：#tpi01/#tpi03/#tpi04/#tpi05 + #tpi06~#tpi10 + #t0131；
+  B 亚类 1：#t0036；C 亚类 1：#t0063）。**挂账**：D 亚类 #t0044（依赖 td language
+  mapping → 「默认语言批」）、E 亚类 #tpi11/#tm013/#tm014（依赖 @graph 容器族批）。
 
 ### @id 容器 + language map 批已落实现注记（2026-09-26）
 - **@id map（REC 13.8.3，与 @type/@index 同分支）**：容器 `@id` 且**值为 map**；

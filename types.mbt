@@ -85,6 +85,9 @@ pub(all) struct ExpandedLiteral {
   mut direction : String?
   /// 原始标量（number/bool 保形用；string 为 None——序列化时按词形输出）
   mut raw : JsonValue?
+  /// 值对象 @index（@index mapping 批——#t0036 oracle：index map 的字面量条目写
+  /// `@index`；已有 @index 保留）
+  mut index : String?
   /// Included Blocks 于值对象位保形（#tin05 oracle：值对象内 @included 不弃，
   /// 内层照节点对象展开——展开后随字面量携带，序列化还原 "@included" 键）
   mut included : Array[ExpandedNode]?

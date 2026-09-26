@@ -262,6 +262,7 @@ fn literal_of(value : String, raw : JsonValue?) -> ExpandedValue {
     language: None,
     direction: None,
     raw,
+    index: None,
     included: None,
   })
 }
@@ -643,6 +644,8 @@ fn StandardExpander::expand_object(
   let properties : Array[(String, Array[ExpandedValue])] = []
   let reverse_props : Array[(String, Array[ExpandedValue])] = []
   let mut node_graph : Array[ExpandedValue]? = None
+  // 节点/值对象位 @index（@index mapping 批——#t0036 oracle；值对象位在收尾挂字面量）
+  let mut node_index : String? = None
   // 节点位 @nest 条目收集（nest 纯形批 + scoped-context 批——REC 13.4.14：
   // 主键循环中只收集，循环后延后处理；文档序）。条目携带该键的**属性作用域
   // context**（scoped-context 批——#tc037/#tc038 oracle：@nest 别名 term 的
@@ -878,6 +881,7 @@ fn StandardExpander::expand_object(
                     language: None,
                     direction: None,
                     raw: None,
+                    index: None,
                     included: None,
                   }
               },
@@ -897,6 +901,7 @@ fn StandardExpander::expand_object(
                     language: None,
                     direction: None,
                     raw: Some(JsonValue::Number(nv)),
+                    index: None,
                     included: None,
                   }
               },
@@ -916,6 +921,7 @@ fn StandardExpander::expand_object(
                     language: None,
                     direction: None,
                     raw: Some(JsonValue::Bool(bv)),
+                    index: None,
                     included: None,
                   }
               },
@@ -945,6 +951,7 @@ fn StandardExpander::expand_object(
                   language: Some(lang),
                   direction: None,
                   raw: None,
+                  index: None,
                   included: None,
                 })
             }
@@ -976,6 +983,7 @@ fn StandardExpander::expand_object(
                   language: None,
                   direction: Some(dir),
                   raw: None,
+                  index: None,
                   included: None,
                 })
             }
@@ -993,6 +1001,14 @@ fn StandardExpander::expand_object(
       "@context" =>
         // 已在主键循环前处理（REC 5.1.2 次序；#t0073 oracle）——此处跳过
         continue
+      // 节点/值对象位 @index（REC 13.4.6："If value is not a string, an invalid
+      // @index value error"；值对象位由结果挂字面量——#t0036 oracle：节点与字面量
+      // 条目均可带 @index，且条目**已有** @index 保留）
+      "@index" =>
+        match pair.1 {
+          JsonValue::String(index_value) => node_index = Some(index_value)
+          _ => return Err(JsonLdError::InvalidValue("invalid @index value"))
+        }
       "@reverse" =>
         // @reverse 节点位（reverse 批——#t0037/#t0039/#t0064 oracle）：
         // 值须 map（映射 IRI → 节点值，键经 vocab 展开，值经 term 位展开）；
@@ -1265,6 +1281,11 @@ fn StandardExpander::expand_object(
         if included_nodes.length() > 0 {
           found.included = Some(included_nodes)
         }
+        // 值对象位 @index（#t0036 oracle：字面量条目带 @index）
+        match node_index {
+          Some(index_value) => found.index = Some(index_value)
+          None => ()
+        }
         Ok(Some(ExpandedValue::Value(found)))
       }
       None => Ok(None) // @value: null → 整个值对象丢弃
@@ -1283,7 +1304,7 @@ fn StandardExpander::expand_object(
           } else {
             None
           },
-          index: None,
+          index: node_index,
         }),
       ),
     )
@@ -1699,6 +1720,12 @@ fn StandardExpander::expand_container_map(
     active
   }
   let expanded : Array[ExpandedValue] = []
+  // index key（REC 13.8.3："Initialize index key to the key's index mapping in active
+  // context, or @index, if it does not exist"）——None 表示缺省 @index
+  let index_mapping = match active.terms.get(term) {
+    Some(term_definition) => term_definition.index_mapping
+    None => None
+  }
   for entry in entries {
     let index_key = entry.0
     let index_value = entry.1
@@ -1769,13 +1796,76 @@ fn StandardExpander::expand_container_map(
                 ExpandedValue::List(_) => ()
               }
             ContainerType::Index =>
-              // 条目无 @index 时写 @index = 原始索引键（REC "add @index-index"）
-              match item_value {
-                ExpandedValue::Node(node) =>
-                  if node.index is None {
-                    node.index = Some(index_key)
+              // 索引映射（index key ≠ @index）⇒ 索引键写成**一条属性**（REC 13.8.3
+              // 子案例 1；#tpi06~#tpi10 oracle）；否则写 @index = 原始索引键（子案例 2）
+              match index_mapping {
+                Some(index_key_name) =>
+                  match item_value {
+                    ExpandedValue::Node(node) => {
+                      // expanded index key = IRI 展开 index key（REC 13.8.3）
+                      let index_property_iri = match
+                        IriExpander::expand_iri(
+                          self, item_context, index_key_name, false, true,
+                        ) {
+                        Ok(iri) => iri
+                        Err(e) => return Err(e)
+                      }
+                      // re-expanded index = Value Expansion(active, index key, 索引)
+                      let re_expanded = match
+                        StandardExpander::expand_term_values_inner(
+                          self,
+                          item_context,
+                          index_key_name,
+                          JsonValue::String(index_key),
+                          Some(index_key_name),
+                          options,
+                        ) {
+                        Ok(values) =>
+                          match values {
+                            [first, ..] => first
+                            [] => continue // 无值（防御；无 oracle）
+                          }
+                        Err(e) => return Err(e)
+                      }
+                      // index property values = [re-expanded] ++ 既有同 IRI 值
+                      let mut merged = false
+                      for i in 0..<node.properties.length() {
+                        if node.properties[i].0 == index_property_iri {
+                          let replacement : Array[ExpandedValue] = [re_expanded]
+                          for v in node.properties[i].1 {
+                            replacement.push(v)
+                          }
+                          node.properties[i] = (index_property_iri, replacement)
+                          merged = true
+                        }
+                      }
+                      if !merged {
+                        node.properties.push(
+                          (index_property_iri, [re_expanded]),
+                        )
+                      }
+                    }
+                    ExpandedValue::Value(_) =>
+                      // "If item is a value object, it MUST NOT contain any extra
+                      // properties; an invalid value object error"（#tpi05 oracle）
+                      return Err(
+                        JsonLdError::InvalidValue("invalid value object"),
+                      )
+                    ExpandedValue::List(_) => () // 先验：list 位无 oracle
                   }
-                _ => ()
+                None =>
+                  // 子案例 2：条目无 @index 时写 @index = 原始索引键
+                  match item_value {
+                    ExpandedValue::Node(node) =>
+                      if node.index is None {
+                        node.index = Some(index_key)
+                      }
+                    ExpandedValue::Value(literal) =>
+                      if literal.index is None {
+                        literal.index = Some(index_key)
+                      }
+                    ExpandedValue::List(_) => ()
+                  }
               }
             ContainerType::Id =>
               // 条目无 @id 时写 @id = **document-relative、非 vocab 位**展开的索引
@@ -1848,6 +1938,7 @@ fn StandardExpander::expand_language_map(
               language: language_tag,
               direction: None,
               raw: None,
+              index: None,
               included: None,
             }),
           )
@@ -2025,6 +2116,7 @@ fn StandardExpander::expand_term_values_inner(
                     language: None,
                     direction: None,
                     raw: None,
+                    index: None,
                     included: None,
                   }),
                 )
@@ -2422,6 +2514,7 @@ impl ContextProcessor for StandardExpander with fn process_context(
                       container: None,
                       reverse: None,
                       local_context: None,
+                      index_mapping: None,
                       is_protected: protected_default,
                     },
                     flags.override_protected,
@@ -2445,6 +2538,7 @@ impl ContextProcessor for StandardExpander with fn process_context(
                       container: None,
                       reverse: None,
                       local_context: None,
+                      index_mapping: None,
                       is_protected: protected_default,
                     },
                     flags.override_protected,
@@ -2529,6 +2623,10 @@ fn StandardExpander::process_expanded_term_definition(
   // 容器含 @type 标记（REC 4.2.2：container mapping includes @type 时——
   // 缺省 type mapping = @id，且只允许 @id/@vocab；#tm017/#tm018/#tm020 oracle）
   let mut td_container_has_type = false
+  // 容器含 @index 标记（REC 4.2.2：@index mapping 的适用前提）
+  let mut td_container_has_index = false
+  // 索引映射（容器含 @index 且 index key ≠ @index 时，索引键写成属性——#tpi06~10）
+  let mut td_index_mapping : String? = None
   for td_pair in td_pairs {
     match td_pair.0 {
       "@id" =>
@@ -2624,10 +2722,12 @@ fn StandardExpander::process_expanded_term_definition(
             // mapping 规则按"container mapping includes @type"判，非按存储态）
             match td_pair.1 {
               JsonValue::String("@type") => td_container_has_type = true
+              JsonValue::String("@index") => td_container_has_index = true
               JsonValue::Array(items) =>
                 for item in items {
                   match item {
                     JsonValue::String("@type") => td_container_has_type = true
+                    JsonValue::String("@index") => td_container_has_index = true
                     _ => ()
                   }
                 }
@@ -2729,9 +2829,45 @@ fn StandardExpander::process_expanded_term_definition(
           return Err(JsonLdError::InvalidContext("invalid term definition"))
         }
       }
+      "@index" => {
+        // 索引映射（REC 4.2.2）：1.0 模式或容器不含 @index → invalid term definition；
+        // 值须为串；IRI 展开结果须为 **IRI**（关键字/非绝对 → invalid term definition）
+        // oracle：#tpi01（1.0 拒）/ #tpi03（关键字值拒）/ #tpi04（非串拒）
+        if options.processing_mode is JsonLd10 || !td_container_has_index {
+          return Err(JsonLdError::InvalidContext("invalid term definition"))
+        }
+        match td_pair.1 {
+          JsonValue::String(index_name) => {
+            let building = ActiveContext::{
+              base,
+              vocab,
+              terms: new_terms,
+              previous: None,
+            }
+            match
+              IriExpander::expand_iri(_self, building, index_name, false, true) {
+              Ok(expanded_index_key) =>
+                if is_valid_absolute_iri(expanded_index_key) {
+                  // **存原始值**（term 名，如 "prop"）——展开期两用：① Value Expansion
+                  // 以它为 active property（取该 term 的 type mapping，#tpi08/#tpi10
+                  // oracle：`@index: "prop"` 且 prop 有 @type:@vocab ⇒ 索引成节点引用）
+                  // ② **expanded index key** = 用时期再 IRI 展开得属性 IRI
+                  td_index_mapping = Some(index_name)
+                } else {
+                  return Err(
+                    JsonLdError::InvalidContext("invalid term definition"),
+                  )
+                }
+              Err(e) => return Err(e)
+            }
+          }
+          _ =>
+            return Err(JsonLdError::InvalidContext("invalid term definition"))
+        }
+      }
       // 未落码 td 键：**显式 Unsupported**（禁静默忽略——静默 catch-all 是假绿
       // 温床：#pr01/#pr08/#pr11 三枚真缺口即 td 级 @protected 被吞所致）
-      "@index" | "@direction" =>
+      "@direction" =>
         return Err(
           JsonLdError::Unsupported(
             "term definition keyword pending later batches (\{td_pair.0})",
@@ -2748,9 +2884,17 @@ fn StandardExpander::process_expanded_term_definition(
   }
   // @id 与 @reverse 同 td 互斥（#ter14 oracle：invalid reverse property）；
   // @container 与 @reverse 同 td 互斥（#ter17 oracle：reverse 项不带容器）
-  if td_reverse is Some(_) &&
-    (td_iri is Some(_) || td_id_null || td_container is Some(_)) {
-    return Err(JsonLdError::InvalidContext("invalid reverse property"))
+  // reverse 项容器白名单（REC 4.2.2："if its value is neither @set, nor @index, nor
+  // null, an invalid reverse property error"）——即 reverse **允许** @set/@index
+  // （#t0063/#t0131 oracle：反向属性 + index 容器）；@id/@list/@language/@graph 等 → 错
+  if td_reverse is Some(_) {
+    if td_iri is Some(_) || td_id_null {
+      return Err(JsonLdError::InvalidContext("invalid reverse property"))
+    }
+    match td_container {
+      Some(ContainerType::Set) | Some(ContainerType::Index) | None => ()
+      _ => return Err(JsonLdError::InvalidContext("invalid reverse property"))
+    }
   }
   // 容器含 @type 的隐式 type mapping（REC 4.2.2）：未声明 @type ⇒ 置 @id；
   // 已声明则须为 @id/@vocab，否则 invalid type mapping（#tm017/#tm018/#tm019/
@@ -2804,6 +2948,7 @@ fn StandardExpander::process_expanded_term_definition(
           container: keyword_container,
           reverse: None,
           local_context: None,
+          index_mapping: None,
           is_protected: td_protected,
         },
         override_protected,
@@ -2863,6 +3008,7 @@ fn StandardExpander::process_expanded_term_definition(
       container: td_container,
       reverse: td_reverse,
       local_context: td_local_context,
+      index_mapping: td_index_mapping,
       is_protected: td_protected,
     },
     override_protected,

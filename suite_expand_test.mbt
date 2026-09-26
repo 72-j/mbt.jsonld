@@ -405,6 +405,22 @@ async test "expand suite harness: manifest-driven buckets, all deferred pre-J2" 
     //   （不重入容器壳）；数组内 `{"@id": …}` 项仍是节点（base 相对解析）
      "#tm001", "#tm002", "#tm005", "#tm011", "#tm009", "#tm010", "#t0030", "#tl001",
     "#t0040",
+    // —— @index mapping + index map 校验批（2026-09-26；16 例依赖分组见 todo §J2）——
+    // 机制 = REC 4.2.2 `@index` 索引映射（1.0 或容器不含 @index → invalid term
+    // definition；值须串且 IRI 展开成 IRI；**存原始值**——展开期两用）+ REC 13.8.3
+    // 子案例 1（index key ≠ @index ⇒ 索引键写成**一条属性**：expanded index key 为属性
+    // IRI、re-expanded index 以 **index key 为 active property** 走 Value Expansion；
+    // 属性值 = 新值 ++ 既有；**值对象条目 ⇒ invalid value object**）+ 子案例 2（写 @index）
+    // + reverse 项容器白名单放宽（@set/@index 合法——#t0063/#t0131）+ 节点/字面量位
+    // `@index` 键 + `ExpandedLiteral.index` + **reverse-bearing 节点非自由浮动**
+    // #tpi01（负·1.0）/ #tpi03（负·关键字值）/ #tpi04（负·非串）→ invalid term definition
+    // #tpi05（负）：值对象条目加索引属性 ⇒ invalid value object
+    // #tpi06/#tpi07：索引属性展开/追加（值级）；#tpi08/#tpi09：节点级（含 @type:@vocab
+    //   的 index key ⇒ 索引成节点引用 + 追加）；#tpi10：@none 条目**不写**索引属性
+    // #t0131：reverse 项 + 属性型 index 容器；#t0036：index map 节点/字面量条目写 @index、
+    //   已有 @index 保留、null 跳过；#t0063：reverse 属性 + index 容器
+     "#tpi01", "#tpi03", "#tpi04", "#tpi05", "#tpi06", "#tpi07", "#tpi08", "#tpi09",
+    "#tpi10", "#t0131", "#t0036", "#t0063",
   ]
   // 两桶：迁移例走端到端对拍（输入 → expansion → 对 expected）；其余 deferred
   let deferred : Array[String] = []
@@ -497,8 +513,8 @@ async test "expand suite harness: manifest-driven buckets, all deferred pre-J2" 
     }
   }
   // pin 闭合：桶总和 == 普查数；plain = 已迁移数
-  assert_eq(deferred.length(), 156)
-  assert_eq(plain.length(), 229)
+  assert_eq(deferred.length(), 144)
+  assert_eq(plain.length(), 241)
   // 解析覆盖闭合：每个有 input 的条目都走了解析通道
   assert_eq(parsed_ok + parse_err, 385)
   // 首例钉：#t0001 已迁 plain（manifest 顺序首条；J2 首件验收 = 此例端到端绿）

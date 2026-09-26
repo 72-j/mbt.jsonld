@@ -142,7 +142,10 @@ fn is_free_floating(node : ExpandedNode) -> Bool {
   node.properties.is_empty() &&
   node.types.is_empty() &&
   node.graph is None &&
-  node.included is None // included-bearing 节点不弃（#tin03：仅 @included 的根节点保留）
+  node.included is None && // included-bearing 节点不弃（#tin03：仅 @included 的根节点保留）
+  // reverse-bearing 节点不弃（@index mapping 批——#t0131 oracle：仅 @reverse 的根节点
+  // 保留；@reverse 项进 reverse_props 而非 properties，故须显式豁免）
+  node.reverse_props.is_empty()
 }
 
 ///|
@@ -186,6 +189,11 @@ fn serialize_value(value : ExpandedValue) -> JsonValue {
               ),
             ),
           )
+        None => ()
+      }
+      // 值对象位 @index（@index mapping 批——#t0036 oracle：字面量条目的索引）
+      match literal.index {
+        Some(index) => pairs.push(("@index", JsonValue::String(index)))
         None => ()
       }
       JsonValue::Object(pairs)

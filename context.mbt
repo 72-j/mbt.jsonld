@@ -33,6 +33,10 @@ pub(all) struct TermDefinition {
   /// #tc032/#tc033 oracle）；展开期在该 term 的值展开前再处理并套用
   /// （#tc037/#tc038/#tin06 oracle）
   local_context : JsonValue?
+  /// 索引映射（@index mapping 批——REC 4.2.2：`@index` 值须 IRI 展开成 **IRI**，
+  /// 且仅在 1.1 模式与容器含 `@index` 时合法）：容器含 @index 且本映射 ≠ "@index" 时，
+  /// 索引键写成**一条属性**（值 = 索引）而非 `@index` 条目（#tpi06~#tpi10 oracle）
+  index_mapping : String?
   /// 保护位（@protected 批）：上下文级 `@protected` 成员为默认、td 级 `@protected`
   /// 覆盖。受保护定义不可被**不等价**重定义覆盖；等价重定义允许且**保留旧定义**
   /// （保护位不丢——#pr42 oracle）
