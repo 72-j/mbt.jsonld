@@ -77,6 +77,15 @@
   不得被 base 补成绝对）。harness 默认 base 注入（document location 约定，
   option.base 优先）与门控**同笔落地**。
 
+### 同形异判实例（J2 语义分叉地图；2026-09-26 立节，持续收录）
+「输入相似/相同而判定不同」的 oracle 对——**禁止单一规则覆盖整族**，逐对勘定
+分叉轴后再落码；新增分叉对入本表：
+| 实例对 | 分叉轴 | 判定差异 |
+| #t0003 vs #t0004 | 值形态（null vs 空数组字面值） | null 值属性整体丢弃；空数组字面值属性保留（"set1": []——同文档两组键并存） |
+| #tli01 vs #ter24/#ter32 | processingMode/specVersion | 同输入（@list 嵌套）：1.1 允许保留 / 1.0 list of lists 禁止 |
+| #t0092 vs #t0115/#t0116 | processingMode | @vocab 相对/空串：1.1 base raw 拼接有效 / 1.0 invalid vocab mapping（校验先于 base 解析） |
+| #ter23 vs #t0029 | 展开位置（td 定义值 vs 文档值位） | td @type 相对值不落 base（invalid type mapping）；文档值位相对 IRI 落 base 解析（含 fragment/query/scheme 相对） |
+
 ### 红线与判据（2026-09-25 定）
 - 递归策略、搜索剪枝、工程权衡一律不进表；condition 只收可枚举的形态判断；
   handler_hook 只指向手写 trait 方法。
@@ -95,8 +104,14 @@
 - **第一实证（1.0 校验时序，2026-09-25）**：@vocab 非绝对的 invalid 判定必须在
   base 解析**前**对原始值做——1.0 语义不做 base 补全，先解析后校验会把空串补成
   绝对而漏拦（实测：#t0115 首轮误过）。后续模式分叉差异均记入本节。
-- 挂账：harness per-case options（specVersion 注入）未实现 ⇒ 1.0 负例 6 条迁移挂此；
-  RFC3986 完整 IRI 解析（点段消除等）挂后续（#t0092 oracle 证实 raw 拼接即预期）。
+- **第二实证（list-of-lists 模式分叉，2026-09-26）**：@list 嵌套——1.1 允许
+  （#tli01 正例：嵌套 list 对象保留）/ 1.0 禁止（#ter24/#ter32 负例：list of
+  lists）；**输入相同，按 processingMode/specVersion 分叉**（实现：
+  expand_list_item 数组臂 1.0 短路 + 拦截器/容器 @list 臂 1.0 元素扫描）。
+- 挂账清账（2026-09-26）：harness per-case options **已落**（specVersion +
+  processingMode + document-location base 注入）；RFC3986 IRI 解析**部分落地**
+  （点段消除已入 resolve_base_value / merge；@vocab raw 拼接语义保留——
+  #t0092 oracle 不变）。
 
 ### 表的层级归属（2026-09-25 定案）
 三表只收 **element expansion 层**的分派；context 处理层键（`@vocab` / `@base` / `@container` /
