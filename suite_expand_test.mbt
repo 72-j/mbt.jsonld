@@ -260,6 +260,14 @@ async test "expand suite harness: manifest-driven buckets, all deferred pre-J2" 
     // @set 透明/@list 整弃；#ter43（负·1.1 模式）：@type 别名禁 → invalid IRI mapping
      "#t0009", "#t0012", "#t0017", "#t0020", "#t0021", "#t0026", "#t0046", "#t0047",
     "#ter43",
+    // —— @nest 纯形批（2026-09-26；tn001~tn008——批边界见 todo §J2）——
+    // #tn001：@nest 基本上浮（嵌套属性并入当前节点）；#tn002：别名 term
+    // （"nest": "@nest"）归一汇流；#tn003：嵌套值排自身属性之后（文档序不倒
+    // 置）；#tn004：双 @nest 键（nest2 文档序在先）——保序输出 [v2,v4,v3]，
+    // 官方比对数组无序同判（比对器 canonical_for_suite 移植）；#tn005：嵌套
+    // @nest 递归自展；#tn006：同键属性逐元素并值；#tn007：nest 值数组展平；
+    // #tn008：类型随嵌套并入（@type 数组追加）
+     "#tn001", "#tn002", "#tn003", "#tn004", "#tn005", "#tn006", "#tn007", "#tn008",
   ]
   // 两桶：迁移例走端到端对拍（输入 → expansion → 对 expected）；其余 deferred
   let deferred : Array[String] = []
@@ -334,8 +342,8 @@ async test "expand suite harness: manifest-driven buckets, all deferred pre-J2" 
           Err(_) => fail("\{id}: expected output unparseable")
         }
         assert_eq(
-          @jsonld.json_canonical(actual),
-          @jsonld.json_canonical(expected),
+          @jsonld.canonical_for_suite(actual),
+          @jsonld.canonical_for_suite(expected),
         )
       }
       plain.push(id)
@@ -344,8 +352,8 @@ async test "expand suite harness: manifest-driven buckets, all deferred pre-J2" 
     }
   }
   // pin 闭合：桶总和 == 普查数；plain = 已迁移数
-  assert_eq(deferred.length(), 235)
-  assert_eq(plain.length(), 150)
+  assert_eq(deferred.length(), 227)
+  assert_eq(plain.length(), 158)
   // 解析覆盖闭合：每个有 input 的条目都走了解析通道
   assert_eq(parsed_ok + parse_err, 385)
   // 首例钉：#t0001 已迁 plain（manifest 顺序首条；J2 首件验收 = 此例端到端绿）

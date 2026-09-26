@@ -6,6 +6,8 @@ import {
 }
 
 // Values
+pub fn canonical_for_suite(JsonValue) -> JsonValue
+
 pub fn expand_document(String, JsonLdOptions) -> Result[JsonValue, JsonLdError]
 
 pub fn json_canonical(JsonValue) -> JsonValue

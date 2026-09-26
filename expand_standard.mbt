@@ -437,6 +437,9 @@ fn StandardExpander::expand_object(
   let properties : Array[(String, Array[ExpandedValue])] = []
   let reverse_props : Array[(String, Array[ExpandedValue])] = []
   let mut node_graph : Array[ExpandedValue]? = None
+  // 节点位 @nest 值收集（nest 纯形批——REC 13.4.14：主键循环中只收集，
+  // 循环后延后处理；文档序）
+  let nest_values : Array[JsonValue] = []
   let mut literal : ExpandedLiteral? = None
   let mut is_value_object = false
   let mut has_datatype = false
@@ -831,12 +834,89 @@ fn StandardExpander::expand_object(
           JsonValue::Null => () // @graph: null = 无图内容（先验；无 oracle）
           _ => return Err(JsonLdError::InvalidValue("invalid @graph value"))
         }
+      // 节点位 @nest（nest 纯形批——REC 13.4.14：主键循环中只收集不展开，
+      // 主键循环后延后对...嵌套值展开与并入见循环后段（REC 步骤 14）。
+      // 别名 term（IRI 即 @nest）归一汇流（tn002）。值对象位 @nest 无
+      // oracle，循 @id 同款门（#ter37 先例）——invalid value object。
+      // 臂体多语句须包块（MoonBit 臂体单表达式纪律——微复现实证）
+      "@nest" => {
+        if is_value_object {
+          return Err(JsonLdError::InvalidValue("invalid value object"))
+        }
+        match pair.1 {
+          JsonValue::Array(items) =>
+            for item in items {
+              nest_values.push(item) // 数组归一（tn007/tn008）
+            }
+          JsonValue::Null => () // 数组归一：null = 空（先验）
+          single => nest_values.push(single)
+        }
+      }
       other =>
         return Err(
           JsonLdError::Unsupported(
             "keyword expansion pending later batches (\{other})",
           ),
         )
+    }
+  }
+  // @nest 延后处理（nest 纯形批——REC 步骤 14）：逐嵌套值须为节点对象且
+  // 任一键展开为 @value 即拒（invalid @nest value）；递归展开后并入当前
+  // 节点——排自身属性之后（tn003），嵌套 @nest 随递归自展（tn005），数组
+  // 元素逐一合并（tn006/tn008）。文档序处理（ordered=false 时 nests 按
+  // 收集序——tn004 双 nest 官方比对无序，保序结果同为合法置换）。
+  for nested in nest_values {
+    let nested_pairs = match nested {
+      JsonValue::Object(ps) => ps
+      _ => return Err(JsonLdError::InvalidContext("invalid @nest value"))
+    }
+    // @value 键嗅探：字面 @ 键原样，term 键经 IRI 链展开一次（同主键循环归一）
+    for nested_pair in nested_pairs {
+      let raw_key = nested_pair.0
+      let nested_key = if raw_key.get_char(0) is Some('@') {
+        raw_key
+      } else {
+        match IriExpander::expand_iri(self, current, raw_key, false, true) {
+          Ok(k) => k
+          Err(e) => return Err(e)
+        }
+      }
+      if nested_key is "@value" {
+        return Err(JsonLdError::InvalidContext("invalid @nest value"))
+      }
+    }
+    let nested_expanded = StandardExpander::expand_object(
+      self, current, nested, _active_property, options,
+    )
+    match nested_expanded {
+      Ok(Some(ExpandedValue::Node(nested_node))) => {
+        // 并入（REC 共享 result 语义）：@id 臂为赋值——嵌套覆盖先见者（先验，
+        // 无 oracle）；类型/属性/反向逐值追加——同键并数组（tn006）；
+        // @graph 并集（先验，无 oracle）
+        match nested_node.id {
+          Some(nested_id) => node_id = Some(nested_id)
+          None => ()
+        }
+        for t in nested_node.types {
+          types.push(t)
+        }
+        for prop_pair in nested_node.properties {
+          merge_property_values(properties, prop_pair)
+        }
+        for rev_pair in nested_node.reverse_props {
+          merge_property_values(reverse_props, rev_pair)
+        }
+        match (node_graph, nested_node.graph) {
+          (Some(existing), Some(more)) =>
+            for item in more {
+              existing.push(item)
+            }
+          (None, Some(more)) => node_graph = Some(more)
+          _ => ()
+        }
+      }
+      Ok(_) => ()
+      Err(e) => return Err(e)
     }
   }
   // 形态判定：值对象（@value 键已见）优先于节点对象
@@ -866,6 +946,24 @@ fn StandardExpander::expand_object(
       ),
     )
   }
+}
+
+///|
+/// 同键属性值合并（nest 批助手）：目标数组已有同 IRI 项 → 逐值追加（tn006
+/// 逐元素并值）；否则新增项。类型数组的追加由调用方直推。
+fn merge_property_values(
+  target : Array[(String, Array[ExpandedValue])],
+  pair : (String, Array[ExpandedValue]),
+) -> Unit {
+  for entry in target {
+    if entry.0 == pair.0 {
+      for v in pair.1 {
+        entry.1.push(v)
+      }
+      return
+    }
+  }
+  target.push(pair)
 }
 
 ///|

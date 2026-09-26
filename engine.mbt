@@ -228,3 +228,94 @@ pub fn json_canonical(value : JsonValue) -> JsonValue {
     other => other
   }
 }
+
+///|
+/// W3C 官方比对归一（suite 比对通道；README「JSON-LD Object comparison」移植）：
+/// 对象键序不敏感；数组默认无序——唯一例外 @list 键下的数组保序；标量严格
+/// 相等。语言标签大小写不敏感项未采（现役从严）。tn004 双 nest 保序输出
+/// [v2,v4,v3] 与 expected [v2,v3,v4] 同判——合法置换。
+pub fn canonical_for_suite(value : JsonValue) -> JsonValue {
+  canonical_suite_inner(value, false)
+}
+
+///|
+fn canonical_suite_inner(
+  value : JsonValue,
+  order_significant : Bool,
+) -> JsonValue {
+  match value {
+    JsonValue::Object(pairs) => {
+      let sorted = pairs.map(fn(pair) {
+        (pair.0, canonical_suite_inner(pair.1, pair.0 is "@list"))
+      })
+      sorted.sort_by(fn(a, b) { a.0.compare(b.0) })
+      JsonValue::Object(sorted)
+    }
+    JsonValue::Array(items) =>
+      if order_significant {
+        JsonValue::Array(
+          items.map(fn(item) { canonical_suite_inner(item, false) }),
+        )
+      } else {
+        let canon = items.map(fn(item) { canonical_suite_inner(item, false) })
+        canon.sort_by(json_total_compare)
+        JsonValue::Array(canon)
+      }
+    other => other
+  }
+}
+
+///|
+/// JsonValue 全序比较（套件无序数组排序用）：变体秩 -> 内容逐层
+fn json_total_compare(a : JsonValue, b : JsonValue) -> Int {
+  let rank = fn(v : JsonValue) -> Int {
+    match v {
+      JsonValue::Null => 0
+      JsonValue::Bool(_) => 1
+      JsonValue::Number(_) => 2
+      JsonValue::String(_) => 3
+      JsonValue::Array(_) => 4
+      JsonValue::Object(_) => 5
+    }
+  }
+  let ra = rank(a)
+  let rb = rank(b)
+  if ra != rb {
+    return ra - rb
+  }
+  match (a, b) {
+    (JsonValue::Bool(x), JsonValue::Bool(y)) =>
+      match (x, y) {
+        (true, false) => 1
+        (false, true) => -1
+        _ => 0
+      }
+    (JsonValue::Number(x), JsonValue::Number(y)) => x.compare(y)
+    (JsonValue::String(x), JsonValue::String(y)) => x.compare(y)
+    (JsonValue::Array(xs), JsonValue::Array(ys)) => {
+      let n = if xs.length() < ys.length() { xs.length() } else { ys.length() }
+      for i in 0..<n {
+        let c = json_total_compare(xs[i], ys[i])
+        if c != 0 {
+          return c
+        }
+      }
+      xs.length().compare(ys.length())
+    }
+    (JsonValue::Object(xs), JsonValue::Object(ys)) => {
+      let n = if xs.length() < ys.length() { xs.length() } else { ys.length() }
+      for i in 0..<n {
+        let c = xs[i].0.compare(ys[i].0)
+        if c != 0 {
+          return c
+        }
+        let cv = json_total_compare(xs[i].1, ys[i].1)
+        if cv != 0 {
+          return cv
+        }
+      }
+      xs.length().compare(ys.length())
+    }
+    _ => 0
+  }
+}
