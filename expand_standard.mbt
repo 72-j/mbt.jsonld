@@ -510,21 +510,39 @@ fn element_context_value(pairs : Array[(String, JsonValue)]) -> JsonValue? {
 }
 
 ///|
-/// 键 IRI 展开（键位：vocab=true / document_relative=false）；查表失败即原样
-/// （回退门与嗅探用，不因未映射键报错）
-fn StandardExpander::expand_key_for_shape(
+/// 键是否展开为指定关键字·**快路**（常数因子优化：形状判定/嗅探/type-scoped 扫描
+/// 原先对每个键跑一次完整 IRI 展开——热路径上按"每键一次展开"付学费）。
+/// 快路 = 字面命中 或 该键的 term 定义 IRI 就是该关键字；**保守回退**：仅当
+/// vocab 含 `@`（病态：vocab 拼接理论上能造出 `"@xxx"`，无 oracle）时才走完整展开。
+/// compact 形不可能命中关键字（前缀 IRI 是绝对 IRI，拼接结果不以 `@` 起）⇒ 不必展开。
+fn StandardExpander::key_expands_to_keyword(
   self : StandardExpander,
   active : ActiveContext,
   key : String,
-) -> String {
-  match key.get_char(0) {
-    Some('@') => key
-    _ =>
-      match IriExpander::expand_iri(self, active, key, false, true) {
-        Ok(expanded) => expanded
-        Err(_) => key
-      }
+  keyword : String,
+) -> Bool {
+  if key == keyword {
+    return true
   }
+  match active.terms.get(key) {
+    Some(term_definition) =>
+      match term_definition.iri {
+        Some(iri) => if iri == keyword { return true }
+        None => ()
+      }
+    None => ()
+  }
+  match active.vocab {
+    Some(vocab) =>
+      if vocab.contains("@") {
+        return match IriExpander::expand_iri(self, active, key, false, true) {
+          Ok(expanded) => expanded == keyword
+          Err(_) => false
+        }
+      }
+    None => ()
+  }
+  false
 }
 
 ///|
@@ -540,14 +558,22 @@ fn StandardExpander::is_value_or_id_shaped(
   match element {
     JsonValue::Object(pairs) => {
       for pair in pairs {
-        if StandardExpander::expand_key_for_shape(self, active, pair.0)
-          is "@value" {
+        if StandardExpander::key_expands_to_keyword(
+            self,
+            active,
+            pair.0,
+            "@value",
+          ) {
           return true
         }
       }
       if pairs.length() == 1 &&
-        StandardExpander::expand_key_for_shape(self, active, pairs[0].0)
-        is "@id" {
+        StandardExpander::key_expands_to_keyword(
+          self,
+          active,
+          pairs[0].0,
+          "@id",
+        ) {
         return true
       }
       false
@@ -572,7 +598,7 @@ fn StandardExpander::apply_type_scoped_contexts(
 ) -> Result[ActiveContext, JsonLdError] {
   let type_keys : Array[String] = []
   for pair in pairs {
-    if StandardExpander::expand_key_for_shape(self, active, pair.0) is "@type" {
+    if StandardExpander::key_expands_to_keyword(self, active, pair.0, "@type") {
       type_keys.push(pair.0)
     }
   }
@@ -1171,6 +1197,17 @@ fn StandardExpander::expand_object(
   // 节点——排自身属性之后（tn003），嵌套 @nest 随递归自展（tn005），数组
   // 元素逐一合并（tn006/tn008）。文档序处理（ordered=false 时 nests 按
   // 收集序——tn004 双 nest 官方比对无序，保序结果同为合法置换）。
+  // 合并索引（@nest 异键合并索引化）：**整段建一次**（进入合并前按当前槽位），
+  // 之后由 merge_property_values 维护 ⇒ 每条 incoming 对 O(1) 查/追加
+  // （原实现每条都线性扫目标数组 ⇒ O(P·M) 二次方）
+  let property_index : Map[String, Int] = Map([])
+  for i in 0..<properties.length() {
+    property_index[properties[i].0] = i
+  }
+  let reverse_index : Map[String, Int] = Map([])
+  for i in 0..<reverse_props.length() {
+    reverse_index[reverse_props[i].0] = i
+  }
   for nest_entry in nest_entries {
     let nest_context = nest_entry.0
     let nested = nest_entry.1
@@ -1178,19 +1215,13 @@ fn StandardExpander::expand_object(
       JsonValue::Object(ps) => ps
       _ => return Err(JsonLdError::InvalidContext("invalid @nest value"))
     }
-    // @value 键嗅探：字面 @ 键原样，term 键经 IRI 链展开一次（同主键循环归一）
+    // @value 键嗅探（REC 步骤 14："any key within nested value expands to @value"）：
+    // 走 `key_expands_to_keyword` 快路（原实现每键跑一次完整 IRI 展开——常数因子）
     for nested_pair in nested_pairs {
       let raw_key = nested_pair.0
-      let nested_key = if raw_key.get_char(0) is Some('@') {
-        raw_key
-      } else {
-        match
-          IriExpander::expand_iri(self, nest_context, raw_key, false, true) {
-          Ok(k) => k
-          Err(e) => return Err(e)
-        }
-      }
-      if nested_key is "@value" {
+      if StandardExpander::key_expands_to_keyword(
+          self, nest_context, raw_key, "@value",
+        ) {
         return Err(JsonLdError::InvalidContext("invalid @nest value"))
       }
     }
@@ -1210,10 +1241,10 @@ fn StandardExpander::expand_object(
           types.push(t)
         }
         for prop_pair in nested_node.properties {
-          merge_property_values(properties, prop_pair)
+          merge_property_values(properties, property_index, prop_pair)
         }
         for rev_pair in nested_node.reverse_props {
-          merge_property_values(reverse_props, rev_pair)
+          merge_property_values(reverse_props, reverse_index, rev_pair)
         }
         match (node_graph, nested_node.graph) {
           (Some(existing), Some(more)) =>
@@ -1312,21 +1343,28 @@ fn StandardExpander::expand_object(
 }
 
 ///|
-/// 同键属性值合并（nest 批助手）：目标数组已有同 IRI 项 → 逐值追加（tn006
-/// 逐元素并值）；否则新增项。类型数组的追加由调用方直推。
+/// 同键属性值合并·索引版（@nest 异键合并索引化——原实现每条 incoming 线性扫目标
+/// 数组，在"异键数 × 条目数"上 **O(P·M) 二次方**，实测 2× 输入 → 4× 耗时）。
+/// 目标数组配 `Map[IRI, 槽位下标]`：命中 ⇒ 逐值追加（tn006 逐元素并值），未命中 ⇒
+/// 追加新项并登记槽位。**顺序语义与原实现完全一致**（先见者占位、逐值追加到尾部）；
+/// 索引由调用方在进入合并前建一次，此后由本函数维护。
+/// 类型数组的追加由调用方直推。
 fn merge_property_values(
   target : Array[(String, Array[ExpandedValue])],
+  index : Map[String, Int],
   pair : (String, Array[ExpandedValue]),
 ) -> Unit {
-  for entry in target {
-    if entry.0 == pair.0 {
+  match index.get(pair.0) {
+    Some(slot) =>
+      // 既有槽位：逐值追加（无需重建索引）
       for v in pair.1 {
-        entry.1.push(v)
+        target[slot].1.push(v)
       }
-      return
+    None => {
+      index[pair.0] = target.length()
+      target.push(pair)
     }
   }
-  target.push(pair)
 }
 
 ///|
@@ -2276,11 +2314,6 @@ impl ContextProcessor for StandardExpander with fn process_context(
   flags : ContextFlags,
   _options : JsonLdOptions,
 ) -> Result[ActiveContext, JsonLdError] {
-  // 继承：父 terms 复制
-  let new_terms : Map[String, TermDefinition] = Map([])
-  for k, td in active.terms {
-    new_terms[k] = td
-  }
   let mut vocab = active.vocab
   let mut base = active.base
   match local_context {
@@ -2324,6 +2357,32 @@ impl ContextProcessor for StandardExpander with fn process_context(
       let keyword_owner : Map[String, String] = Map([])
       // 对象形态 term 定义缓冲（两遍处理——第二遍见主循环后）
       let deferred_td : Array[(String, Array[(String, JsonValue)])] = []
+      // 继承：父 terms 复制——**仅当本 context 有 term 条目时才复制**（只含 context
+      // 关键字时 terms 不可能被写，直接共享父 map，省 O(T) 复制；@vocab/@base 等
+      // 关键字集合见下）
+      let mut has_term_entries = false
+      for pair in pairs {
+        match pair.0 {
+          "@base"
+          | "@direction"
+          | "@import"
+          | "@language"
+          | "@propagate"
+          | "@protected"
+          | "@version"
+          | "@vocab" => ()
+          _ => has_term_entries = true
+        }
+      }
+      let new_terms : Map[String, TermDefinition] = if has_term_entries {
+        let copied : Map[String, TermDefinition] = Map([])
+        for k, td in active.terms {
+          copied[k] = td
+        }
+        copied
+      } else {
+        active.terms
+      }
       // @propagate 成员（REC 4.1.2 步 2；校验在步 5.x）：1.0 模式非法
       // （invalid context entry）；非布尔 → invalid @propagate value
       let mut propagate = flags.propagate

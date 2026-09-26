@@ -349,6 +349,49 @@ test "@context simple term declaration end-to-end (③批对拍)" {
 }
 
 ///|
+/// @nest 合并索引化对拍（顺序语义不变钉）：同键逐值追加、异键按**首见序**占位。
+/// 两条 nest 条目交叉给出 {a,b} 与 {b,a} ⟹ 结果 a→[1,4]、b→[2,3]，键序 a,b
+test "@nest indexed merge keeps order semantics (tn006/tn008 同族对拍)" {
+  let options = JsonLdOptions::{
+    base: None,
+    expand_context: None,
+    processing_mode: JsonLd11,
+  }
+  let input = "{\"@context\": {\"@vocab\": \"ex:\", \"n\": \"@nest\"}, \"n\": [{\"a\": \"1\", \"b\": \"2\"}, {\"b\": \"3\", \"a\": \"4\"}]}"
+  assert_true(
+    expand_document(input, options)
+    is Ok(
+      Array(
+        [
+          Object(
+            [
+              (
+                "ex:a",
+                Array(
+                  [
+                    Object([("@value", String("1"))]),
+                    Object([("@value", String("4"))]),
+                  ]
+                ),
+              ),
+              (
+                "ex:b",
+                Array(
+                  [
+                    Object([("@value", String("2"))]),
+                    Object([("@value", String("3"))]),
+                  ]
+                ),
+              ),
+            ]
+          ),
+        ]
+      )
+    ),
+  )
+}
+
+///|
 /// ③批对拍：@vocab 声明端到端（无冒号键 → vocab 拼接）
 test "@vocab declaration end-to-end (③批对拍)" {
   let options = JsonLdOptions::{
