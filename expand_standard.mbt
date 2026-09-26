@@ -771,7 +771,23 @@ fn StandardExpander::expand_object(
                       _ => ()
                     }
                   }
-                  reverse_props.push((rev_key, vs))
+                  // 双反转互消（#t0043 oracle）：@reverse 位键自身为 reverse
+                  // term 时，@reverse 位与 td @reverse 两次反转相消——值升级为
+                  // 当前节点的普通正属性（键 = td 的 reverse IRI，同正属性位
+                  // reverse 项路由键取法）
+                  let mut double_reversed : String? = None
+                  match current.terms.get(rev_pair.0) {
+                    Some(term_definition) =>
+                      match term_definition.reverse {
+                        Some(rev) => double_reversed = Some(rev)
+                        None => ()
+                      }
+                    None => ()
+                  }
+                  match double_reversed {
+                    Some(rev) => properties.push((rev, vs))
+                    None => reverse_props.push((rev_key, vs))
+                  }
                 }
                 Err(e) => return Err(e)
               }
@@ -1523,12 +1539,19 @@ fn StandardExpander::process_expanded_term_definition(
           _ => return Err(JsonLdError::InvalidContext("invalid @nest value"))
         }
       "@reverse" =>
-        // 反向映射（reverse 批——#ter15 oracle：非串 → invalid IRI mapping）
+        // 反向映射（reverse 批——#ter15 oracle：非串 → invalid IRI mapping；
+        // #ter50 oracle：串经 vocab 展开后非绝对 → invalid IRI mapping——
+        // documentRelative=false，base 注入不救）
         match td_pair.1 {
           JsonValue::String(rev) => {
             let building = ActiveContext::{ base, vocab, terms: new_terms, }
             match IriExpander::expand_iri(_self, building, rev, false, true) {
-              Ok(k) => td_reverse = Some(k)
+              Ok(k) =>
+                if is_valid_absolute_iri(k) {
+                  td_reverse = Some(k)
+                } else {
+                  return Err(JsonLdError::InvalidIri("invalid IRI mapping"))
+                }
               Err(e) => return Err(e)
             }
           }
@@ -1722,7 +1745,6 @@ fn StandardExpander::expand_list_set_object(
       let wrapped : Array[ExpandedValue]? = Some([ExpandedValue::List(out)])
       Ok(wrapped)
     }
-    Some(_) => Err(JsonLdError::InvalidList("invalid set or list object"))
     None =>
       match set_value {
         Some(JsonValue::Array(items)) => {

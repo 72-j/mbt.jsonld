@@ -246,6 +246,12 @@ async test "expand suite harness: manifest-driven buckets, all deferred pre-J2" 
     //（#ter33 已在四族批名单——值对象位 @reverse 非 map 随本批真拒绝）
     // #ter36（负）：reverse 项 @list 值 → invalid reverse property value
      "#ter14", "#ter15", "#ter17", "#ter36",
+    // —— @reverse 收尾小批（2026-09-26；ter50 + t0043，独立成笔不混 §M.12）——
+    // #ter50（负）：td @reverse 串值经 vocab 展开后非绝对 → invalid IRI mapping
+    //（documentRelative=false，base 注入不救）
+    // #t0043：@reverse 位双反转互消（键自身为 reverse term → 值升级为当前节点
+    // 普通正属性，键 = td 的 reverse IRI）
+     "#ter50", "#t0043",
   ]
   // 两桶：迁移例走端到端对拍（输入 → expansion → 对 expected）；其余 deferred
   let deferred : Array[String] = []
@@ -330,8 +336,8 @@ async test "expand suite harness: manifest-driven buckets, all deferred pre-J2" 
     }
   }
   // pin 闭合：桶总和 == 普查数；plain = 已迁移数
-  assert_eq(deferred.length(), 246)
-  assert_eq(plain.length(), 139)
+  assert_eq(deferred.length(), 244)
+  assert_eq(plain.length(), 141)
   // 解析覆盖闭合：每个有 input 的条目都走了解析通道
   assert_eq(parsed_ok + parse_err, 385)
   // 首例钉：#t0001 已迁 plain（manifest 顺序首条；J2 首件验收 = 此例端到端绿）
