@@ -185,6 +185,7 @@ test "term/IRI chain with constructed context (②批对拍)" {
     container: None,
     reverse: None,
     local_context: None,
+    is_protected: false,
   }
   terms["name"] = TermDefinition::{
     iri: Some("http://example.com/name"),
@@ -192,6 +193,7 @@ test "term/IRI chain with constructed context (②批对拍)" {
     container: None,
     reverse: None,
     local_context: None,
+    is_protected: false,
   }
   let active = ActiveContext::{
     base: None,
@@ -268,6 +270,7 @@ test "property key routing via chain (②批)" {
     container: None,
     reverse: None,
     local_context: None,
+    is_protected: false,
   }
   let active = ActiveContext::{
     base: None,
@@ -382,6 +385,7 @@ test "debug ter48: vocab=false excludes term lookup" {
     container: None,
     reverse: None,
     local_context: None,
+    is_protected: false,
   }
   let active = ActiveContext::{
     base: None,
@@ -411,7 +415,14 @@ test "@version declaration (③批对拍)" {
   }
   let ctx = JsonValue::Object([("@version", JsonValue::String("json-ld-1.1"))])
   assert_true(
-    ContextProcessor::process_context(e, active, ctx, true, options) is Ok(_),
+    ContextProcessor::process_context(
+      e,
+      active,
+      ctx,
+      ContextFlags::element(),
+      options,
+    )
+    is Ok(_),
   )
 }
 
@@ -430,7 +441,14 @@ test "invalid @version rejected (③批对拍)" {
     processing_mode: JsonLd11,
   }
   let ctx = JsonValue::Object([("@version", JsonValue::String("json-ld-1.2"))])
-  match ContextProcessor::process_context(e, active, ctx, true, options) {
+  match
+    ContextProcessor::process_context(
+      e,
+      active,
+      ctx,
+      ContextFlags::element(),
+      options,
+    ) {
     Err(JsonLdError::InvalidContext(m)) =>
       assert_true(m.contains("invalid @version"))
     _ => fail("expected @version rejection")
@@ -484,7 +502,13 @@ test "term value expands against in-progress vocab (t0072 对拍)" {
     ("term", JsonValue::String("term")),
   ])
   let built = match
-    ContextProcessor::process_context(e, active, ctx, true, options) {
+    ContextProcessor::process_context(
+      e,
+      active,
+      ctx,
+      ContextFlags::element(),
+      options,
+    ) {
     Ok(built) => built
     Err(_) => fail("process failed")
   }
@@ -689,7 +713,14 @@ test "@propagate must be boolean and 1.1-only (#tc029/#tc030 对拍)" {
     processing_mode: JsonLd11,
   }
   let bad = JsonValue::Object([("@propagate", JsonValue::String("yes"))])
-  match ContextProcessor::process_context(e, active, bad, true, options_11) {
+  match
+    ContextProcessor::process_context(
+      e,
+      active,
+      bad,
+      ContextFlags::element(),
+      options_11,
+    ) {
     Err(InvalidContext(message)) =>
       assert_true(message.contains("invalid @propagate value"))
     _ => fail("expected invalid @propagate value")
@@ -700,9 +731,74 @@ test "@propagate must be boolean and 1.1-only (#tc029/#tc030 对拍)" {
     processing_mode: JsonLd10,
   }
   let flag = JsonValue::Object([("@propagate", JsonValue::Bool(true))])
-  match ContextProcessor::process_context(e, active, flag, true, options_10) {
+  match
+    ContextProcessor::process_context(
+      e,
+      active,
+      flag,
+      ContextFlags::element(),
+      options_10,
+    ) {
     Err(InvalidContext(message)) =>
       assert_true(message.contains("invalid context entry"))
     _ => fail("expected invalid context entry")
   }
+}
+
+///|
+/// @protected 批对拍①（#pr23/#pr42 oracle）：等价重定义**允许且保留保护位**；
+/// 不等价重定义 → protected term redefinition（判据看**旧定义**是否受保护）
+test "protected term: equivalent redefinition keeps protection (#pr42 对拍)" {
+  let options = JsonLdOptions::{
+    base: None,
+    expand_context: None,
+    processing_mode: JsonLd11,
+  }
+  // 等价（同一 IRI）重定义 → 允许，保护位保留
+  let equivalent = "{\"@context\": [{\"@protected\": true, \"p\": \"ex:p\"}, {\"p\": \"ex:p\"}, {\"p\": \"ex:q\"}]}"
+  assert_true(expand_document(equivalent, options) is Err(InvalidContext(_)))
+  let allowed = "{\"@context\": [{\"@protected\": true, \"p\": \"ex:p\"}, {\"p\": \"ex:p\"}], \"p\": \"x\"}"
+  assert_true(expand_document(allowed, options) is Ok(_))
+  // 除 protected 位外等价 ⇒ 允许（#pr27 oracle："same definition modulo protected flag"）
+  let modulo_flag = "{\"@context\": [{\"@protected\": true, \"p\": \"ex:p\"}, {\"p\": {\"@id\": \"ex:p\", \"@protected\": false}}], \"p\": \"x\"}"
+  assert_true(expand_document(modulo_flag, options) is Ok(_))
+}
+
+///|
+/// @protected 批对拍②（#pr17 vs #pr06 oracle）：override protected 的**面**差异——
+/// type-scoped 应用不传（默认 false）⇒ 空化保护 term 即错；property-scoped 面传
+/// true ⇒ 同一空化形态允许
+test "override protected faces: type-scoped vs property-scoped (#pr17/#pr06 对拍)" {
+  let options = JsonLdOptions::{
+    base: None,
+    expand_context: None,
+    processing_mode: JsonLd11,
+  }
+  let type_scoped = "{\"@context\": {\"@vocab\": \"ex:\", \"@protected\": true, \"Foo\": {\"@context\": [null]}}, \"@type\": \"Foo\", \"p\": \"x\"}"
+  match expand_document(type_scoped, options) {
+    Err(InvalidContext(message)) =>
+      assert_true(message.contains("invalid context nullification"))
+    _ => fail("expected invalid context nullification")
+  }
+  let property_scoped = "{\"@context\": {\"@protected\": true, \"p\": {\"@id\": \"ex:p\", \"@context\": null}}, \"p\": \"x\"}"
+  assert_true(expand_document(property_scoped, options) is Ok(_))
+}
+
+///|
+/// @protected 批对拍③（td 键面）：未知键 → invalid term definition（REC 键白名单）；
+/// 未落码键（@index/@direction）→ Unsupported（落码活账，禁静默忽略）
+test "td unknown key vs unimplemented key (#ter56 同族对拍)" {
+  let options = JsonLdOptions::{
+    base: None,
+    expand_context: None,
+    processing_mode: JsonLd11,
+  }
+  let unknown = "{\"@context\": {\"p\": {\"@id\": \"ex:p\", \"bogus\": 1}}}"
+  match expand_document(unknown, options) {
+    Err(InvalidContext(message)) =>
+      assert_true(message.contains("invalid term definition"))
+    _ => fail("expected invalid term definition")
+  }
+  let unimplemented = "{\"@context\": {\"p\": {\"@id\": \"ex:p\", \"@index\": \"i\"}}}"
+  assert_true(expand_document(unimplemented, options) is Err(Unsupported(_)))
 }

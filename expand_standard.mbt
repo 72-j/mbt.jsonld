@@ -603,7 +603,11 @@ fn StandardExpander::apply_type_scoped_contexts(
             Some(local_context) =>
               match
                 ContextProcessor::process_context(
-                  self, current, local_context, false, options,
+                  self,
+                  current,
+                  local_context,
+                  ContextFlags::type_scoped(),
+                  options,
                 ) {
                 Ok(next) => current = next
                 Err(e) => return Err(e)
@@ -661,7 +665,11 @@ fn StandardExpander::expand_object(
     Some(local_context) =>
       match
         ContextProcessor::process_context(
-          self, active, local_context, true, options,
+          self,
+          active,
+          local_context,
+          ContextFlags::element(),
+          options,
         ) {
         Ok(next) => next
         Err(e) => return Err(e)
@@ -1491,7 +1499,11 @@ fn StandardExpander::apply_property_scoped_context(
       match term_definition.local_context {
         Some(local_context) =>
           ContextProcessor::process_context(
-            self, active, local_context, true, options,
+            self,
+            active,
+            local_context,
+            ContextFlags::property_scoped(),
+            options,
           )
         None => Ok(active)
       }
@@ -1534,7 +1546,11 @@ fn StandardExpander::property_value_context(
   match property_scoped {
     Some(local_context) =>
       ContextProcessor::process_context(
-        self, base, local_context, true, options,
+        self,
+        base,
+        local_context,
+        ContextFlags::property_scoped(),
+        options,
       )
     None => Ok(base)
   }
@@ -1891,11 +1907,15 @@ impl Expander for StandardExpander with fn set_index(
 /// **type-scoped 批**：`propagate` 参数（调用方默认；local context 的 @propagate
 /// 成员优先）——propagate=false 时置 previous context，供新节点对象回退
 /// （REC 4.1.2 步 3）。
+/// **@protected 批**：上下文级 `@protected` 成员为 td 默认保护位；`override
+/// protected` 由调用面旗标传入（property-scoped/定义期校验 = true，type-scoped/
+/// 元素级 = false）；`null` 空化遇保护 term 且 override=false → invalid context
+/// nullification。
 impl ContextProcessor for StandardExpander with fn process_context(
   _self,
   active : ActiveContext,
   local_context : JsonValue,
-  propagate_default : Bool,
+  flags : ContextFlags,
   _options : JsonLdOptions,
 ) -> Result[ActiveContext, JsonLdError] {
   // 继承：父 terms 复制
@@ -1909,9 +1929,13 @@ impl ContextProcessor for StandardExpander with fn process_context(
     // context nullification（REC 4.1.2：数组项为 null = 重置为新初始 context，
     // **base IRI 取原 base URL**）——scoped-context 批勘定件：#tc014（type-scoped
     // `[null]`）/ #tc018（`[null, {...}]`）的 scoped context 形态若不接受，定义期
-    // 校验会误判 invalid scoped context。@protected × nullification 的
-    // invalid context nullification 门挂 @protected 批
-    JsonValue::Null =>
+    // 校验会误判 invalid scoped context。**@protected 批门**：override protected
+    // = false 且 active context 含任何保护 term → invalid context nullification
+    // （#pr05/#pr17/#pr18/#pr20/#pr21 oracle）
+    JsonValue::Null => {
+      if !flags.override_protected && has_protected_term(active) {
+        return Err(JsonLdError::InvalidContext("invalid context nullification"))
+      }
       // nullification 保 base URL；propagate=false 时把 previous 带过新 result
       // （REC 4.1.2 步 5.2.1："if propagate is false, previous context in result
       // to the previous value of result"）
@@ -1919,8 +1943,9 @@ impl ContextProcessor for StandardExpander with fn process_context(
         base: initial_context(_options).base,
         vocab: None,
         terms: Map([]),
-        previous: previous_after(active, propagate_default),
+        previous: previous_after(active, flags.propagate),
       })
+    }
     JsonValue::String(_) =>
       return Err(JsonLdError::Unsupported("remote context pending later batch"))
     JsonValue::Array(items) => {
@@ -1929,7 +1954,7 @@ impl ContextProcessor for StandardExpander with fn process_context(
       for item in items {
         match
           ContextProcessor::process_context(
-            _self, current, item, propagate_default, _options,
+            _self, current, item, flags, _options,
           ) {
           Ok(next) => current = next
           Err(e) => return Err(e)
@@ -1943,7 +1968,11 @@ impl ContextProcessor for StandardExpander with fn process_context(
       let deferred_td : Array[(String, Array[(String, JsonValue)])] = []
       // @propagate 成员（REC 4.1.2 步 2；校验在步 5.x）：1.0 模式非法
       // （invalid context entry）；非布尔 → invalid @propagate value
-      let mut propagate = propagate_default
+      let mut propagate = flags.propagate
+      // @protected 成员（REC 4.1.2 步 5 调用句：作为本 context 内 td 的**默认**
+      // 保护位）：1.0 模式非法（先验，与 @propagate 同门）；非布尔 → invalid
+      // @protected value
+      let mut protected_default = false
       for pair in pairs {
         if pair.0 is "@propagate" {
           if _options.processing_mode is JsonLd10 {
@@ -1954,6 +1983,18 @@ impl ContextProcessor for StandardExpander with fn process_context(
             _ =>
               return Err(
                 JsonLdError::InvalidContext("invalid @propagate value"),
+              )
+          }
+        }
+        if pair.0 is "@protected" {
+          if _options.processing_mode is JsonLd10 {
+            return Err(JsonLdError::InvalidContext("invalid context entry"))
+          }
+          match pair.1 {
+            JsonValue::Bool(flag) => protected_default = flag
+            _ =>
+              return Err(
+                JsonLdError::InvalidContext("invalid @protected value"),
               )
           }
         }
@@ -2041,7 +2082,9 @@ impl ContextProcessor for StandardExpander with fn process_context(
           // 的挂账去向是「@protected 批」，非 term 定义形态错误）
           // @propagate 已在对象臂入口预扫描（REC 4.1.2 步 2）——此处跳过
           "@propagate" => ()
-          "@language" | "@direction" | "@import" | "@protected" =>
+          // @protected 同上（对象臂入口预扫描：默认保护位）
+          "@protected" => ()
+          "@language" | "@direction" | "@import" =>
             return Err(
               JsonLdError::Unsupported(
                 "context keyword pending later batches (\{pair.0})",
@@ -2103,12 +2146,22 @@ impl ContextProcessor for StandardExpander with fn process_context(
                   Ok(_) => ()
                   Err(e) => return Err(e)
                 }
-                new_terms[other] = TermDefinition::{
-                  iri: Some(expanded),
-                  datatype: None,
-                  container: None,
-                  reverse: None,
-                  local_context: None,
+                match
+                  StandardExpander::install_term_definition(
+                    new_terms,
+                    other,
+                    TermDefinition::{
+                      iri: Some(expanded),
+                      datatype: None,
+                      container: None,
+                      reverse: None,
+                      local_context: None,
+                      is_protected: protected_default,
+                    },
+                    flags.override_protected,
+                  ) {
+                  Ok(_) => ()
+                  Err(e) => return Err(e)
                 }
               }
               // term: null → @id null 映射（REC 4.2.2：value 为 null 时视作
@@ -2116,12 +2169,22 @@ impl ContextProcessor for StandardExpander with fn process_context(
               // 整体丢弃（#tin06 oracle：scoped context {"data": null} 下
               // "data" 键丢弃；此前按"移除定义"处理会 vocab 拼成属性，为误判）
               JsonValue::Null =>
-                new_terms[other] = TermDefinition::{
-                  iri: None,
-                  datatype: None,
-                  container: None,
-                  reverse: None,
-                  local_context: None,
+                match
+                  StandardExpander::install_term_definition(
+                    new_terms,
+                    other,
+                    TermDefinition::{
+                      iri: None,
+                      datatype: None,
+                      container: None,
+                      reverse: None,
+                      local_context: None,
+                      is_protected: protected_default,
+                    },
+                    flags.override_protected,
+                  ) {
+                  Ok(_) => ()
+                  Err(e) => return Err(e)
                 }
               // 对象形态 term 定义推迟到第二遍（#t0007 oracle：同 context
               // 后置 prefix 定义——简单 term——须对其可用）
@@ -2145,6 +2208,8 @@ impl ContextProcessor for StandardExpander with fn process_context(
             new_terms,
             base,
             vocab,
+            protected_default,
+            flags.override_protected,
             _options,
             deferred.0,
             deferred.1,
@@ -2178,6 +2243,8 @@ fn StandardExpander::process_expanded_term_definition(
   new_terms : Map[String, TermDefinition],
   base : String?,
   vocab : String?,
+  protected_default : Bool,
+  override_protected : Bool,
   options : JsonLdOptions,
   term_name : String,
   td_pairs : Array[(String, JsonValue)],
@@ -2190,6 +2257,9 @@ fn StandardExpander::process_expanded_term_definition(
   // {"@id": null} 显式空映射（scoped-context 批）：区别于"无 @id 键"——
   // 不落 vocab 兜底，term 保留但 IRI 映射为 null（展开期该键丢弃）
   let mut td_id_null = false
+  // td 级 @protected 覆盖上下文级默认（REC 4.2.2 步 10；非布尔 → invalid
+  // @protected value、1.0 → invalid term definition）
+  let mut td_protected = protected_default
   for td_pair in td_pairs {
     match td_pair.0 {
       "@id" =>
@@ -2262,11 +2332,11 @@ fn StandardExpander::process_expanded_term_definition(
         }
       "@container" =>
         // 容器映射验证（⑤后半——#tem01/#ter21/#tes01/#tes02 oracle）：
-        // 串值按模式白名单、数组仅 1.1 图组合；仅验证不启用应用
+        // 串值按模式白名单、数组仅 1.1 图组合
         match validate_container_value(td_pair.1, options) {
           Ok(_) =>
-            // 存 List/Set/Language 三态（C 组容器应用 + #ter35 展开期检查
-            // 依赖）；@id/@type/@graph 容器应用挂账存 None
+            // 存 List/Set/Language/Type 四态（@type 批——type map 应用依赖 Type）；
+            // @id/@graph 容器应用挂账存 None
             match td_pair.1 {
               JsonValue::String("@language") =>
                 td_container = Some(ContainerType::Language)
@@ -2324,7 +2394,7 @@ fn StandardExpander::process_expanded_term_definition(
             _self,
             building,
             td_pair.1,
-            true,
+            ContextFlags::scoped_validation(),
             options,
           ) {
           Ok(_) => td_local_context = Some(td_pair.1)
@@ -2359,7 +2429,33 @@ fn StandardExpander::process_expanded_term_definition(
           }
           _ => return Err(JsonLdError::InvalidIri("invalid IRI mapping"))
         }
-      _ => () // 其余 td 键：无 oracle，挂账忽略
+      "@protected" => {
+        // td 级保护位（REC 4.2.2 步 10）：非布尔 → invalid @protected value；
+        // 1.0 模式 → invalid term definition
+        match td_pair.1 {
+          JsonValue::Bool(flag) => td_protected = flag
+          _ =>
+            return Err(JsonLdError::InvalidContext("invalid @protected value"))
+        }
+        if options.processing_mode is JsonLd10 {
+          return Err(JsonLdError::InvalidContext("invalid term definition"))
+        }
+      }
+      // 未落码 td 键：**显式 Unsupported**（禁静默忽略——静默 catch-all 是假绿
+      // 温床：#pr01/#pr08/#pr11 三枚真缺口即 td 级 @protected 被吞所致）
+      "@index" | "@direction" =>
+        return Err(
+          JsonLdError::Unsupported(
+            "term definition keyword pending later batches (\{td_pair.0})",
+          ),
+        )
+      // 其余键按 REC 4.2.2 键白名单报错（"any entry other than @id, @reverse,
+      // @container, @context, @direction, @index, @language, @nest, @prefix,
+      // @protected, or @type → invalid term definition"）
+      other =>
+        return Err(
+          JsonLdError::InvalidContext("invalid term definition (\{other})"),
+        )
     }
   }
   // @id 与 @reverse 同 td 互斥（#ter14 oracle：invalid reverse property）；
@@ -2368,16 +2464,58 @@ fn StandardExpander::process_expanded_term_definition(
     (td_iri is Some(_) || td_id_null || td_container is Some(_)) {
     return Err(JsonLdError::InvalidContext("invalid reverse property"))
   }
-  // 关键字重定义规则（#tec02 oracle）：term 为关键字时必须 @id 映射回自身
-  // （空 map / 无 @id / 异关键字 = keyword redefinition）
-  if term_name.get_char(0) is Some('@') {
-    let self_mapped = match td_iri {
-      Some(iri) => iri == term_name
-      None => false
-    }
-    if !self_mapped {
+  // 关键字面（REC 4.2.2 开头三步，@protected 批——#pr30/#pr31/#pr32 oracle）：
+  // ① keyword term 的 td 值只允许"仅 {@container:@set} 和/或 {@protected}"——
+  //    符合则 IRI 映射 = 该关键字本身（关键字可被保护）；② @type + 1.0 → 错；
+  // ③ 其余关键字重定义 → keyword redefinition（#tec02 oracle）
+  if is_jsonld_keyword(term_name) {
+    if options.processing_mode is JsonLd10 && term_name is "@type" {
       return Err(JsonLdError::InvalidContext("keyword redefinition"))
     }
+    let mut only_allowed_entries = true
+    let mut has_allowed_entry = false
+    let mut keyword_container : ContainerType? = None
+    for td_pair in td_pairs {
+      match td_pair.0 {
+        "@container" =>
+          match td_pair.1 {
+            JsonValue::String("@set") => {
+              keyword_container = Some(ContainerType::Set)
+              has_allowed_entry = true
+            }
+            _ => only_allowed_entries = false
+          }
+        "@protected" => has_allowed_entry = true // 值校验已在 td 键臂完成
+        _ => only_allowed_entries = false
+      }
+    }
+    // 空 map 不满足（"only either **or both of** following entries" ⇒ 须至少一条；
+    // #tec02 oracle：`{"@type": {}}` → keyword redefinition）
+    if !only_allowed_entries || !has_allowed_entry {
+      return Err(JsonLdError::InvalidContext("keyword redefinition"))
+    }
+    match
+      StandardExpander::install_term_definition(
+        new_terms,
+        term_name,
+        TermDefinition::{
+          iri: Some(term_name),
+          datatype: None,
+          container: keyword_container,
+          reverse: None,
+          local_context: None,
+          is_protected: td_protected,
+        },
+        override_protected,
+      ) {
+      Ok(_) => return Ok(())
+      Err(e) => return Err(e)
+    }
+  }
+  // 关键字**形**但非关键字（如 "@ignoreMe"）：REC "return; processors SHOULD
+  // generate a warning"（忽略定义）——该忽略面挂 #pr34~#pr39 批；保守报错
+  if term_name.get_char(0) is Some('@') {
+    return Err(JsonLdError::InvalidContext("keyword redefinition"))
   }
   // 无 @id 位三路：
   // ① {"@id": null} → 显式 null 映射（term 保留，展开期键丢弃）；
@@ -2416,13 +2554,143 @@ fn StandardExpander::process_expanded_term_definition(
         }
     }
   }
-  new_terms[term_name] = TermDefinition::{
-    iri: final_iri,
-    datatype: td_datatype,
-    container: td_container,
-    reverse: td_reverse,
-    local_context: td_local_context,
+  StandardExpander::install_term_definition(
+    new_terms,
+    term_name,
+    TermDefinition::{
+      iri: final_iri,
+      datatype: td_datatype,
+      container: td_container,
+      reverse: td_reverse,
+      local_context: td_local_context,
+      is_protected: td_protected,
+    },
+    override_protected,
+  )
+}
+
+///|
+/// JSON-LD 关键字全集判定（含 context 层键——元素层分派表只收 13 个元素层关键字，
+/// 而关键字重定义规则要全集）
+fn is_jsonld_keyword(name : String) -> Bool {
+  name
+  is ("@base"
+  | "@container"
+  | "@context"
+  | "@direction"
+  | "@graph"
+  | "@id"
+  | "@import"
+  | "@included"
+  | "@index"
+  | "@json"
+  | "@language"
+  | "@list"
+  | "@nest"
+  | "@none"
+  | "@prefix"
+  | "@propagate"
+  | "@protected"
+  | "@reverse"
+  | "@set"
+  | "@type"
+  | "@value"
+  | "@version"
+  | "@vocab")
+}
+
+///|
+/// 容器映射等价（TermDefinition 等价判定用；避免给 ContainerType 加 derive(Eq)）
+fn container_type_matches(a : ContainerType, b : ContainerType) -> Bool {
+  match (a, b) {
+    (List, List)
+    | (Set, Set)
+    | (Language, Language)
+    | (Index, Index)
+    | (Id, Id) => true
+    (Type, Type) | (Graph, Graph) => true
+    _ => false
   }
+}
+
+///|
+/// term 定义等价判定（REC 4.2.2 保护面："definition is not the same as previous
+/// definition (**other than the value of protected**)"）——**除 protected 位外全等**
+/// （iri/datatype/container/reverse/local_context 逐个比；#pr23/#pr24/#pr25/#pr27/
+/// #pr41 等价允许 与 #pr26/#pr28/#pr42 不等价即错 的分界）
+/// 先验注记：local_context 按 JsonValue 结构比较（键序敏感）——同语义异序的
+/// scoped context 会判不等价，本批无 oracle，挂账
+fn term_definitions_equivalent(
+  previous : TermDefinition,
+  next : TermDefinition,
+) -> Bool {
+  let iri_same = match (previous.iri, next.iri) {
+    (None, None) => true
+    (Some(a), Some(b)) => a == b
+    _ => false
+  }
+  let datatype_same = match (previous.datatype, next.datatype) {
+    (None, None) => true
+    (Some(a), Some(b)) => a == b
+    _ => false
+  }
+  let container_same = match (previous.container, next.container) {
+    (None, None) => true
+    (Some(a), Some(b)) => container_type_matches(a, b)
+    _ => false
+  }
+  let reverse_same = match (previous.reverse, next.reverse) {
+    (None, None) => true
+    (Some(a), Some(b)) => a == b
+    _ => false
+  }
+  let local_context_same = match (previous.local_context, next.local_context) {
+    (None, None) => true
+    (Some(a), Some(b)) => a == b
+    _ => false
+  }
+  iri_same &&
+  datatype_same &&
+  container_same &&
+  reverse_same &&
+  local_context_same
+}
+
+///|
+/// 是否含任何受保护 term（空化门用：REC 4.1.2 步 5.2.1 "active context contains
+/// any protected term definitions"）
+fn has_protected_term(active : ActiveContext) -> Bool {
+  for _, term_definition in active.terms {
+    if term_definition.is_protected {
+      return true
+    }
+  }
+  false
+}
+
+///|
+/// term 定义安装（REC 4.2.2 末段，@protected 批）：保护面 = `override protected =
+/// false` 且已有定义受保护 ⇒ 新定义须与旧定义**等价（除 protected 位）**；
+/// 等价 ⇒ **保留旧定义**（"Set definition to previous definition to retain the value
+/// of protected"——#pr42 oracle）；不等价 ⇒ **protected term redefinition**。
+/// 简单臂/td 对象臂/关键字臂三处同源（一笔一账：保护检查只有这一处）
+fn StandardExpander::install_term_definition(
+  new_terms : Map[String, TermDefinition],
+  term_name : String,
+  definition : TermDefinition,
+  override_protected : Bool,
+) -> Result[Unit, JsonLdError] {
+  match new_terms.get(term_name) {
+    Some(previous) =>
+      if !override_protected && previous.is_protected {
+        if term_definitions_equivalent(previous, definition) {
+          return Ok(()) // 保留旧定义（含 protected 位）
+        }
+        return Err(JsonLdError::InvalidContext("protected term redefinition"))
+      }
+    None => ()
+  }
+  new_terms[term_name] = definition
   Ok(())
 }
 

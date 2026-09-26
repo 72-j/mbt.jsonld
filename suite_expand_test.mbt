@@ -346,6 +346,34 @@ async test "expand suite harness: manifest-driven buckets, all deferred pre-J2" 
      "#t0073", "#tc006", "#tc007", "#tc008", "#tc009", "#tc010", "#tc011", "#tc012",
     "#tc014", "#tc015", "#tc016", "#tc017", "#tc018", "#tc019", "#tc020", "#tc021",
     "#tc022", "#tc023", "#tc024", "#tc026", "#tc027", "#tc028", "#tc035",
+    // —— @protected 批（2026-09-26；批边界 33 例逐例归因，见 todo §J2 + spec 边界表）——
+    // 机制 = 上下文级 @protected 默认位 + td 级覆盖 + 安装期保护检查（等价 ⇒ 保留
+    // 旧定义【保护位不丢】/ 不等价 ⇒ protected term redefinition）+ 四面 override
+    // 传导（property-scoped 与定义期 scoped 校验 true；type-scoped/元素级 false）+
+    // null 空化遇保护 term（override=false）→ invalid context nullification +
+    // 关键字 term 受限重定义（仅 @container:@set 与/或 @protected）
+    // 正例 15：#tpr02（@protected:false 不保护）/ #tpr06（term 内清保护）/
+    //   #tpr10（protected 与 unprotected 混排）/ #tpr13（覆盖未保护 term）/
+    //   #tpr14/#tpr15（null 与数组含 null 清保护）/ #tpr16（清后可覆盖）/
+    //   #tpr19（混排重定义）/ #tpr22（type-scoped 保护 term 的合法覆盖）/
+    //   #tpr23/#tpr24（等价重定义：别名 / 前缀 term）/ #tpr27（除 protected 位外
+    //   等价）/ #tpr30（**关键字可保护**：别名 + 字面 @type）/ #tpr40（保护 +
+    //   property-scoped）/ #tpr41（等价 id term 重定义）
+     "#tpr02", "#tpr06", "#tpr10", "#tpr13", "#tpr14", "#tpr15", "#tpr16", "#tpr19",
+    "#tpr22", "#tpr23", "#tpr24", "#tpr27", "#tpr30", "#tpr40", "#tpr41",
+    // 负例 17（**错误码逐一命中**，非"拒绝即过"）：
+    // protected term redefinition ×12 = #tpr01（td 级保护后覆盖）/ #tpr03（整
+    //   context 保护）/ #tpr04（新定义带 @protected:false 仍是重定义——判据看
+    //   **旧定义**是否受保护）/ #tpr08（term 的 protected scoped context）/
+    //   #tpr09（跨保护 context）/ #tpr11 / #tpr12（scoped context 面不可覆盖）/
+    //   #tpr26（scoped 定义不同 ⇒ 不等价）/ #tpr28（保护 null term 重定义）/
+    //   #tpr31（保护关键字别名不可覆盖）/ #tpr32（保护 @type 不可覆盖）/
+    //   #tpr42（重定义须保留保护位）
+    // invalid context nullification ×5 = #tpr05（embedded @context:null 清保护）/
+    //   #tpr17/#tpr18（type-scoped 面空化保护）/ #tpr20/#tpr21（混排 type+null）
+     "#tpr01", "#tpr03", "#tpr04", "#tpr05", "#tpr08", "#tpr09", "#tpr11", "#tpr12",
+    "#tpr17", "#tpr18", "#tpr20", "#tpr21", "#tpr26", "#tpr28", "#tpr31", "#tpr32",
+    "#tpr42",
   ]
   // 两桶：迁移例走端到端对拍（输入 → expansion → 对 expected）；其余 deferred
   let deferred : Array[String] = []
@@ -438,8 +466,8 @@ async test "expand suite harness: manifest-driven buckets, all deferred pre-J2" 
     }
   }
   // pin 闭合：桶总和 == 普查数；plain = 已迁移数
-  assert_eq(deferred.length(), 207)
-  assert_eq(plain.length(), 178)
+  assert_eq(deferred.length(), 176)
+  assert_eq(plain.length(), 209)
   // 解析覆盖闭合：每个有 input 的条目都走了解析通道
   assert_eq(parsed_ok + parse_err, 385)
   // 首例钉：#t0001 已迁 plain（manifest 顺序首条；J2 首件验收 = 此例端到端绿）

@@ -234,7 +234,7 @@ impl @jsonld.ContextProcessor for MockHooks with fn process_context(
   _self,
   _active,
   _local_context,
-  _propagate,
+  _flags,
   _options,
 ) {
   mock_err()
@@ -335,7 +335,7 @@ async test "interface gate smoke: mock surface is callable" {
       mock,
       active,
       @jsonld.JsonValue::Null,
-      true,
+      @jsonld.ContextFlags::element(),
       options,
     ) {
     Err(@jsonld.JsonLdError::Unsupported(_)) => ()

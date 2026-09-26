@@ -40,6 +40,15 @@ pub(all) enum ContainerType {
   Graph
 }
 
+pub(all) struct ContextFlags {
+  propagate : Bool
+  override_protected : Bool
+}
+pub fn ContextFlags::element() -> Self
+pub fn ContextFlags::property_scoped() -> Self
+pub fn ContextFlags::scoped_validation() -> Self
+pub fn ContextFlags::type_scoped() -> Self
+
 pub(all) struct ExpandedLiteral {
   mut value : String
   mut datatype : String?
@@ -156,13 +165,14 @@ pub(all) struct TermDefinition {
   container : ContainerType?
   reverse : String?
   local_context : JsonValue?
+  is_protected : Bool
 }
 
 // Type aliases
 
 // Traits
 pub(open) trait ContextProcessor {
-  fn process_context(Self, ActiveContext, JsonValue, Bool, JsonLdOptions) -> Result[ActiveContext, JsonLdError]
+  fn process_context(Self, ActiveContext, JsonValue, ContextFlags, JsonLdOptions) -> Result[ActiveContext, JsonLdError]
 }
 
 pub(open) trait Expander {
