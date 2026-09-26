@@ -144,16 +144,40 @@ async test "expand suite harness: manifest-driven buckets, all deferred pre-J2" 
     // —— ④批 A 组（依赖分组勘定 + 探针实测 74/101 通过；逐例端到端对拍由本 harness 执行）——
     // A 组 = 只依赖已落语义（@context 简单声明 + term 字符串定义 + 值对象 + coercion 形态 A）
     // 27 例挂账留 deferred：mismatch ×10 / unexpected-error ×9 / should-error ×7（详见 todo §J2 ④批）
+    // ⑤批落码复测回桶（2026-09-26）：tem01/ten05/ter10/ter21/ter22/ter35/ter53/
+    // tes01/tes02 九例原靠 td 对象 stub 拒绝"拒绝即过"——⑤真码落地后露真容，
+    // 其无效点（td 的 @container/@language/@prefix/@nest/@context 键验证）在
+    // 批边界外，回 deferred 挂「⑤后半·td 其余键验证批」（详见 todo §J2 ⑤批）
      "#t0003", "#t0075", "#t0092", "#tc029", "#tc030", "#tc032", "#tc033", "#tdi08",
-    "#tec02", "#tem01", "#ten01", "#ten02", "#ten03", "#ten04", "#ten05", "#tep02",
-    "#tep03", "#ter04", "#ter05", "#ter06", "#ter07", "#ter10", "#ter12", "#ter13",
-    "#ter21", "#ter22", "#ter23", "#ter24", "#ter25", "#ter27", "#ter29", "#ter30",
-    "#ter31", "#ter33", "#ter34", "#ter35", "#ter36", "#ter41", "#ter42", "#ter53",
-    "#ter55", "#ter56", "#tes01", "#tes02", "#tin07", "#tin08", "#tin09", "#tm020",
-    "#tpi05", "#tpr01", "#tpr03", "#tpr04", "#tpr05", "#tpr08", "#tpr09", "#tpr11",
-    "#tpr12", "#tpr17", "#tpr18", "#tpr20", "#tpr21", "#tpr26", "#tpr28", "#tpr31",
-    "#tpr32", "#tpr42", "#tso01", "#tso02", "#tso03", "#tso07", "#tso10", "#tso12",
-    "#tso13", "#ttn01",
+    "#tec02", "#ten01", "#ten02", "#ten03", "#ten04", "#tep02", "#tep03", "#ter04",
+    "#ter05", "#ter06", "#ter07", "#ter12", "#ter13", "#ter23", "#ter24", "#ter25",
+    "#ter27", "#ter29", "#ter30", "#ter31", "#ter33", "#ter34", "#ter36", "#ter41",
+    "#ter42", "#ter55", "#ter56", "#tin07", "#tin08", "#tin09", "#tm020", "#tpi05",
+    "#tpr01", "#tpr03", "#tpr04", "#tpr05", "#tpr08", "#tpr09", "#tpr11", "#tpr12",
+    "#tpr17", "#tpr18", "#tpr20", "#tpr21", "#tpr26", "#tpr28", "#tpr31", "#tpr32",
+    "#tpr42", "#tso01", "#tso02", "#tso03", "#tso07", "#tso10", "#tso12", "#tso13",
+    "#ttn01",
+    // —— ⑤批 A 组（td 对象形态 + coercion——2026-09-26；批边界/判据/对拍点见 todo §J2 ⑤批）——
+    // #t0007：形态 D（td @type 显式 datatype）+ 两遍 context 处理（后置 prefix
+    // 定义——简单 term——对对象形态 td 可用）
+     "#t0007",
+    // #t0011：形态 B（td @type "@id"）+ @id-less td（term 名自身 vocab 展开）
+     "#t0011",
+    // #t0033：形态 D × @vocab
+     "#t0033",
+    // #t0053/t0054/t0055/t0058：形态 C（td @type "@vocab"——绝对/term/vocab 相对/compact 值）
+     "#t0053", "#t0054", "#t0055", "#t0058",
+    // #t0069：compact IRI 形 term 名 + type mapping（term 查表先于 compact 分解）
+     "#t0069",
+    // #t0071：td @id 自映射排除（compact 形 term 名重定义；简单臂同规则泛化）
+     "#t0071",
+    // #t0088：coercion 负向钉——number/bool 不转 @id；属性位 bool 保留为 @value
+    // 字面量（本批修正：原误丢弃）
+     "#t0088",
+    // #t0117：冒号起始 term + type mapping
+     "#t0117",
+    //（⑤批挂账 4 例：t0026 = @graph B 组叠加件；t0050/t0056/t0057 = 期望含相对
+    // 引用 base 解析，挂「vocab 位 base 门控批」——见 options_for 注记）
   ]
   // 两桶：迁移例走端到端对拍（输入 → expansion → 对 expected）；其余 deferred
   let deferred : Array[String] = []
@@ -238,8 +262,8 @@ async test "expand suite harness: manifest-driven buckets, all deferred pre-J2" 
     }
   }
   // pin 闭合：桶总和 == 普查数；plain = 已迁移数
-  assert_eq(deferred.length(), 287)
-  assert_eq(plain.length(), 98)
+  assert_eq(deferred.length(), 285)
+  assert_eq(plain.length(), 100)
   // 解析覆盖闭合：每个有 input 的条目都走了解析通道
   assert_eq(parsed_ok + parse_err, 385)
   // 首例钉：#t0001 已迁 plain（manifest 顺序首条；J2 首件验收 = 此例端到端绿）

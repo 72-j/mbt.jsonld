@@ -778,11 +778,66 @@ fn StandardExpander::expand_term_values(
       }
       Ok(out)
     }
-    JsonValue::String(sv) => Ok([literal_of(sv, None)])
+    JsonValue::String(sv) =>
+      // coercion 应用（⑤批 A 组——判据②）：type mapping 三形态只转**串值**
+      // （number/bool 不转，#t0088 oracle）；形态 B "@id" = document-relative、
+      // 形态 C "@vocab" = vocab 位、形态 D = 显式 datatype 值对象
+      match active.terms.get(term) {
+        Some(term_definition) =>
+          match term_definition.datatype {
+            Some(coercion) => {
+              let coerced : Result[ExpandedValue, JsonLdError] = if coercion
+                is "@id" {
+                match IriExpander::expand_iri(self, active, sv, true, false) {
+                  Ok(iri) =>
+                    Ok(
+                      ExpandedValue::Node(ExpandedNode::{
+                        id: Some(iri),
+                        types: [],
+                        properties: [],
+                      }),
+                    )
+                  Err(e) => Err(e)
+                }
+              } else if coercion is "@vocab" {
+                // @vocab coercion 双真旗（#t0057 oracle：vocab miss 后落
+                // document-relative 位——base 解析）
+                match IriExpander::expand_iri(self, active, sv, true, true) {
+                  Ok(iri) =>
+                    Ok(
+                      ExpandedValue::Node(ExpandedNode::{
+                        id: Some(iri),
+                        types: [],
+                        properties: [],
+                      }),
+                    )
+                  Err(e) => Err(e)
+                }
+              } else {
+                Ok(
+                  ExpandedValue::Value(ExpandedLiteral::{
+                    value: sv,
+                    datatype: Some(coercion),
+                    language: None,
+                    direction: None,
+                    raw: None,
+                  }),
+                )
+              }
+              match coerced {
+                Ok(v) => Ok([v])
+                Err(e) => Err(e)
+              }
+            }
+            None => Ok([literal_of(sv, None)])
+          }
+        None => Ok([literal_of(sv, None)])
+      }
     JsonValue::Number(nv) =>
       Ok([literal_of("\{nv}", Some(JsonValue::Number(nv)))])
-    // 属性位布尔/null 丢弃（1.1）
-    JsonValue::Bool(_) => Ok([])
+    // 属性位布尔 = @value 字面量保形（#t0088 oracle：true/false 保留）；
+    // null 丢弃（1.1）
+    JsonValue::Bool(bv) => Ok([literal_of("\{bv}", Some(JsonValue::Bool(bv)))])
     JsonValue::Null => Ok([])
   }
 }
@@ -939,6 +994,8 @@ impl ContextProcessor for StandardExpander with fn process_context(
     }
     JsonValue::Object(pairs) => {
       let keyword_owner : Map[String, String] = Map([])
+      // 对象形态 term 定义缓冲（两遍处理——第二遍见主循环后）
+      let deferred_td : Array[(String, Array[(String, JsonValue)])] = []
       for pair in pairs {
         match pair.0 {
           "@vocab" =>
@@ -1025,21 +1082,23 @@ impl ContextProcessor for StandardExpander with fn process_context(
             // （#t0072 oracle：重定义为自身时用 @vocab，非旧 term 定义）
             match pair.1 {
               JsonValue::String(iri) => {
-                // #t0072 oracle：值 = term 自身 + @vocab 已声明 → @vocab 拼接
-                // （重定义为自身时 @vocab 生效，非旧 term 定义查表）
-                let expanded = if iri == other && vocab is Some(v) {
-                  "\{v}\{other}"
+                // 自映射排除（#t0072/#t0071 oracle）：值 = term 自身时旧定义
+                // 不参与查表——有 @vocab → vocab 拼接；有 prefix → compact；
+                // 两者皆无 → 原样
+                let lookup_terms = if iri == other {
+                  terms_without(new_terms, other)
                 } else {
-                  let building = ActiveContext::{
-                    base,
-                    vocab,
-                    terms: new_terms,
-                  }
-                  match
-                    IriExpander::expand_iri(_self, building, iri, false, true) {
-                    Ok(k) => k
-                    Err(e) => return Err(e)
-                  }
+                  new_terms
+                }
+                let building = ActiveContext::{
+                  base,
+                  vocab,
+                  terms: lookup_terms,
+                }
+                let expanded = match
+                  IriExpander::expand_iri(_self, building, iri, false, true) {
+                  Ok(k) => k
+                  Err(e) => return Err(e)
                 }
                 new_terms[other] = TermDefinition::{
                   iri: Some(expanded),
@@ -1048,14 +1107,33 @@ impl ContextProcessor for StandardExpander with fn process_context(
                 }
               }
               JsonValue::Null => new_terms.remove(other)
+              // 对象形态 term 定义推迟到第二遍（#t0007 oracle：同 context
+              // 后置 prefix 定义——简单 term——须对其可用）
+              JsonValue::Object(td_pairs) => deferred_td.push((other, td_pairs))
               _ =>
                 return Err(
-                  JsonLdError::Unsupported(
-                    "expanded term definition pending term batch (\{other})",
+                  JsonLdError::InvalidContext(
+                    "term definition must be a string, object or null",
                   ),
                 )
             }
           }
+        }
+      }
+      // 第二遍：对象形态 term 定义（#t0007 oracle——简单定义此时全部就绪，
+      // 后置 prefix 可用）
+      for deferred in deferred_td {
+        match
+          StandardExpander::process_expanded_term_definition(
+            _self,
+            new_terms,
+            base,
+            vocab,
+            deferred.0,
+            deferred.1,
+          ) {
+          Ok(_) => ()
+          Err(e) => return Err(e)
         }
       }
       Ok(ActiveContext::{ base, vocab, terms: new_terms, })
@@ -1063,4 +1141,110 @@ impl ContextProcessor for StandardExpander with fn process_context(
     _ =>
       Err(JsonLdError::InvalidContext("local context must be object or array"))
   }
+}
+
+///|
+/// 扩展 term 定义（对象形态，⑤批 A 组——判据①）：@id 位 = vocab 展开（自映射
+/// 排除旧定义——#t0071 oracle）；@type 位 = 三形态 type mapping（"@id"/"@vocab"/
+/// 绝对 IRI——#t0011/#t0054/#t0007 oracle）；@container/@context/@nest 等本批
+/// 不解析、不报错（⑤后半挂账）。关键字 term 必须自映射（#tec02 oracle：
+/// keyword redefinition；#t0026 oracle：{"@id":"@type","@type":"@id"} 合法）
+fn StandardExpander::process_expanded_term_definition(
+  _self : StandardExpander,
+  new_terms : Map[String, TermDefinition],
+  base : String?,
+  vocab : String?,
+  term_name : String,
+  td_pairs : Array[(String, JsonValue)],
+) -> Result[Unit, JsonLdError] {
+  let mut td_iri : String? = None
+  let mut td_datatype : String? = None
+  for td_pair in td_pairs {
+    match td_pair.0 {
+      "@id" =>
+        match td_pair.1 {
+          JsonValue::String(iri) => {
+            // 自映射排除（#t0071 oracle：重定义 @id = 自身时旧定义不查表）
+            let lookup_terms = if iri == term_name {
+              terms_without(new_terms, term_name)
+            } else {
+              new_terms
+            }
+            let building = ActiveContext::{ base, vocab, terms: lookup_terms, }
+            match IriExpander::expand_iri(_self, building, iri, false, true) {
+              Ok(k) => td_iri = Some(k)
+              Err(e) => return Err(e)
+            }
+          }
+          _ => return Err(JsonLdError::InvalidContext("@id must be a string"))
+        }
+      "@type" =>
+        match td_pair.1 {
+          JsonValue::String(t) => {
+            // 关键字形态原样（"@id"/"@vocab"）；其余 vocab 展开
+            let expanded = if t is "@id" || t is "@vocab" {
+              t
+            } else {
+              let building = ActiveContext::{ base, vocab, terms: new_terms, }
+              match IriExpander::expand_iri(_self, building, t, false, true) {
+                Ok(k) => k
+                Err(e) => return Err(e)
+              }
+            }
+            // type mapping 只收关键字形态或绝对 IRI（invalid type mapping）
+            if !(expanded is "@id" ||
+              expanded is "@vocab" ||
+              is_valid_absolute_iri(expanded)) {
+              return Err(JsonLdError::InvalidContext("invalid type mapping"))
+            }
+            td_datatype = Some(expanded)
+          }
+          _ => return Err(JsonLdError::InvalidContext("@type must be a string"))
+        }
+      _ => () // @container/@context/@nest 等：⑤后半挂账，忽略
+    }
+  }
+  // 关键字重定义规则（#tec02 oracle）：term 为关键字时必须 @id 映射回自身
+  // （空 map / 无 @id / 异关键字 = keyword redefinition）
+  if term_name.get_char(0) is Some('@') {
+    let self_mapped = match td_iri {
+      Some(iri) => iri == term_name
+      None => false
+    }
+    if !self_mapped {
+      return Err(JsonLdError::InvalidContext("keyword redefinition"))
+    }
+  }
+  // 无 @id 位：term 名自身 vocab 展开（spec §6.1；t0011 路径）
+  let final_iri = match td_iri {
+    Some(iri) => Some(iri)
+    None => {
+      let building = ActiveContext::{ base, vocab, terms: new_terms, }
+      match IriExpander::expand_iri(_self, building, term_name, false, true) {
+        Ok(k) => Some(k)
+        Err(e) => return Err(e)
+      }
+    }
+  }
+  new_terms[term_name] = TermDefinition::{
+    iri: final_iri,
+    datatype: td_datatype,
+    container: None,
+  }
+  Ok(())
+}
+
+///|
+/// terms 拷贝并剔除单键（自映射排除用——#t0071/#t0072 oracle）
+fn terms_without(
+  terms : Map[String, TermDefinition],
+  exclude : String,
+) -> Map[String, TermDefinition] {
+  let out : Map[String, TermDefinition] = Map([])
+  for key, definition in terms {
+    if key != exclude {
+      out[key] = definition
+    }
+  }
+  out
 }
