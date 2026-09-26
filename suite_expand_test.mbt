@@ -539,6 +539,9 @@ async test "expand suite harness: manifest-driven buckets, all deferred pre-J2" 
      "#tdi01", "#tdi02", "#tdi04", "#tdi05", "#tdi06", "#tdi07",
     // #ter09（负·真拒绝）：@language 非串 → invalid default language
      "#ter09",
+    // —— 壬子·同 IRI 属性合并批（2026-09-27；多键同展一 IRI → 单键累加，
+    // 输入文档顺序——#t0034/#t0114 oracle 一致；#tdi03 = 合并 × direction）——
+     "#t0034", "#tdi03",
     // —— 丁·@json literal 批（2026-09-27；@json 拦截：值原样进 @value，
     // datatype=@json；canonical 选项不影响展开对拍——REC 钉见 todo §J2）——
     // #tjs01~#tjs07：标量/对象/数组 JSON 字面量
@@ -643,8 +646,8 @@ async test "expand suite harness: manifest-driven buckets, all deferred pre-J2" 
     }
   }
   // pin 闭合：桶总和 == 普查数；plain = 已迁移数
-  assert_eq(deferred.length(), 44)
-  assert_eq(plain.length(), 341)
+  assert_eq(deferred.length(), 42)
+  assert_eq(plain.length(), 343)
   // 解析覆盖闭合：每个有 input 的条目都走了解析通道
   assert_eq(parsed_ok + parse_err, 385)
   // 首例钉：#t0001 已迁 plain（manifest 顺序首条；J2 首件验收 = 此例端到端绿）

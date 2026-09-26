@@ -797,9 +797,22 @@ fn StandardExpander::expand_object(
       // 键合法性：绝对 IRI 或 bnode 标签（规范：expanded property 可为 blank
       // node identifier——scheme-ALPHA 收紧后 bnode 在此显式放行）；
       // 空数组属性无条件保留（#t0004 oracle：set1~set5 无 term 定义亦保留
-      // "set1": [] 空数组——键合法性门不受影响）
+      // "set1": [] 空数组——键合法性门不受影响）；同 IRI 属性合并（壬子批——
+      // #t0034/#t0114 oracle：多键同展一 IRI → 单键累加，按输入文档顺序）
       if is_valid_absolute_iri(expanded_key) || is_bnode_label(expanded_key) {
-        properties.push((expanded_key, values))
+        let mut merged = false
+        for i in 0..<properties.length() {
+          if properties[i].0 == expanded_key {
+            for v in values {
+              properties[i].1.push(v)
+            }
+            merged = true
+            break
+          }
+        }
+        if !merged {
+          properties.push((expanded_key, values))
+        }
       }
       continue
     }
