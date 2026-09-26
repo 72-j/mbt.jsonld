@@ -62,11 +62,14 @@ fn options_for(entry : @jsonld.JsonValue) -> @jsonld.JsonLdOptions {
     }
     None => ()
   }
-  // 默认 base 注入（document location 约定）**不可全局开**：
-  // vocab 位键展开（无 @vocab）规范语义 = 原样返回、不落 base merge（#t0003
-  // oracle：未映射 term 必须丢弃——全局 base 会把它解析成绝对而保留）。
-  // 挂账：「vocab 位 base 门控批」（门控 + 本注入同笔落；解挂 t0051/t0050/
-  // t0056/t0057——批定义见 todo §J2 / spec §4，别名「默认 base 批」废弃）
+  // 默认 base 注入（document location 约定，W3C runner 同款）——「vocab 位
+  // base 门控批」第二件，与 expand_iri 第 7 步门控**同笔落**：键位
+  // documentRelative=false 不受注入影响（#t0003 oracle 保持），值位
+  // （@id/@type/coercion——docRel=true）据此解析（解挂 t0051/t0050/t0056/t0057）
+  let base = match base {
+    Some(b) => Some(b)
+    None => Some("https://w3c.github.io/json-ld-api/tests/expand/")
+  }
   { base, expand_context: None, processing_mode: mode, }
 }
 
@@ -105,8 +108,9 @@ async test "expand suite harness: manifest-driven buckets, all deferred pre-J2" 
      "#t0129", "#t0130",
     // #t0072（③细化）：term 重定义为自身 + @vocab → anotherVocab#term
      "#t0072",
-    //（#t0051 挂账：别名链已通，还差 harness 默认 base + vocab 位 base 门控——
-    // 见 options_for 注记；merge 绝对路径分支已落码，wbtest 对拍在案）
+    // #t0051（「vocab 位 base 门控批」解挂）：别名链 url→id→@id + 默认 base
+    // 注入 + 门控（键位 docRel=false 不受注入影响）+ merge 绝对路径分支
+     "#t0051",
     // —— base 解析批（resolve_base_value：合并 + ".." 弹段 + "." 保留，oracle #t0090/#t0091）——
     // #t0076：base option 覆盖文档位置（option.base 接线）
      "#t0076",
@@ -183,8 +187,15 @@ async test "expand suite harness: manifest-driven buckets, all deferred pre-J2" 
      "#t0088",
     // #t0117：冒号起始 term + type mapping
      "#t0117",
-    //（⑤批挂账 4 例：t0026 = @graph B 组叠加件；t0050/t0056/t0057 = 期望含相对
-    // 引用 base 解析，挂「vocab 位 base 门控批」——见 options_for 注记）
+    //（t0026 仍挂 @graph B 组；t0050/t0056/t0057 已随「vocab 位 base 门控批」
+    // 解挂迁 plain，见下）
+    // —— vocab 位 base 门控批（2026-09-26；门控 + 默认 base 注入同笔落）——
+    // #t0050：td coercion @id + @container:@set 验证（相对 "/issue/1" 走默认 base）
+     "#t0050",
+    // #t0056：形态 B/@id 与 C/@vocab coercion 对比（link 相对值走默认 base）
+     "#t0056",
+    // #t0057：@vocab coercion 双真旗（vocab miss → document-relative → base）
+     "#t0057",
     // —— ⑤后半·td 其余键验证批（2026-09-26；九例回迁——⑤落码时曾因"拒绝即过"
     // 破例回 deferred，真验证落码后按原 oracle 回归 plain）——
     // #tem01/#ter21/#tes01/#tes02：@container 验证（串白名单 1.1/1.0 分叉 +
@@ -284,8 +295,8 @@ async test "expand suite harness: manifest-driven buckets, all deferred pre-J2" 
     }
   }
   // pin 闭合：桶总和 == 普查数；plain = 已迁移数
-  assert_eq(deferred.length(), 276)
-  assert_eq(plain.length(), 109)
+  assert_eq(deferred.length(), 272)
+  assert_eq(plain.length(), 113)
   // 解析覆盖闭合：每个有 input 的条目都走了解析通道
   assert_eq(parsed_ok + parse_err, 385)
   // 首例钉：#t0001 已迁 plain（manifest 顺序首条；J2 首件验收 = 此例端到端绿）

@@ -208,7 +208,7 @@ impl IriExpander for StandardExpander with fn expand_iri(
   _self,
   active : ActiveContext,
   value : String,
-  _document_relative : Bool,
+  document_relative : Bool,
   vocab : Bool,
 ) -> Result[String, JsonLdError] {
   // 1 keyword：@ 前缀原样（未知 @word 不校验集合，挂负例校准）
@@ -258,8 +258,15 @@ impl IriExpander for StandardExpander with fn expand_iri(
       None => ()
     }
   }
-  // 7 relative：RFC 3986 5.2.3 merge（base 截最后 "/" 含 + 引用）；
-  // 无 base → 原样（value 位）
+  // 7 relative（document_relative 门控——「vocab 位 base 门控批」）：
+  // vocab 位键展开（docRel=false）→ 原样返回不落 base merge（#t0003 oracle：
+  // 未映射 term 须被属性门丢弃，全局注入默认 base 亦不得改变键行为）；
+  // document-relative 位（@id/@type 值、coercion 值——#t0051/#t0050/#t0056/
+  // #t0057 oracle）→ RFC 3986 5.2.3 merge（base 截最后 "/" 含 + 引用）；
+  // 无 base → 原样
+  if !document_relative {
+    return Ok(value)
+  }
   match active.base {
     Some(base) => Ok(merge_base_reference(base, value))
     None => Ok(value)
@@ -434,7 +441,7 @@ fn StandardExpander::expand_object(
           JsonValue::String(t) =>
             if is_value_object {
               // 形态 A：显式 @type → datatype（合法性钉——#t0123）
-              match IriExpander::expand_iri(self, current, t, false, true) {
+              match IriExpander::expand_iri(self, current, t, true, true) {
                 Ok(dt) =>
                   if !is_valid_absolute_iri(dt) {
                     return Err(JsonLdError::InvalidValue("invalid typed value"))
@@ -460,7 +467,7 @@ fn StandardExpander::expand_object(
                 Err(e) => return Err(e)
               }
             } else {
-              match IriExpander::expand_iri(self, current, t, false, true) {
+              match IriExpander::expand_iri(self, current, t, true, true) {
                 Ok(dt) => types.push(dt)
                 Err(e) => return Err(e)
               }
@@ -474,7 +481,7 @@ fn StandardExpander::expand_object(
                 match t {
                   JsonValue::String(iri) =>
                     match
-                      IriExpander::expand_iri(self, current, iri, false, true) {
+                      IriExpander::expand_iri(self, current, iri, true, true) {
                       Ok(dt) => types.push(dt)
                       Err(e) => return Err(e)
                     }

@@ -220,9 +220,14 @@ test "base-relative resolution (②批对拍)" {
   assert_true(
     IriExpander::resolve_base(e, based, "zzz") is Ok("http://example.org/zzz"),
   )
+  // document-relative 位（docRel=true）才落 base merge——vocab 位键展开
+  // docRel=false 原样返回（「vocab 位 base 门控批」#t0003 oracle）
   assert_true(
-    IriExpander::expand_iri(e, based, "zzz", false, false)
+    IriExpander::expand_iri(e, based, "zzz", true, false)
     is Ok("http://example.org/zzz"),
+  )
+  assert_true(
+    IriExpander::expand_iri(e, based, "zzz", false, false) is Ok("zzz"),
   )
 }
 
