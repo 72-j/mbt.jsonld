@@ -80,11 +80,22 @@
 ### 同形异判实例（J2 语义分叉地图；2026-09-26 立节，持续收录）
 「输入相似/相同而判定不同」的 oracle 对——**禁止单一规则覆盖整族**，逐对勘定
 分叉轴后再落码；新增分叉对入本表：
-| 实例对 | 分叉轴 | 判定差异 |
-| #t0003 vs #t0004 | 值形态（null vs 空数组字面值） | null 值属性整体丢弃；空数组字面值属性保留（"set1": []——同文档两组键并存） |
-| #tli01 vs #ter24/#ter32 | processingMode/specVersion | 同输入（@list 嵌套）：1.1 允许保留 / 1.0 list of lists 禁止 |
-| #t0092 vs #t0115/#t0116 | processingMode | @vocab 相对/空串：1.1 base raw 拼接有效 / 1.0 invalid vocab mapping（校验先于 base 解析） |
-| #ter23 vs #t0029 | 展开位置（td 定义值 vs 文档值位） | td @type 相对值不落 base（invalid type mapping）；文档值位相对 IRI 落 base 解析（含 fragment/query/scheme 相对） |
+| 实例对 | 分叉维度 | 分叉轴 | 判定差异 |
+| #t0003 vs #t0004 | 形态分叉 | 值形态（null vs 空数组字面值） | null 值属性整体丢弃；空数组字面值属性保留（"set1": []——同文档两组键并存） |
+| #tli01 vs #ter24/#ter32 | specVersion 分叉 | processingMode/specVersion | 同输入（@list 嵌套）：1.1 允许保留 / 1.0 list of lists 禁止 |
+| #t0092 vs #t0115/#t0116 | specVersion 分叉 | processingMode | @vocab 相对/空串：1.1 base raw 拼接有效 / 1.0 invalid vocab mapping（校验先于 base 解析） |
+| #ter23 vs #t0029 | 位置分叉 | 展开位置（td 定义值 vs 文档值位） | td @type 相对值不落 base（invalid type mapping）；文档值位相对 IRI 落 base 解析（含 fragment/query/scheme 相对） |
+| #t0026 vs #ter43 | specVersion 分叉 | td @id 映射关键字（@type 别名） | 同输入（含顶层 @graph）：1.0 允许 @type 别名 / 1.1 invalid IRI mapping（@id[#t0051]、@graph[#t0017] 别名两模式均合法——1.1 只禁 @type） |
+
+### 套件比对语义（canonical_for_suite，2026-09-26 tn004 谜底定案）
+- 官方 README「JSON-LD Object comparison」移植：对象键序不敏感；**数组默认
+  无序**——唯一例外 = `@list` 键下的数组保序；标量严格相等。语言标签大小写
+  不敏感项未采（现役从严，从严不违官方）。
+- 勘定依据：expand manifest 385 例 **0 件 `ordered:true`**——expected 文件的
+  数组序只是合法置换之一（#tn004 双 @nest：文档序保序输出 [v2,v4,v3] 与
+  expected [v2,v3,v4] 互为合法置换，官方同判；探针实证后删）。
+- 落码：engine.mbt `canonical_for_suite`（suite 比对通道唯一入口）；
+  `json_canonical`（数组保序）保留供他用，**禁止再用于套件对拍**。
 
 ### 红线与判据（2026-09-25 定）
 - 递归策略、搜索剪枝、工程权衡一律不进表；condition 只收可枚举的形态判断；
