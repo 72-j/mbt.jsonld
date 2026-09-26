@@ -68,13 +68,14 @@
   同款）——"_:dt" 的 scheme "_" 非法 ⇒ 非绝对（#ter40 oracle：bnode 不得作
   datatype）。波及面：expand_iri 第 5 步绝对判定 / 值对象 @type datatype 合法性 /
   属性门（bnode 键在此**显式放行**——规范允许 blank node predicate）。
-- **vocab 位 base 门控（勘定挂账，2026-09-26）**：vocab 位键展开在无 @vocab 时
-  规范语义 = 原样返回、**不落 base merge**（#t0003 oracle：未映射 term 必须丢弃）。
-  **挂「vocab 位 base 门控批」——批定义（命名统一，别名「默认 base 批」废弃）**：
-  门控 + harness 默认 base 注入（document location 约定）**同笔落**，**解挂清单
-  = t0051/t0050/t0056/t0057 四例**。注入**禁止单独先行**——实测全局注入即刻
-  破 #t0003（未映射键被解析成绝对 IRI 而保留，本应丢弃）；**先门控、后注入，
-  任何一边单独落 = 引入红例**。
+- **vocab 位 base 门控（已落地定案，2026-09-26）**：expand_iri
+  `document_relative` 旗启用——第 7 步 base merge 仅 document-relative 位执行。
+  **旗位语义表（11 调用点实证）**：键归一位 = 唯一 false（vocab 位键不落 base，
+  #t0003 oracle：未映射 term 丢弃）；@id/@type 节点位 + coercion 值位 = true
+  （#t0051/#t0050/#t0056/#t0057 oracle）；**td 定义值（简单臂/td @id/td @type/
+  @id-less 回退）= false**（#ter23 oracle：term 定义值纯 vocab 位，相对 @type
+  不得被 base 补成绝对）。harness 默认 base 注入（document location 约定，
+  option.base 优先）与门控**同笔落地**。
 
 ### 红线与判据（2026-09-25 定）
 - 递归策略、搜索剪枝、工程权衡一律不进表；condition 只收可枚举的形态判断；
