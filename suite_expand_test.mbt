@@ -318,6 +318,34 @@ async test "expand suite harness: manifest-driven buckets, all deferred pre-J2" 
     //   作用域内 term 命中 http://example.org/c，其余 key 落元素级 vocab）
     // #tc036：空 scoped context（{}——定义期校验通过、展开期为 no-op）
      "#tc001", "#tc002", "#tc003", "#tc004", "#tc005", "#tc036",
+    // —— type-scoped context 批（2026-09-26；批边界/边界表见 todo §J2 + spec）——
+    // 机制 = REC 4.1.2 propagate=false（置 previous context）+ REC 5.1.2 元素级
+    // @context 次序 → 快照 → 按 @type 键字典序/值字典序逐 term 套用（后套叠加）+
+    // 新节点对象回退 previous（"term-scoped context 不跨新节点"）+ @propagate 成员
+    // #t0073（**开工前置·次序钉子**）：@context not first property——元素级 @context
+    //   先于主键循环处理，文档中排在其前的键亦生效
+    // #tc006/#tc007/#tc008：type-scoped 新定义 term / 覆盖外层 term（@id coercion）/
+    //   @type 别名 term（"type": "@type"）亦触发
+    // #tc009：深 type-scoped **不**影响嵌套节点（嵌套节点回退 previous）
+    // #tc010：与元素级 @context 分层（作用域内 term 命中 scoped，其余落元素级 vocab）
+    // #tc011：@type 数组按**字典序**套用（数组序 ["t2","t1"] 下 t2 胜）
+    // #tc012：type-scoped 内再定义**属性作用域** term——其 scoped context 作用于
+    //   该属性值（回退前捕获、回退后应用；本批修出的真实 bug）
+    // #tc014：type-scoped `[null]` 空化（节点自身键按空 context 判，@type 值用快照）
+    // #tc015：type-scoped @base（节点 @id 与单 @id 形值用 typed base；多键嵌套节点
+    //   回退 outer base——单 @id 形不回退的 oracle）
+    // #tc016：type-scoped @vocab（节点键 typed、嵌套节点回退 outer）
+    // #tc017/#tc018：多 type-scoped 叠加与回退（[null,{...}] 组合 + 字典序定胜负）
+    // #tc019/#tc022/#tc023：type-scoped 内多属性作用域 term（含 @type:@vocab 组合）
+    // #tc020/#tc021：值对象形不回退（type-scoped 的 `value:@value` 别名 + 值混排）
+    // #tc024：type-scoped + property-scoped + 值对象按 previous context 判
+    // #tc026/#tc027/#tc028：@propagate true(覆盖默认 false)/false(属性作用域)/(元素级)
+    // #tc035：term scoping with embedded contexts
+    // #tc029/#tc030：**复审转真判据**（原在 plain 但"通过机制未复审"的埋雷族）——
+    //   @propagate 1.0 非法（invalid context entry）/ 非布尔（invalid @propagate value）
+     "#t0073", "#tc006", "#tc007", "#tc008", "#tc009", "#tc010", "#tc011", "#tc012",
+    "#tc014", "#tc015", "#tc016", "#tc017", "#tc018", "#tc019", "#tc020", "#tc021",
+    "#tc022", "#tc023", "#tc024", "#tc026", "#tc027", "#tc028", "#tc035",
   ]
   // 两桶：迁移例走端到端对拍（输入 → expansion → 对 expected）；其余 deferred
   let deferred : Array[String] = []
@@ -410,8 +438,8 @@ async test "expand suite harness: manifest-driven buckets, all deferred pre-J2" 
     }
   }
   // pin 闭合：桶总和 == 普查数；plain = 已迁移数
-  assert_eq(deferred.length(), 230)
-  assert_eq(plain.length(), 155)
+  assert_eq(deferred.length(), 207)
+  assert_eq(plain.length(), 178)
   // 解析覆盖闭合：每个有 input 的条目都走了解析通道
   assert_eq(parsed_ok + parse_err, 385)
   // 首例钉：#t0001 已迁 plain（manifest 顺序首条；J2 首件验收 = 此例端到端绿）

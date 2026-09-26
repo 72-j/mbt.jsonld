@@ -5,7 +5,20 @@ pub(all) struct ActiveContext {
   base : String?
   vocab : String? // @vocab 声明（③批；相对 IRI 已按 base 解析为绝对）
   terms : Map[String, TermDefinition]
-  // @language/@direction 默认值待后续批扩
+  /// 「前一 context」快照（REC 4.1.2 步 3：propagate=false 且 result 尚无 previous
+  /// 时置位）——展开**新节点对象**时回退到此（"term-scoped context 不跨新节点"。
+  /// type-scoped 批）。平铺结构（不复用 ActiveContext）以免自引用类型；规格只
+  /// 单层回退，「已有 previous 不覆盖」语义由本字段的表达方式承担。
+  /// @language/@direction 默认值待后续批扩
+  previous : PreviousContext?
+}
+
+///|
+/// 前一 context 快照（type-scoped 批）：只承载回退所需的三个字段
+pub(all) struct PreviousContext {
+  base : String?
+  vocab : String?
+  terms : Map[String, TermDefinition]
 }
 
 ///|
@@ -38,10 +51,14 @@ pub(all) enum ContainerType {
 /// Context 处理接口 —— 手写实现（递归策略不 gen）
 pub(open) trait ContextProcessor {
   /// 处理本地 context，产新的 ActiveContext（作用域继承）
+  /// `propagate`：**调用方默认**——type-scoped 应用传 false（置 previous
+  /// context，供新节点对象回退），property-scoped / 元素级 @context 传 true。
+  /// local context 自带的 `@propagate` 成员（REC 4.1.2 步 2）优先于此默认值
   fn process_context(
     Self,
     active : ActiveContext,
     local_context : JsonValue,
+    propagate : Bool,
     options : JsonLdOptions,
   ) -> Result[ActiveContext, JsonLdError]
 }

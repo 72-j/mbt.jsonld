@@ -4,7 +4,12 @@
 ///|
 test "expand_iri absolute passthrough (#t0001 对拍)" {
   let e = StandardExpander::{ }
-  let active = ActiveContext::{ base: None, vocab: None, terms: Map([]), }
+  let active = ActiveContext::{
+    base: None,
+    vocab: None,
+    terms: Map([]),
+    previous: None,
+  }
   assert_true(
     IriExpander::expand_iri(
       e, active, "http://example.org/test#example", true, false,
@@ -17,7 +22,12 @@ test "expand_iri absolute passthrough (#t0001 对拍)" {
 /// #t0001 方法级对拍：bnode 原样返回
 test "expand_iri bnode passthrough (#t0001 对拍)" {
   let e = StandardExpander::{ }
-  let active = ActiveContext::{ base: None, vocab: None, terms: Map([]), }
+  let active = ActiveContext::{
+    base: None,
+    vocab: None,
+    terms: Map([]),
+    previous: None,
+  }
   assert_true(
     IriExpander::expand_iri(e, active, "_:b0", true, false) is Ok("_:b0"),
   )
@@ -57,7 +67,12 @@ test "empty object end-to-end: free-floating (#t0001 同族判定)" {
 /// 禁止一次性化（否则掩盖"静默实现成 Ok"）。
 test "contract smoke: pending hooks refuse politely (red-not-wrong)" {
   let e = StandardExpander::{ }
-  let active = ActiveContext::{ base: None, vocab: None, terms: Map([]), }
+  let active = ActiveContext::{
+    base: None,
+    vocab: None,
+    terms: Map([]),
+    previous: None,
+  }
   let options = JsonLdOptions::{
     base: None,
     expand_context: None,
@@ -178,7 +193,12 @@ test "term/IRI chain with constructed context (②批对拍)" {
     reverse: None,
     local_context: None,
   }
-  let active = ActiveContext::{ base: None, vocab: None, terms, }
+  let active = ActiveContext::{
+    base: None,
+    vocab: None,
+    terms,
+    previous: None,
+  }
   // term 精确查表（lookup_term 真行为）
   assert_true(
     IriExpander::lookup_term(e, active, "name") is Ok("http://example.com/name"),
@@ -221,6 +241,7 @@ test "base-relative resolution (②批对拍)" {
     base: Some("http://example.org/"),
     vocab: None,
     terms,
+    previous: None,
   }
   assert_true(
     IriExpander::resolve_base(e, based, "zzz") is Ok("http://example.org/zzz"),
@@ -248,7 +269,12 @@ test "property key routing via chain (②批)" {
     reverse: None,
     local_context: None,
   }
-  let active = ActiveContext::{ base: None, vocab: None, terms, }
+  let active = ActiveContext::{
+    base: None,
+    vocab: None,
+    terms,
+    previous: None,
+  }
   let options = JsonLdOptions::{
     base: None,
     expand_context: None,
@@ -272,7 +298,12 @@ test "property key routing via chain (②批)" {
 /// concat_vocab 挂③断言（②批边界钉：ActiveContext 无 @vocab 字段）
 test "concat_vocab stays unsupported until @context batch" {
   let e = StandardExpander::{ }
-  let active = ActiveContext::{ base: None, vocab: None, terms: Map([]), }
+  let active = ActiveContext::{
+    base: None,
+    vocab: None,
+    terms: Map([]),
+    previous: None,
+  }
   // concat_vocab 已落码（③批）：@vocab 未声明 = Err 非静默拼接——烟雾活账翻转
   assert_true(
     IriExpander::concat_vocab(e, active, "t")
@@ -356,6 +387,7 @@ test "debug ter48: vocab=false excludes term lookup" {
     base: None,
     vocab: Some("http://example.org/vocab-is-not-considered-for-id"),
     terms,
+    previous: None,
   }
   assert_true(
     IriExpander::expand_iri(e, active, "term", true, false) is Ok("term"),
@@ -366,7 +398,12 @@ test "debug ter48: vocab=false excludes term lookup" {
 /// ③批 @version 落码对拍：接受 json-ld-1.1 / 拒绝其他值
 test "@version declaration (③批对拍)" {
   let e = StandardExpander::{ }
-  let active = ActiveContext::{ base: None, vocab: None, terms: Map([]), }
+  let active = ActiveContext::{
+    base: None,
+    vocab: None,
+    terms: Map([]),
+    previous: None,
+  }
   let options = JsonLdOptions::{
     base: None,
     expand_context: None,
@@ -374,21 +411,26 @@ test "@version declaration (③批对拍)" {
   }
   let ctx = JsonValue::Object([("@version", JsonValue::String("json-ld-1.1"))])
   assert_true(
-    ContextProcessor::process_context(e, active, ctx, options) is Ok(_),
+    ContextProcessor::process_context(e, active, ctx, true, options) is Ok(_),
   )
 }
 
 ///|
 test "invalid @version rejected (③批对拍)" {
   let e = StandardExpander::{ }
-  let active = ActiveContext::{ base: None, vocab: None, terms: Map([]), }
+  let active = ActiveContext::{
+    base: None,
+    vocab: None,
+    terms: Map([]),
+    previous: None,
+  }
   let options = JsonLdOptions::{
     base: None,
     expand_context: None,
     processing_mode: JsonLd11,
   }
   let ctx = JsonValue::Object([("@version", JsonValue::String("json-ld-1.2"))])
-  match ContextProcessor::process_context(e, active, ctx, options) {
+  match ContextProcessor::process_context(e, active, ctx, true, options) {
     Err(JsonLdError::InvalidContext(m)) =>
       assert_true(m.contains("invalid @version"))
     _ => fail("expected @version rejection")
@@ -426,7 +468,12 @@ test "merge_base_reference absolute-path reference (t0051 对拍)" {
 /// ③细化对拍：简单 term 定义的值 IRI 展开（#t0072 oracle：重定义为自身时用 @vocab）
 test "term value expands against in-progress vocab (t0072 对拍)" {
   let e = StandardExpander::{ }
-  let active = ActiveContext::{ base: None, vocab: None, terms: Map([]), }
+  let active = ActiveContext::{
+    base: None,
+    vocab: None,
+    terms: Map([]),
+    previous: None,
+  }
   let options = JsonLdOptions::{
     base: None,
     expand_context: None,
@@ -436,7 +483,8 @@ test "term value expands against in-progress vocab (t0072 对拍)" {
     ("@vocab", JsonValue::String("http://example.com/anotherVocab#")),
     ("term", JsonValue::String("term")),
   ])
-  let built = match ContextProcessor::process_context(e, active, ctx, options) {
+  let built = match
+    ContextProcessor::process_context(e, active, ctx, true, options) {
     Ok(built) => built
     Err(_) => fail("process failed")
   }
@@ -532,5 +580,129 @@ test "unused embedded context still checked (#tc033 对拍)" {
     Err(InvalidContext(_)) => ()
     Err(_) => fail("expected invalid scoped context")
     Ok(_) => fail("expected invalid scoped context")
+  }
+}
+
+///|
+/// type-scoped 批对拍①（#t0073 oracle）：元素级 @context 先于主键循环处理——
+/// 文档中排在 @context **之前**的键亦须看到它
+test "element @context applies regardless of position (#t0073 对拍)" {
+  let options = JsonLdOptions::{
+    base: None,
+    expand_context: None,
+    processing_mode: JsonLd11,
+  }
+  let input = "{\"name\": \"x\", \"@context\": {\"name\": \"http://example.com/name\"}}"
+  assert_true(
+    expand_document(input, options)
+    is Ok(
+      Array(
+        [
+          Object(
+            [
+              (
+                "http://example.com/name",
+                Array([Object([("@value", String("x"))])]),
+              ),
+            ]
+          ),
+        ]
+      )
+    ),
+  )
+}
+
+///|
+/// type-scoped 批对拍②（#tc009 oracle）：type-scoped context 作用于**该节点**，
+/// **不跨新节点**（嵌套节点回退 previous——"term-scoped context 不跨新节点"）
+test "type-scoped context does not propagate to nested node (#tc009 对拍)" {
+  let options = JsonLdOptions::{
+    base: None,
+    expand_context: None,
+    processing_mode: JsonLd11,
+  }
+  let input = "{\"@context\": {\"@vocab\": \"http://example/\", \"Foo\": {\"@context\": {\"baz\": {\"@type\": \"@vocab\"}}}}, \"@type\": \"Foo\", \"bar\": {\"baz\": \"buzz\"}}"
+  assert_true(
+    expand_document(input, options)
+    is Ok(
+      Array(
+        [
+          Object(
+            [
+              ("@type", Array([String("http://example/Foo")])),
+              (
+                "http://example/bar",
+                Array(
+                  [
+                    Object(
+                      [
+                        (
+                          "http://example/baz",
+                          Array([Object([("@value", String("buzz"))])]),
+                        ),
+                      ]
+                    ),
+                  ]
+                ),
+              ),
+            ]
+          ),
+        ]
+      )
+    ),
+  )
+}
+
+///|
+/// type-scoped 批对拍③（#tc015 同族 oracle）：单 @id 形值**不回退**——
+/// type-scoped @base 对 {"@id": …} 单键值仍生效；多键嵌套节点回退 outer base
+test "single-@id shaped value keeps type-scoped base (#tc015 同族对拍)" {
+  let options = JsonLdOptions::{
+    base: Some("http://example/base-base"),
+    expand_context: None,
+    processing_mode: JsonLd11,
+  }
+  let input = "{\"@context\": {\"@base\": \"http://example/base-base\", \"@vocab\": \"http://example/\", \"Type\": {\"@context\": {\"@base\": \"http://example/typed-base\"}}}, \"p\": {\"@type\": \"Type\", \"single\": {\"@id\": \"#single-id\"}, \"nested\": {\"@id\": \"#nested-id\", \"foo\": \"bar\"}}}"
+  let expanded = match expand_document(input, options) {
+    Ok(value) => value
+    Err(_) => fail("expected success")
+  }
+  let repr = "\{expanded.to_repr()}"
+  assert_true(repr.contains("http://example/typed-base#single-id"))
+  assert_true(repr.contains("http://example/base-base#nested-id"))
+}
+
+///|
+/// type-scoped 批对拍④（#tc029/#tc030 oracle）：@propagate 校验——
+/// 非布尔 → invalid @propagate value；1.0 模式 → invalid context entry
+test "@propagate must be boolean and 1.1-only (#tc029/#tc030 对拍)" {
+  let e = StandardExpander::{ }
+  let active = ActiveContext::{
+    base: None,
+    vocab: None,
+    terms: Map([]),
+    previous: None,
+  }
+  let options_11 = JsonLdOptions::{
+    base: None,
+    expand_context: None,
+    processing_mode: JsonLd11,
+  }
+  let bad = JsonValue::Object([("@propagate", JsonValue::String("yes"))])
+  match ContextProcessor::process_context(e, active, bad, true, options_11) {
+    Err(InvalidContext(message)) =>
+      assert_true(message.contains("invalid @propagate value"))
+    _ => fail("expected invalid @propagate value")
+  }
+  let options_10 = JsonLdOptions::{
+    base: None,
+    expand_context: None,
+    processing_mode: JsonLd10,
+  }
+  let flag = JsonValue::Object([("@propagate", JsonValue::Bool(true))])
+  match ContextProcessor::process_context(e, active, flag, true, options_10) {
+    Err(InvalidContext(message)) =>
+      assert_true(message.contains("invalid context entry"))
+    _ => fail("expected invalid context entry")
   }
 }

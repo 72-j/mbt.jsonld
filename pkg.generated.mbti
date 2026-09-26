@@ -27,6 +27,7 @@ pub(all) struct ActiveContext {
   base : String?
   vocab : String?
   terms : Map[String, TermDefinition]
+  previous : PreviousContext?
 }
 
 pub(all) enum ContainerType {
@@ -134,6 +135,12 @@ pub fn JsonValue::equal(Self, Self) -> Bool
 pub fn JsonValue::not_equal(Self, Self) -> Bool
 pub fn JsonValue::to_repr(Self) -> @debug.Repr
 
+pub(all) struct PreviousContext {
+  base : String?
+  vocab : String?
+  terms : Map[String, TermDefinition]
+}
+
 pub(all) enum ProcessingMode {
   JsonLd10
   JsonLd11
@@ -155,7 +162,7 @@ pub(all) struct TermDefinition {
 
 // Traits
 pub(open) trait ContextProcessor {
-  fn process_context(Self, ActiveContext, JsonValue, JsonLdOptions) -> Result[ActiveContext, JsonLdError]
+  fn process_context(Self, ActiveContext, JsonValue, Bool, JsonLdOptions) -> Result[ActiveContext, JsonLdError]
 }
 
 pub(open) trait Expander {

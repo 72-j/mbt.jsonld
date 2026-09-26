@@ -16,7 +16,7 @@ fn shape_of(element : JsonValue) -> String {
 ///|
 /// 初始 active context（t0001 片：terms 空、base 取 options）
 fn initial_context(options : JsonLdOptions) -> ActiveContext {
-  { base: options.base, vocab: None, terms: Map([]), }
+  { base: options.base, vocab: None, terms: Map([]), previous: None, }
 }
 
 ///|

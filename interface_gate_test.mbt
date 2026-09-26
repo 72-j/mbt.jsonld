@@ -234,6 +234,7 @@ impl @jsonld.ContextProcessor for MockHooks with fn process_context(
   _self,
   _active,
   _local_context,
+  _propagate,
   _options,
 ) {
   mock_err()
@@ -314,6 +315,7 @@ async test "interface gate smoke: mock surface is callable" {
     base: None,
     vocab: None,
     terms: Map([]),
+    previous: None,
   }
   let options = @jsonld.JsonLdOptions::{
     base: None,
@@ -333,6 +335,7 @@ async test "interface gate smoke: mock surface is callable" {
       mock,
       active,
       @jsonld.JsonValue::Null,
+      true,
       options,
     ) {
     Err(@jsonld.JsonLdError::Unsupported(_)) => ()

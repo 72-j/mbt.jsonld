@@ -86,6 +86,7 @@
 | #t0092 vs #t0115/#t0116 | specVersion 分叉 | processingMode | @vocab 相对/空串：1.1 base raw 拼接有效 / 1.0 invalid vocab mapping（校验先于 base 解析） |
 | #ter23 vs #t0029 | 位置分叉 | 展开位置（td 定义值 vs 文档值位） | td @type 相对值不落 base（invalid type mapping）；文档值位相对 IRI 落 base 解析（含 fragment/query/scheme 相对） |
 | #t0026 vs #ter43 | specVersion 分叉 | td 定义 **term 名一致性检查**（非"@type 别名"黑名单） | 同输入（含顶层 @graph）：term 名 = rdf:type 长名，其自身展开 ≠ IRI 映射（@type）→ 1.1 invalid IRI mapping / 1.0 不检查（合法）。同类 1.1 负例 #ter44（compact 形 term 名映射他处） |
+| #tc006/#tc016 vs #tc014/#tc018 | 位置分叉（**同一节点内**） | 展开位置：节点键（套用后的 context）vs **@type 值自身（快照）** | type-scoped context 空化/换 vocab 只影响节点键；**@type 值仍按快照展开**（#tc014：`[null]` 下 @type 仍得 http://example/Type；#tc018 同理） |
 
 ### term 名一致性检查（REC 4.2.2 @id 臂 "must be consistent"；2026-09-26 修正）
 - 判据：term 名含冒号（**非**首位、**非**末位）或含斜杠时，**term 名自身的 IRI
@@ -139,6 +140,29 @@
 键会漏掉该 context。oracle = **#t0073**（"@context not first property"，**正例**，
 当前 mismatch；manifest 全量扫描：节点级 @context 非首位的例仅此 1 例 / 2 处）。
 type-scoped 快照必须以"元素 @context 已生效"的 active context 为底，故此项须先落。
+
+### type-scoped context 已落实现注记（2026-09-26 收口；边界表见上）
+- **次序照录**（REC 5.1.2 映射分支）：previous 回退 → property-scoped 应用 → **元素级
+  @context** → type-scoped 快照/套用 → 主键循环。**元素级 @context 必须先于主键循环**
+  （#t0073 oracle，已收敛——原实现按文档序内联）。
+- **快照 vs 累积**：td 查询用**快照**（type-scoped context），应用**累积**到 current
+  （#tc018 oracle）；**@type 值自身用快照展开**（#tc014：type-scoped `[null]` 空化后
+  @type 仍得外层 vocab 的 http://example/Type；#tc018 同理）。
+- **回退门**（active 带 previous 时）：值**既非**"含键展开为 @value"**也非**"单条展开
+  为 @id" 才回退；两形判定都以**回退前** context 做——#tc015（单 @id 形保 type-scoped
+  @base）/ #tc020（值对象形保 `value:@value` 别名）/ #tc009（多键嵌套节点回退 ⇒ 不跨
+  新节点）/ #tc016（回退 ⇒ 嵌套节点落 outer vocab）。
+- **@propagate 成员**（REC 4.1.2 步 2 + 步 5.x 校验）：type-scoped 默认 propagate=false，
+  成员可覆盖（#tc026 `true` = 传播到嵌套节点）；1.0 模式 → invalid context entry
+  （#tc029）、非布尔 → invalid @propagate value（#tc030）。
+- **属性作用域捕获点**（#tc012 oracle）：property-scoped context 必须在**回退前**从
+  active 的 td 捕获、在**回退后**的 context 上应用——回退后重查 td 会丢 scoped 定义
+  （本批首跑即红，次序坑）。
+- **@included / @graph 递归调用**（REC 13.4.6.x，from map 未传）同受回退门约束。
+- 迁移口径：#t0073 + #tc006~#tc011/#tc012/#tc014~#tc024/#tc026~#tc028/#tc035 = **23 例**；
+  #tc029/#tc030 从"通过机制未复审"的埋雷族**转真判据**（非新增迁移）。
+  挂账：type map（#tc013/#tm008，需 @container @type）、#tc025（@graph 容器）、
+  #tc031/#tc034（远程 context）、#tpr08（@protected）。
 
 ### 套件比对语义（canonical_for_suite，2026-09-26 tn004 谜底定案）
 - 官方 README「JSON-LD Object comparison」移植：对象键序不敏感；**数组默认
