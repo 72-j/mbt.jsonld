@@ -749,7 +749,35 @@ fn StandardExpander::expand_term_values(
   options : JsonLdOptions,
 ) -> Result[Array[ExpandedValue], JsonLdError] {
   match value {
-    JsonValue::Object(_) =>
+    JsonValue::Object(_) => {
+      // @language 容器值检查（⑤后半——#ter35 oracle）：语言映射值仅收
+      // 字符串/对象；标量/数组 → invalid language map value（应用挂语言映射批）
+      match active.terms.get(term) {
+        Some(term_definition) =>
+          match term_definition.container {
+            Some(ContainerType::Language) =>
+              match value {
+                JsonValue::Object(entries) =>
+                  for entry in entries {
+                    match entry.1 {
+                      JsonValue::String(_) | JsonValue::Object(_) => ()
+                      _ =>
+                        return Err(
+                          JsonLdError::InvalidValue(
+                            "invalid language map value",
+                          ),
+                        )
+                    }
+                  }
+                _ =>
+                  return Err(
+                    JsonLdError::InvalidValue("invalid language map value"),
+                  )
+              }
+            _ => ()
+          }
+        None => ()
+      }
       match
         StandardExpander::expand_object(
           self,
@@ -762,6 +790,7 @@ fn StandardExpander::expand_term_values(
         Ok(None) => Ok([])
         Err(e) => Err(e)
       }
+    }
     JsonValue::Array(items) => {
       let out : Array[ExpandedValue] = []
       for item in items {
@@ -1005,13 +1034,16 @@ impl ContextProcessor for StandardExpander with fn process_context(
                 // 1.0 模式 = @vocab 非绝对（含相对/空串）即 invalid——对原始值判，
                 // base 不补救；1.1 模式 = 对 base raw 拼接（#t0092：空串 → base
                 // 本身、`../` 原样不消点段）
+                // 1.0 校验（#t0115/#t0116 oracle：相对/空串非法）豁免 bnode
+                // 标签（#t0075 oracle：@vocab "_:" 合法——处理模式依赖第一实证
+                // 的边界细化）；bnode 不落 base 拼接
                 if _options.processing_mode is JsonLd10 &&
-                  !is_valid_absolute_iri(v) {
+                  !(is_valid_absolute_iri(v) || is_bnode_label(v)) {
                   return Err(
                     JsonLdError::InvalidContext("invalid vocab mapping"),
                   )
                 }
-                let resolved = if is_valid_absolute_iri(v) {
+                let resolved = if is_valid_absolute_iri(v) || is_bnode_label(v) {
                   v
                 } else {
                   match base {
@@ -1082,6 +1114,11 @@ impl ContextProcessor for StandardExpander with fn process_context(
             // （#t0072 oracle：重定义为自身时用 @vocab，非旧 term 定义）
             match pair.1 {
               JsonValue::String(iri) => {
+                // 循环检测（⑤后半——#ter10 oracle）：值 = compact 形且 prefix =
+                // 自身 term → cyclic IRI mapping
+                if is_self_prefix_compact(iri, other) {
+                  return Err(JsonLdError::InvalidContext("cyclic IRI mapping"))
+                }
                 // 自映射排除（#t0072/#t0071 oracle）：值 = term 自身时旧定义
                 // 不参与查表——有 @vocab → vocab 拼接；有 prefix → compact；
                 // 两者皆无 → 原样
@@ -1129,6 +1166,7 @@ impl ContextProcessor for StandardExpander with fn process_context(
             new_terms,
             base,
             vocab,
+            _options,
             deferred.0,
             deferred.1,
           ) {
@@ -1146,24 +1184,32 @@ impl ContextProcessor for StandardExpander with fn process_context(
 ///|
 /// 扩展 term 定义（对象形态，⑤批 A 组——判据①）：@id 位 = vocab 展开（自映射
 /// 排除旧定义——#t0071 oracle）；@type 位 = 三形态 type mapping（"@id"/"@vocab"/
-/// 绝对 IRI——#t0011/#t0054/#t0007 oracle）；@container/@context/@nest 等本批
-/// 不解析、不报错（⑤后半挂账）。关键字 term 必须自映射（#tec02 oracle：
+/// 绝对 IRI——#t0011/#t0054/#t0007 oracle）；@container/@language/@prefix/@nest
+/// 验证（⑤后半——#tem01/#ter21/#tes01/#tes02/#ter22/#ter53/#ten05 oracle）；
+/// @context（scoped）挂账忽略。关键字 term 必须自映射（#tec02 oracle：
 /// keyword redefinition；#t0026 oracle：{"@id":"@type","@type":"@id"} 合法）
 fn StandardExpander::process_expanded_term_definition(
   _self : StandardExpander,
   new_terms : Map[String, TermDefinition],
   base : String?,
   vocab : String?,
+  options : JsonLdOptions,
   term_name : String,
   td_pairs : Array[(String, JsonValue)],
 ) -> Result[Unit, JsonLdError] {
   let mut td_iri : String? = None
   let mut td_datatype : String? = None
+  let mut td_container : ContainerType? = None
   for td_pair in td_pairs {
     match td_pair.0 {
       "@id" =>
         match td_pair.1 {
           JsonValue::String(iri) => {
+            // 循环检测（⑤后半——#ter10 oracle）：值 = compact 形且 prefix =
+            // 自身 term → cyclic IRI mapping
+            if is_self_prefix_compact(iri, term_name) {
+              return Err(JsonLdError::InvalidContext("cyclic IRI mapping"))
+            }
             // 自映射排除（#t0071 oracle：重定义 @id = 自身时旧定义不查表）
             let lookup_terms = if iri == term_name {
               terms_without(new_terms, term_name)
@@ -1201,7 +1247,45 @@ fn StandardExpander::process_expanded_term_definition(
           }
           _ => return Err(JsonLdError::InvalidContext("@type must be a string"))
         }
-      _ => () // @container/@context/@nest 等：⑤后半挂账，忽略
+      "@container" =>
+        // 容器映射验证（⑤后半——#tem01/#ter21/#tes01/#tes02 oracle）：
+        // 串值按模式白名单、数组仅 1.1 图组合；仅验证不启用应用
+        match validate_container_value(td_pair.1, options) {
+          Ok(_) =>
+            // 仅 @language 存值（#ter35 展开期值检查依赖）；余应用挂账存 None
+            match td_pair.1 {
+              JsonValue::String("@language") =>
+                td_container = Some(ContainerType::Language)
+              _ => ()
+            }
+          Err(e) => return Err(e)
+        }
+      "@language" =>
+        // 语言映射验证（⑤后半——#ter22 oracle）：串或 null；应用挂后
+        match td_pair.1 {
+          JsonValue::String(_) | JsonValue::Null => ()
+          _ =>
+            return Err(JsonLdError::InvalidContext("invalid language mapping"))
+        }
+      "@prefix" =>
+        // 前缀标记验证（⑤后半——#ter53 oracle）：须布尔；IRI 尾段 / 或 #
+        // 条件无 oracle 挂账，勿过严
+        match td_pair.1 {
+          JsonValue::Bool(_) => ()
+          _ => return Err(JsonLdError::InvalidContext("invalid @prefix value"))
+        }
+      "@nest" =>
+        // nest 验证（⑤后半——#ten05 oracle）：须串且关键字位仅 "@nest"
+        match td_pair.1 {
+          JsonValue::String(nest_term) => {
+            let keyword_named = nest_term.get_char(0) is Some('@')
+            if keyword_named && nest_term != "@nest" {
+              return Err(JsonLdError::InvalidContext("invalid @nest value"))
+            }
+          }
+          _ => return Err(JsonLdError::InvalidContext("invalid @nest value"))
+        }
+      _ => () // @context（scoped）等：挂账，忽略
     }
   }
   // 关键字重定义规则（#tec02 oracle）：term 为关键字时必须 @id 映射回自身
@@ -1229,9 +1313,79 @@ fn StandardExpander::process_expanded_term_definition(
   new_terms[term_name] = TermDefinition::{
     iri: final_iri,
     datatype: td_datatype,
-    container: None,
+    container: td_container,
   }
   Ok(())
+}
+
+///|
+/// 容器映射合法性验证（⑤后半——#tem01/#ter21/#tes01/#tes02 oracle）：
+/// 串值 = 1.1 白名单 {@list,@set,@index,@language,@id,@type,@graph} /
+/// 1.0 窄名单 {@list,@set,@index,@language}；数组仅 1.1 图组合
+/// [@graph, @id|@index|@set]；其余类型/值 → invalid container mapping。
+/// 仅验证不启用应用（container 字段仅 @language 存值——#ter35 依赖）
+fn validate_container_value(
+  value : JsonValue,
+  options : JsonLdOptions,
+) -> Result[Unit, JsonLdError] {
+  let is_10 = options.processing_mode is JsonLd10
+  match value {
+    JsonValue::String(c) => {
+      let valid_11 = c
+        is ("@list"
+        | "@set"
+        | "@index"
+        | "@language"
+        | "@id"
+        | "@type"
+        | "@graph")
+      let valid_10 = c is ("@list" | "@set" | "@index" | "@language")
+      if (if is_10 { valid_10 } else { valid_11 }) {
+        Ok(())
+      } else {
+        Err(JsonLdError::InvalidContext("invalid container mapping"))
+      }
+    }
+    JsonValue::Array(items) => {
+      // 仅 1.1 图组合：@graph + 恰一 of @id/@index/@set（顺序无关）
+      let mut has_graph = false
+      let mut extra_count = 0
+      let mut extra_valid = true
+      for item in items {
+        match item {
+          JsonValue::String("@graph") => has_graph = true
+          JsonValue::String(s) => {
+            extra_count = extra_count + 1
+            if !(s is ("@id" | "@index" | "@set")) {
+              extra_valid = false
+            }
+          }
+          _ => extra_valid = false
+        }
+      }
+      if !is_10 && has_graph && extra_count == 1 && extra_valid {
+        Ok(())
+      } else {
+        Err(JsonLdError::InvalidContext("invalid container mapping"))
+      }
+    }
+    _ => Err(JsonLdError::InvalidContext("invalid container mapping"))
+  }
+}
+
+///|
+/// compact 自指环检测（⑤后半——#ter10 oracle）：值含冒号且冒号前 prefix =
+/// 被定义的 term 名自身 → 展开即环
+fn is_self_prefix_compact(value : String, term_name : String) -> Bool {
+  match colon_index(value) {
+    Some(at) =>
+      if at > 0 {
+        split_first_colon(value, at).0 == term_name
+      } else {
+        false
+      }
+    None => false
+  }
 }
 
 ///|

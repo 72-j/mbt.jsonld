@@ -52,14 +52,21 @@ fn options_for(entry : @jsonld.JsonValue) -> @jsonld.JsonLdOptions {
         Some("json-ld-1.0") => mode = @jsonld.ProcessingMode::JsonLd10
         _ => ()
       }
+      // processingMode 与 specVersion 并行（#ter21/#tes01 oracle：容器验证按
+      // processingMode 分叉）；任一指 1.0 即 1.0
+      match json_string_get(option_value, "processingMode") {
+        Some("json-ld-1.0") => mode = @jsonld.ProcessingMode::JsonLd10
+        _ => ()
+      }
       base = json_string_get(option_value, "base")
     }
     None => ()
   }
-  // 默认 base 注入（document location 约定，#t0051 需要）**不可全局开**：
+  // 默认 base 注入（document location 约定）**不可全局开**：
   // vocab 位键展开（无 @vocab）规范语义 = 原样返回、不落 base merge（#t0003
   // oracle：未映射 term 必须丢弃——全局 base 会把它解析成绝对而保留）。
-  // 挂账：expand_iri vocab 位 base 门控勘定批 + 本注入同批落
+  // 挂账：「vocab 位 base 门控批」（门控 + 本注入同笔落；解挂 t0051/t0050/
+  // t0056/t0057——批定义见 todo §J2 / spec §4，别名「默认 base 批」废弃）
   { base, expand_context: None, processing_mode: mode, }
 }
 
@@ -178,6 +185,21 @@ async test "expand suite harness: manifest-driven buckets, all deferred pre-J2" 
      "#t0117",
     //（⑤批挂账 4 例：t0026 = @graph B 组叠加件；t0050/t0056/t0057 = 期望含相对
     // 引用 base 解析，挂「vocab 位 base 门控批」——见 options_for 注记）
+    // —— ⑤后半·td 其余键验证批（2026-09-26；九例回迁——⑤落码时曾因"拒绝即过"
+    // 破例回 deferred，真验证落码后按原 oracle 回归 plain）——
+    // #tem01/#ter21/#tes01/#tes02：@container 验证（串白名单 1.1/1.0 分叉 +
+    // 数组仅 1.1 图组合；#ter21 = processingMode 1.0 门控）
+     "#tem01", "#ter21", "#tes01", "#tes02",
+    // #ter10：compact 前缀自指环 → cyclic IRI mapping（简单臂与 td @id 臂同规则）
+     "#ter10",
+    // #ter22：td @language 非串 → invalid language mapping
+     "#ter22",
+    // #ter35：@language 容器值检查（{"en": true} → invalid language map value）
+     "#ter35",
+    // #ter53：td @prefix 非布尔 → invalid @prefix value
+     "#ter53",
+    // #ten05：td @nest 关键字值（"@id"）→ invalid @nest value
+     "#ten05",
   ]
   // 两桶：迁移例走端到端对拍（输入 → expansion → 对 expected）；其余 deferred
   let deferred : Array[String] = []
@@ -262,8 +284,8 @@ async test "expand suite harness: manifest-driven buckets, all deferred pre-J2" 
     }
   }
   // pin 闭合：桶总和 == 普查数；plain = 已迁移数
-  assert_eq(deferred.length(), 285)
-  assert_eq(plain.length(), 100)
+  assert_eq(deferred.length(), 276)
+  assert_eq(plain.length(), 109)
   // 解析覆盖闭合：每个有 input 的条目都走了解析通道
   assert_eq(parsed_ok + parse_err, 385)
   // 首例钉：#t0001 已迁 plain（manifest 顺序首条；J2 首件验收 = 此例端到端绿）
