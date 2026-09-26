@@ -417,6 +417,49 @@ impl IriExpander for StandardExpander with fn lookup_term(
 }
 
 ///|
+/// term 名是否触发一致性检查（REC 4.2.2 @id 臂）：term 名含冒号（非首位、
+/// 非末位）或含斜杠（任意位置）——此形态的 term 名本身是一次 IRI 引用，
+/// 它自身的展开必须与 IRI 映射一致
+fn term_name_has_colon_or_slash(term_name : String) -> Bool {
+  let length = term_name.length()
+  match colon_index(term_name) {
+    Some(at) => if at > 0 && at < length - 1 { return true }
+    None => ()
+  }
+  term_name.contains("/")
+}
+
+///|
+/// term 名一致性检查（REC 4.2.2 @id 臂 "must be consistent" 条）：term 名的
+/// IRI 展开 == 该 term 的 IRI 映射；不符 → invalid IRI mapping。**1.0 模式不做
+/// 检查**（#t0026 oracle：1.0 同输入正例）。两个 oracle：
+/// #ter43（负·1.1）——长名 rdf:type 别名 @type：1.1 非法 / 1.0 合法；
+/// #ter44（负·1.1）——compact 形 term 名映射到别处（v:term → v:somethingElse）
+fn StandardExpander::check_term_name_consistency(
+  self : StandardExpander,
+  building : ActiveContext,
+  term_name : String,
+  iri_mapping : String,
+  options : JsonLdOptions,
+) -> Result[Unit, JsonLdError] {
+  if options.processing_mode is JsonLd10 {
+    return Ok(())
+  }
+  if !term_name_has_colon_or_slash(term_name) {
+    return Ok(())
+  }
+  match IriExpander::expand_iri(self, building, term_name, false, true) {
+    Ok(self_expanded) =>
+      if self_expanded == iri_mapping {
+        Ok(())
+      } else {
+        Err(JsonLdError::InvalidIri("invalid IRI mapping"))
+      }
+    Err(e) => Err(e)
+  }
+}
+
+///|
 /// 对象展开（①批 coercion + ③批 @context）：
 /// @id（节点身份，绝对/bnode 校验）/ @type（节点类型数组 + 值对象 datatype 形态 A
 /// 含四族验证）/ @value / @language / @direction（值对象族第一批）/
@@ -438,9 +481,11 @@ fn StandardExpander::expand_object(
   let properties : Array[(String, Array[ExpandedValue])] = []
   let reverse_props : Array[(String, Array[ExpandedValue])] = []
   let mut node_graph : Array[ExpandedValue]? = None
-  // 节点位 @nest 值收集（nest 纯形批——REC 13.4.14：主键循环中只收集，
-  // 循环后延后处理；文档序）
-  let nest_values : Array[JsonValue] = []
+  // 节点位 @nest 条目收集（nest 纯形批 + scoped-context 批——REC 13.4.14：
+  // 主键循环中只收集，循环后延后处理；文档序）。条目携带该键的**属性作用域
+  // context**（scoped-context 批——#tc037/#tc038 oracle：@nest 别名 term 的
+  // local context 在其值展开时套用）
+  let nest_entries : Array[(ActiveContext, JsonValue)] = []
   // Included Blocks 收集（@included 纯形批——主键循环中只收集不展开，
   // 循环后延后处理；值对象位同样收集——#tin05 oracle 保形）
   let included_values : Array[JsonValue] = []
@@ -453,6 +498,17 @@ fn StandardExpander::expand_object(
   // current：@context 处理后的当前 context（③批；循环内可被 @context 键更新）
   let mut current = active
   for pair in pairs {
+    // null IRI 映射 term（"term": null / {"@id": null}——scoped-context 批）：
+    // IRI 展开返回 null ⇒ 键整体丢弃（REC 5.1.2：expanded property 为 null 即
+    // drop key）。#tin06 oracle：scoped context {"data": null} 下的 "data" 键
+    // 丢弃——若按"移除定义"处理则会 vocab 拼成属性，是为误判
+    let term_iri_is_null = match current.terms.get(pair.0) {
+      Some(term_definition) => term_definition.iri is None
+      None => false
+    }
+    if term_iri_is_null {
+      continue
+    }
     // 键归一（#ter51 oracle）：字面 @ 键原样；term 键经 IRI 链展开一次——
     // 别名 term（IRI 即关键字）归一到关键字位，与字面关键字同路分派
     let expanded_key = match pair.0.get_char(0) {
@@ -853,13 +909,25 @@ fn StandardExpander::expand_object(
         if is_value_object {
           return Err(JsonLdError::InvalidValue("invalid value object"))
         }
+        // 该键的属性作用域 context（scoped-context 批——#tc037/#tc038
+        // oracle：@nest 别名 term 的 @context 作用于其值）
+        let nest_context = match
+          StandardExpander::apply_property_scoped_context(
+            self,
+            current,
+            pair.0,
+            options,
+          ) {
+          Ok(ctx) => ctx
+          Err(e) => return Err(e)
+        }
         match pair.1 {
           JsonValue::Array(items) =>
             for item in items {
-              nest_values.push(item) // 数组归一（tn007/tn008）
+              nest_entries.push((nest_context, item)) // 数组归一（tn007/tn008）
             }
           JsonValue::Null => () // 数组归一：null = 空（先验）
-          single => nest_values.push(single)
+          single => nest_entries.push((nest_context, single))
         }
       }
       // 节点位 @included（Included Blocks 纯形批——REC：主键循环中只收集，
@@ -893,7 +961,9 @@ fn StandardExpander::expand_object(
   // 节点——排自身属性之后（tn003），嵌套 @nest 随递归自展（tn005），数组
   // 元素逐一合并（tn006/tn008）。文档序处理（ordered=false 时 nests 按
   // 收集序——tn004 双 nest 官方比对无序，保序结果同为合法置换）。
-  for nested in nest_values {
+  for nest_entry in nest_entries {
+    let nest_context = nest_entry.0
+    let nested = nest_entry.1
     let nested_pairs = match nested {
       JsonValue::Object(ps) => ps
       _ => return Err(JsonLdError::InvalidContext("invalid @nest value"))
@@ -904,7 +974,8 @@ fn StandardExpander::expand_object(
       let nested_key = if raw_key.get_char(0) is Some('@') {
         raw_key
       } else {
-        match IriExpander::expand_iri(self, current, raw_key, false, true) {
+        match
+          IriExpander::expand_iri(self, nest_context, raw_key, false, true) {
           Ok(k) => k
           Err(e) => return Err(e)
         }
@@ -914,7 +985,7 @@ fn StandardExpander::expand_object(
       }
     }
     let nested_expanded = StandardExpander::expand_object(
-      self, current, nested, _active_property, options,
+      self, nest_context, nested, _active_property, options,
     )
     match nested_expanded {
       Ok(Some(ExpandedValue::Node(nested_node))) => {
@@ -1203,6 +1274,31 @@ impl Expander for StandardExpander with fn expand_term(
 }
 
 ///|
+/// 属性作用域 context 应用（scoped-context 批——REC 5.1.2 "property-scoped
+/// context"）：active property 的 term 定义带 local context 时，其**值**展开前
+/// 先做 Context Processing 并套用；无 local context / 无 term 定义 = 原样返回。
+/// 两阶段语义（REC 4.2.2 注记）：定义期只校验（结果丢弃，错误 → invalid
+/// scoped context），展开期才真正再处理应用（#tc037/#tc038/#tin06 oracle）
+fn StandardExpander::apply_property_scoped_context(
+  self : StandardExpander,
+  active : ActiveContext,
+  term : String,
+  options : JsonLdOptions,
+) -> Result[ActiveContext, JsonLdError] {
+  match active.terms.get(term) {
+    Some(term_definition) =>
+      match term_definition.local_context {
+        Some(local_context) =>
+          ContextProcessor::process_context(
+            self, active, local_context, options,
+          )
+        None => Ok(active)
+      }
+    None => Ok(active)
+  }
+}
+
+///|
 /// 容器应用壳（C 组——判据③）：@container @list → 元素展开 + List 包裹后
 /// 委托内层（包裹仅此一层——元素递归一律走 expand_term_values_inner，防
 /// 容器/标量 coercion 互咬重入）。@container @set = 现有摊平即塌缩
@@ -1215,6 +1311,13 @@ fn StandardExpander::expand_term_values(
   active_property : String?,
   options : JsonLdOptions,
 ) -> Result[Array[ExpandedValue], JsonLdError] {
+  // 属性作用域 context 先套用（scoped-context 批）：容器位查找亦在新 context
+  // 下（REC 次序——先处理 property-scoped context，再按活跃属性查容器映射）
+  let active = match
+    StandardExpander::apply_property_scoped_context(self, active, term, options) {
+    Ok(next) => next
+    Err(e) => return Err(e)
+  }
   let container_kind = match active.terms.get(term) {
     Some(term_definition) => term_definition.container
     None => None
@@ -1546,6 +1649,12 @@ impl ContextProcessor for StandardExpander with fn process_context(
   let mut vocab = active.vocab
   let mut base = active.base
   match local_context {
+    // context nullification（REC 4.1.2：数组项为 null = 重置为新初始 context，
+    // **base IRI 取原 base URL**）——scoped-context 批勘定件：#tc014（type-scoped
+    // `[null]`）/ #tc018（`[null, {...}]`）的 scoped context 形态若不接受，定义期
+    // 校验会误判 invalid scoped context。@protected × nullification 的
+    // invalid context nullification 门挂 @protected 批
+    JsonValue::Null => Ok(initial_context(_options))
     JsonValue::String(_) =>
       return Err(JsonLdError::Unsupported("remote context pending later batch"))
     JsonValue::Array(items) => {
@@ -1642,7 +1751,14 @@ impl ContextProcessor for StandardExpander with fn process_context(
               )
             }
           }
-          "@language" | "@direction" | "@propagate" | "@import" =>
+          // 未落码 context 关键字（挂账活账——@protected 原落"term definition
+          // must be…"的误分类，勘定批修正为 Unsupported：@protected 族 16 枚
+          // 的挂账去向是「@protected 批」，非 term 定义形态错误）
+          "@language"
+          | "@direction"
+          | "@propagate"
+          | "@import"
+          | "@protected" =>
             return Err(
               JsonLdError::Unsupported(
                 "context keyword pending later batches (\{pair.0})",
@@ -1691,16 +1807,16 @@ impl ContextProcessor for StandardExpander with fn process_context(
                 }
                 let expanded = match
                   IriExpander::expand_iri(_self, building, iri, false, true) {
-                  Ok(k) => {
-                    // 关键字 IRI 映射模式门（#t0026/#ter43 同形异判对：1.0 允许
-                    // @type 别名 [t0026 用对象形态]；1.1 禁 → invalid IRI
-                    // mapping。@id/#t0051、@graph/#t0017 别名两模式均合法——
-                    // 1.1 只禁 @type；simple 臂与 td @id 臂同规则同源）
-                    if !(_options.processing_mode is JsonLd10) && k is "@type" {
-                      return Err(JsonLdError::InvalidIri("invalid IRI mapping"))
-                    }
-                    k
-                  }
+                  Ok(k) => k
+                  Err(e) => return Err(e)
+                }
+                // term 名一致性检查（REC 4.2.2 @id 臂；#ter44 负例 oracle；
+                // simple 臂与 td @id 臂同规则同源）
+                match
+                  StandardExpander::check_term_name_consistency(
+                    _self, building, other, expanded, _options,
+                  ) {
+                  Ok(_) => ()
                   Err(e) => return Err(e)
                 }
                 new_terms[other] = TermDefinition::{
@@ -1708,9 +1824,21 @@ impl ContextProcessor for StandardExpander with fn process_context(
                   datatype: None,
                   container: None,
                   reverse: None,
+                  local_context: None,
                 }
               }
-              JsonValue::Null => new_terms.remove(other)
+              // term: null → @id null 映射（REC 4.2.2：value 为 null 时视作
+              // {"@id": null}）——term **保留**、IRI 映射为 null：展开期该键
+              // 整体丢弃（#tin06 oracle：scoped context {"data": null} 下
+              // "data" 键丢弃；此前按"移除定义"处理会 vocab 拼成属性，为误判）
+              JsonValue::Null =>
+                new_terms[other] = TermDefinition::{
+                  iri: None,
+                  datatype: None,
+                  container: None,
+                  reverse: None,
+                  local_context: None,
+                }
               // 对象形态 term 定义推迟到第二遍（#t0007 oracle：同 context
               // 后置 prefix 定义——简单 term——须对其可用）
               JsonValue::Object(td_pairs) => deferred_td.push((other, td_pairs))
@@ -1753,7 +1881,8 @@ impl ContextProcessor for StandardExpander with fn process_context(
 /// 排除旧定义——#t0071 oracle）；@type 位 = 三形态 type mapping（"@id"/"@vocab"/
 /// 绝对 IRI——#t0011/#t0054/#t0007 oracle）；@container/@language/@prefix/@nest
 /// 验证（⑤后半——#tem01/#ter21/#tes01/#tes02/#ter22/#ter53/#ten05 oracle）；
-/// @context（scoped）挂账忽略。关键字 term 必须自映射（#tec02 oracle：
+/// @context 位 = 属性作用域 context（scoped-context 批：定义期校验 + 存留，
+/// #tc032/#tc033 oracle）。关键字 term 必须自映射（#tec02 oracle：
 /// keyword redefinition；#t0026 oracle：{"@id":"@type","@type":"@id"} 合法）
 fn StandardExpander::process_expanded_term_definition(
   _self : StandardExpander,
@@ -1768,10 +1897,16 @@ fn StandardExpander::process_expanded_term_definition(
   let mut td_datatype : String? = None
   let mut td_container : ContainerType? = None
   let mut td_reverse : String? = None
+  let mut td_local_context : JsonValue? = None
+  // {"@id": null} 显式空映射（scoped-context 批）：区别于"无 @id 键"——
+  // 不落 vocab 兜底，term 保留但 IRI 映射为 null（展开期该键丢弃）
+  let mut td_id_null = false
   for td_pair in td_pairs {
     match td_pair.0 {
       "@id" =>
         match td_pair.1 {
+          // {"@id": null}：term 保留、无 IRI 映射（REC 4.2.2 @id 臂）
+          JsonValue::Null => td_id_null = true
           JsonValue::String(iri) => {
             // 循环检测（⑤后半——#ter10 oracle）：值 = compact 形且 prefix =
             // 自身 term → cyclic IRI mapping
@@ -1787,10 +1922,14 @@ fn StandardExpander::process_expanded_term_definition(
             let building = ActiveContext::{ base, vocab, terms: lookup_terms, }
             match IriExpander::expand_iri(_self, building, iri, false, true) {
               Ok(k) => {
-                // 关键字 IRI 映射模式门（ter43 批——#ter43 oracle：1.1 模式禁
-                // @type 别名 → invalid IRI mapping；1.0 允许 [#t0026 oracle]）
-                if !(options.processing_mode is JsonLd10) && k is "@type" {
-                  return Err(JsonLdError::InvalidIri("invalid IRI mapping"))
+                // term 名一致性检查（REC 4.2.2 @id 臂；#ter43 负例 oracle /
+                // #t0026 正例 oracle——1.0 无此检查）
+                match
+                  StandardExpander::check_term_name_consistency(
+                    _self, building, term_name, k, options,
+                  ) {
+                  Ok(_) => ()
+                  Err(e) => return Err(e)
                 }
                 td_iri = Some(k)
               }
@@ -1865,6 +2004,27 @@ fn StandardExpander::process_expanded_term_definition(
           }
           _ => return Err(JsonLdError::InvalidContext("invalid @nest value"))
         }
+      "@context" => {
+        // 属性作用域 context（scoped-context 批——REC 4.2.2 @context 臂）：
+        // 1.0 模式禁（invalid term definition）；1.1 模式在**定义期**调用
+        // Context Processing 校验——结果丢弃（REC 注记），任何错误 → invalid
+        // scoped context（#tc032/#tc033 oracle：未被使用的嵌入 context 仍须
+        // 检查）。校验通过则存 local_context，展开期在该 term 的值展开前再
+        // 处理套用（apply_property_scoped_context）
+        if options.processing_mode is JsonLd10 {
+          return Err(JsonLdError::InvalidContext("invalid term definition"))
+        }
+        let building = ActiveContext::{ base, vocab, terms: new_terms, }
+        match
+          ContextProcessor::process_context(_self, building, td_pair.1, options) {
+          Ok(_) => td_local_context = Some(td_pair.1)
+          // 未落码透传（诊断口径：Unsupported = 落码活账，不当作 scoped 校验失败）
+          Err(JsonLdError::Unsupported(m)) =>
+            return Err(JsonLdError::Unsupported(m))
+          Err(_) =>
+            return Err(JsonLdError::InvalidContext("invalid scoped context"))
+        }
+      }
       "@reverse" =>
         // 反向映射（reverse 批——#ter15 oracle：非串 → invalid IRI mapping；
         // #ter50 oracle：串经 vocab 展开后非绝对 → invalid IRI mapping——
@@ -1884,12 +2044,13 @@ fn StandardExpander::process_expanded_term_definition(
           }
           _ => return Err(JsonLdError::InvalidIri("invalid IRI mapping"))
         }
-      _ => () // @context（scoped）等：挂账，忽略
+      _ => () // 其余 td 键：无 oracle，挂账忽略
     }
   }
   // @id 与 @reverse 同 td 互斥（#ter14 oracle：invalid reverse property）；
   // @container 与 @reverse 同 td 互斥（#ter17 oracle：reverse 项不带容器）
-  if td_reverse is Some(_) && (td_iri is Some(_) || td_container is Some(_)) {
+  if td_reverse is Some(_) &&
+    (td_iri is Some(_) || td_id_null || td_container is Some(_)) {
     return Err(JsonLdError::InvalidContext("invalid reverse property"))
   }
   // 关键字重定义规则（#tec02 oracle）：term 为关键字时必须 @id 映射回自身
@@ -1903,26 +2064,44 @@ fn StandardExpander::process_expanded_term_definition(
       return Err(JsonLdError::InvalidContext("keyword redefinition"))
     }
   }
-  // 无 @id 位：term 名自身 vocab 展开（spec §6.1；t0011 路径）；
-  // reverse-only term（@reverse 无 @id）→ IRI 映射保持 null（不可作正属性）
-  let final_iri = match td_iri {
-    Some(iri) => Some(iri)
-    None =>
-      if td_reverse is Some(_) {
-        None
-      } else {
-        let building = ActiveContext::{ base, vocab, terms: new_terms, }
-        match IriExpander::expand_iri(_self, building, term_name, false, true) {
-          Ok(k) => Some(k)
-          Err(e) => return Err(e)
+  // 无 @id 位三路：
+  // ① {"@id": null} → 显式 null 映射（term 保留，展开期键丢弃）；
+  // ② reverse-only term → IRI 映射 = reverse IRI（REC 4.2.2 @reverse 臂：
+  //    "set the IRI mapping of definition to the result of IRI expanding"；
+  //    作正属性由 reverse 路由拦截，非靠 IRI 缺失）
+  // ③ 其余 → term 名自身 vocab 展开（spec §6.1；t0011 路径），且**必须落成
+  //    绝对 IRI 或 bnode**——无 @vocab 的相对 term 名 → invalid IRI mapping
+  //    （REC 4.2.2 末路；#tc032/#tc033 oracle 的触发点）
+  let final_iri = if td_id_null {
+    None
+  } else {
+    match td_iri {
+      Some(iri) => Some(iri)
+      None =>
+        match td_reverse {
+          Some(rev) => Some(rev)
+          None => {
+            let building = ActiveContext::{ base, vocab, terms: new_terms, }
+            match
+              IriExpander::expand_iri(_self, building, term_name, false, true) {
+              Ok(k) =>
+                if is_valid_absolute_iri(k) || is_bnode_label(k) {
+                  Some(k)
+                } else {
+                  return Err(JsonLdError::InvalidIri("invalid IRI mapping"))
+                }
+              Err(e) => return Err(e)
+            }
+          }
         }
-      }
+    }
   }
   new_terms[term_name] = TermDefinition::{
     iri: final_iri,
     datatype: td_datatype,
     container: td_container,
     reverse: td_reverse,
+    local_context: td_local_context,
   }
   Ok(())
 }

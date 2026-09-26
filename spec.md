@@ -85,7 +85,60 @@
 | #tli01 vs #ter24/#ter32 | specVersion 分叉 | processingMode/specVersion | 同输入（@list 嵌套）：1.1 允许保留 / 1.0 list of lists 禁止 |
 | #t0092 vs #t0115/#t0116 | specVersion 分叉 | processingMode | @vocab 相对/空串：1.1 base raw 拼接有效 / 1.0 invalid vocab mapping（校验先于 base 解析） |
 | #ter23 vs #t0029 | 位置分叉 | 展开位置（td 定义值 vs 文档值位） | td @type 相对值不落 base（invalid type mapping）；文档值位相对 IRI 落 base 解析（含 fragment/query/scheme 相对） |
-| #t0026 vs #ter43 | specVersion 分叉 | td @id 映射关键字（@type 别名） | 同输入（含顶层 @graph）：1.0 允许 @type 别名 / 1.1 invalid IRI mapping（@id[#t0051]、@graph[#t0017] 别名两模式均合法——1.1 只禁 @type） |
+| #t0026 vs #ter43 | specVersion 分叉 | td 定义 **term 名一致性检查**（非"@type 别名"黑名单） | 同输入（含顶层 @graph）：term 名 = rdf:type 长名，其自身展开 ≠ IRI 映射（@type）→ 1.1 invalid IRI mapping / 1.0 不检查（合法）。同类 1.1 负例 #ter44（compact 形 term 名映射他处） |
+
+### term 名一致性检查（REC 4.2.2 @id 臂 "must be consistent"；2026-09-26 修正）
+- 判据：term 名含冒号（**非**首位、**非**末位）或含斜杠时，**term 名自身的 IRI
+  展开必须等于该 term 的 IRI 映射**；1.1 不符 → invalid IRI mapping；
+  **1.0 模式不做此检查**。
+- oracle：#t0026（1.0 正例）/ #ter43（1.1 负例，**同一输入**）/ #ter44（1.1 负例，
+  compact 形 term 名 v:term → v:somethingElse）。
+- **勘误（scoped-context 批连带）**：先前实现为「1.1 禁 @type 关键字别名」的**过宽
+  门**——它把合法别名（#tin06 的 `"type": "@type"`）一并误拦；替换为上述结构判据后
+  #t0026/#ter43/#ter44/#tin06 四例同保。教训入 const §5（判据须照录 spec 的结构
+  条件与适用前提，不得以关键字/值黑名单近似）。
+
+### 属性作用域 context（property-scoped context；2026-09-26 定案）
+- **两阶段**（REC 4.2.2 @context 臂 + 该臂注记）：
+  ① **定义期**：td 的 @context（1.0 模式禁 → invalid term definition）调用 Context
+     Processing **只为校验**，结果丢弃；任何错误 → invalid scoped context
+     （#tc032/#tc033 oracle：**从未被使用**的嵌入 context 仍须检查）。
+  ② **展开期**：该 term 的**值**展开前再处理并套用（REC 5.1.2 "property-scoped
+     context"）。
+- 作用域传播：随该属性值进入嵌套节点（#tc004 深嵌套两跳生效）；与元素级 @context
+  **分层叠加**（#tc005：作用域内 term 命中 scoped 定义，其余键落元素级 @vocab）；
+  空 scoped context = no-op（#tc036）。
+- **@nest 别名 term 同样适用**（#tc037/#tc038）：别名 term 的 @context 作用于其值；
+  scoped context 内可再定义 @nest 别名并自带 scoped context（级联，同一机制递归）。
+- **null IRI 映射**（`"term": null` / `{"@id": null}`；REC 4.2.2：value 为 null 视作
+  `{"@id": null}`）：term **保留**在 context 中、IRI 展开返回 **null** ⇒ 该键
+  **整体丢弃**（#tin06 oracle：scoped context `{"data": null}` 下 `data` 键丢弃）。
+  实现注：以"移除定义"实现会退回 vocab 拼成属性，属误判。
+- **实现边界（挂账，各自随依赖批）**：type-scoped context（@type 值位 +
+  propagate=false + previous context 回退）、@propagate、@import、@protected、
+  远程 context。家族普查（52 例带 td 级 @context）逐例归因见 todo §J2。
+
+### 作用域 context 两族边界表（type-scoped 批开工钉；2026-09-26 定）
+两族**定义处相同**（td 的 `@context`，同一 REC 4.2.2 臂），**触发点不同**——
+**禁复用同一应用入口**（机制互咬先例：C 组容器壳/内层重入曾致 SIGSEGV）：
+
+| 维度 | property-scoped（已落） | type-scoped（下一役） |
+|---|---|---|
+| 触发点 | active property 的 td：展开该属性的**值**前 | **@type 值位**：展开**当前节点**前 |
+| 作用对象 | 该属性的值（含其嵌套节点——作用域**随值**传播） | 该节点自身（**不跨新节点**：展开新节点对象时回退 previous context——#tc009） |
+| Context Processing 参数 | propagate 默认 true / override protected true | **propagate=false**（并置 previous context） |
+| REC 5.1.2 次序 | 值/映射两分支各一处，**在元素级 @context 之前** | 元素级 @context **之后**：先取快照 type-scoped context = 当时 active，再按 @type 键字典序、值数组序**逐个套用**（后套叠加于前——#tc018） |
+| 多值叠加 | 单属性 = 单作用域 | @type 数组按序累加 |
+| 空/重置 | `null` = 重置初始 context（保原 base URL） | 同左（`[null, {...}]` = 先重置再叠加——#tc014） |
+| previous context | 不设（不参与回退） | 设；**新节点对象**回退（"term-scoped context 不跨新节点"） |
+| 实现入口 | `apply_property_scoped_context`（值路径） | **另立** `apply_type_scoped_context`（节点路径）；禁共用入口 |
+| oracle | #tc001~#tc005 / #tc036 / #tc037 / #tc038 / #tin06 | #tc006~#tc025（MISMATCH 族）+ #tc009（空过）+ #tc026/#tc027（@propagate 面） |
+
+**开工前置·元素级 @context 次序钉子**：REC 5.1.2 要求元素级 `@context` 在**主键循环
+之前**处理；现实现把它内联在键循环里、按**文档序**生效——文档中排在 `@context` 之前的
+键会漏掉该 context。oracle = **#t0073**（"@context not first property"，**正例**，
+当前 mismatch；manifest 全量扫描：节点级 @context 非首位的例仅此 1 例 / 2 处）。
+type-scoped 快照必须以"元素 @context 已生效"的 active context 为底，故此项须先落。
 
 ### 套件比对语义（canonical_for_suite，2026-09-26 tn004 谜底定案）
 - 官方 README「JSON-LD Object comparison」移植：对象键序不敏感；**数组默认

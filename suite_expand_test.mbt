@@ -289,6 +289,35 @@ async test "expand suite harness: manifest-driven buckets, all deferred pre-J2" 
     // 通过——真判定归「@protected 批」（tpr05/17/18/20/21 为 context
     // nullification 变体，同门）
      "#tin01", "#tin02", "#tin03", "#tin04", "#tin05",
+    // —— scoped-context 批（属性作用域 context；2026-09-26——批边界见 todo §J2）——
+    // 机制（REC 4.2.2 @context 臂 + REC 5.1.2 "property-scoped context"）：td 的
+    // @context 在**定义期**调用 Context Processing 校验（结果丢弃；任何错误 →
+    // invalid scoped context），在**展开期**于该 term 的**值**展开前再处理套用
+    // #tc037：@nest 别名 term 的 scoped @vocab 作用于其值（嵌套键按 /nest 展开）
+    // #tc038：Bibframe——级联作用域（scoped context 内再定义 @nest 别名 + 该别名
+    //   自带 scoped context；@nest 别名 / 普通 term 两类嵌套叠加）
+    // #tin06：json.api——scoped context {"data": null} 使 "data" 在作用域内为
+    //   null IRI 映射（该键整体丢弃；非 vocab 拼接、非 @nest 上浮）
+    // #tc032/#tc033（负）：**未被使用**的嵌入 context 仍须定义期校验——内层
+    //   term 无 @id 且无 @vocab → invalid IRI mapping → 外层 invalid scoped context
+     "#tc037", "#tc038", "#tin06", "#tc032", "#tc033",
+    // 连带修正（同笔；ter43 门过宽）：原「1.1 禁 @type 别名」门把 in06 的合法
+    // 别名 "type": "@type" 也误拦——改为 REC 4.2.2 的 **term 名一致性检查**
+    // （term 名含冒号（非首末位）或含斜杠时，其自身展开须 == IRI 映射；1.0 不
+    // 检查——#t0026 正例 / #ter43 负例两 oracle 同保）
+    // #ter44（负·1.1）：compact 形 term 名映射到别处（v:term → v:somethingElse）
+    //   → invalid IRI mapping（本批连带解挂）
+     "#ter44",
+    // —— 同族勘定扩迁（家族普查 52 例逐例实测；见 todo §J2）——
+    // #tc001：scoped context 新定义 term（foo 值内 bar 按 scoped 定义展开）
+    // #tc002：scoped context 覆盖外层 term（bar 在作用域内重定义为 @id coercion）
+    // #tc003：scoped context 内 term → 同文档另一 term 名（Bar → bar，
+    //   值 IRI 展开经 vocab 落 http://example/bar）
+    // #tc004：深作用域（scoped context 传递到嵌套节点——两次嵌套均生效）
+    // #tc005：作用域叠加（元素级 @context 的 @vocab 与 scoped context 分层：
+    //   作用域内 term 命中 http://example.org/c，其余 key 落元素级 vocab）
+    // #tc036：空 scoped context（{}——定义期校验通过、展开期为 no-op）
+     "#tc001", "#tc002", "#tc003", "#tc004", "#tc005", "#tc036",
   ]
   // 两桶：迁移例走端到端对拍（输入 → expansion → 对 expected）；其余 deferred
   let deferred : Array[String] = []
@@ -355,12 +384,12 @@ async test "expand suite harness: manifest-driven buckets, all deferred pre-J2" 
           Ok(value) => value
           Err(e) =>
             match e {
-              InvalidValue(m) => fail("IV: \{m}")
-              InvalidContext(m) => fail("IC: \{m}")
-              InvalidIri(m) => fail("II: \{m}")
-              InvalidList(m) => fail("IL: \{m}")
-              Unsupported(m) => fail("US: \{m}")
-              _ => fail("other")
+              InvalidValue(m) => fail("\{id}: IV: \{m}")
+              InvalidContext(m) => fail("\{id}: IC: \{m}")
+              InvalidIri(m) => fail("\{id}: II: \{m}")
+              InvalidList(m) => fail("\{id}: IL: \{m}")
+              Unsupported(m) => fail("\{id}: US: \{m}")
+              _ => fail("\{id}: other")
             }
         }
         let expected_text = @utf8.decode(
@@ -381,8 +410,8 @@ async test "expand suite harness: manifest-driven buckets, all deferred pre-J2" 
     }
   }
   // pin 闭合：桶总和 == 普查数；plain = 已迁移数
-  assert_eq(deferred.length(), 242)
-  assert_eq(plain.length(), 143)
+  assert_eq(deferred.length(), 230)
+  assert_eq(plain.length(), 155)
   // 解析覆盖闭合：每个有 input 的条目都走了解析通道
   assert_eq(parsed_ok + parse_err, 385)
   // 首例钉：#t0001 已迁 plain（manifest 顺序首条；J2 首件验收 = 此例端到端绿）

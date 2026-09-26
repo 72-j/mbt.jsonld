@@ -169,12 +169,14 @@ test "term/IRI chain with constructed context (②批对拍)" {
     datatype: None,
     container: None,
     reverse: None,
+    local_context: None,
   }
   terms["name"] = TermDefinition::{
     iri: Some("http://example.com/name"),
     datatype: None,
     container: None,
     reverse: None,
+    local_context: None,
   }
   let active = ActiveContext::{ base: None, vocab: None, terms, }
   // term 精确查表（lookup_term 真行为）
@@ -244,6 +246,7 @@ test "property key routing via chain (②批)" {
     datatype: None,
     container: None,
     reverse: None,
+    local_context: None,
   }
   let active = ActiveContext::{ base: None, vocab: None, terms, }
   let options = JsonLdOptions::{
@@ -347,6 +350,7 @@ test "debug ter48: vocab=false excludes term lookup" {
     datatype: None,
     container: None,
     reverse: None,
+    local_context: None,
   }
   let active = ActiveContext::{
     base: None,
@@ -503,5 +507,93 @@ test "term value expands against in-progress vocab (t0072 对拍)" {
     Some(td) =>
       assert_true(td.iri is Some("http://example.com/anotherVocab#term"))
     None => fail("term missing")
+  }
+}
+
+///|
+/// scoped-context 批对拍①（#tc037 oracle）：@nest 别名 term 的属性作用域
+/// context 作用于其值——嵌套对象内的 "property" 按 scoped @vocab 展开
+test "property-scoped context on @nest alias term (#tc037 对拍)" {
+  let options = JsonLdOptions::{
+    base: None,
+    expand_context: None,
+    processing_mode: JsonLd11,
+  }
+  let input = "{\"@context\": {\"@version\": 1.1, \"@vocab\": \"http://example.org/\", \"nest\": {\"@id\": \"@nest\", \"@context\": {\"@vocab\": \"http://example.org/nest/\"}}}, \"nest\": {\"property\": \"should be in /nest\"}}"
+  assert_true(
+    expand_document(input, options)
+    is Ok(
+      Array(
+        [
+          Object(
+            [
+              (
+                "http://example.org/nest/property",
+                Array([Object([("@value", String("should be in /nest"))])]),
+              ),
+            ]
+          ),
+        ]
+      )
+    ),
+  )
+}
+
+///|
+/// scoped-context 批对拍②（#tin06 同族 oracle）：scoped context 的
+/// {"term": null} = null IRI 映射——该键在作用域内**整体丢弃**，而非 vocab
+/// 拼成属性、也非按 @nest 语义上浮（后者对串值会报 invalid @nest value）
+test "scoped context nullifies term: key dropped (#tin06 同族对拍)" {
+  let options = JsonLdOptions::{
+    base: None,
+    expand_context: None,
+    processing_mode: JsonLd11,
+  }
+  let input = "{\"@context\": {\"@vocab\": \"http://example.org/\", \"data\": \"@nest\", \"c\": {\"@context\": {\"data\": null}}}, \"c\": {\"data\": \"x\", \"keep\": \"y\"}}"
+  assert_true(
+    expand_document(input, options)
+    is Ok(
+      Array(
+        [
+          Object(
+            [
+              (
+                "http://example.org/c",
+                Array(
+                  [
+                    Object(
+                      [
+                        (
+                          "http://example.org/keep",
+                          Array([Object([("@value", String("y"))])]),
+                        ),
+                      ]
+                    ),
+                  ]
+                ),
+              ),
+            ]
+          ),
+        ]
+      )
+    ),
+  )
+}
+
+///|
+/// scoped-context 批对拍③（#tc033 oracle）：未使用的嵌入 context 仍须在
+/// **定义期**校验——内层 term 无 @id 且无 @vocab → invalid IRI mapping，
+/// 外层按 invalid scoped context 报错（REC 4.2.2 @context 臂）
+test "unused embedded context still checked (#tc033 对拍)" {
+  let options = JsonLdOptions::{
+    base: None,
+    expand_context: None,
+    processing_mode: JsonLd11,
+  }
+  let input = "{\"@context\": {\"@version\": 1.1, \"t1\": {\"@id\": \"ex:t1\", \"@context\": {\"t2\": {\"@context\": {\"type\": null}}}}}}"
+  match expand_document(input, options) {
+    Err(InvalidContext(_)) => ()
+    Err(_) => fail("expected invalid scoped context")
+    Ok(_) => fail("expected invalid scoped context")
   }
 }

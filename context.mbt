@@ -15,7 +15,11 @@ pub(all) struct TermDefinition {
   datatype : String? // @type 在 term 定义里指向 datatype IRI
   container : ContainerType?
   reverse : String? // @reverse 映射（reverse 批）
-  // ...待 J2 扩
+  /// 属性作用域 context（scoped-context 批）：td 的 @context 值原样保留。
+  /// 定义期已调用 Context Processing 校验（任何错误 → invalid scoped context，
+  /// #tc032/#tc033 oracle）；展开期在该 term 的值展开前再处理并套用
+  /// （#tc037/#tc038/#tin06 oracle）
+  local_context : JsonValue?
 }
 
 ///|

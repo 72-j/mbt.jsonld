@@ -148,6 +148,7 @@ pub(all) struct TermDefinition {
   datatype : String?
   container : ContainerType?
   reverse : String?
+  local_context : JsonValue?
 }
 
 // Type aliases
