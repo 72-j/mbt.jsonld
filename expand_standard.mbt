@@ -1635,6 +1635,17 @@ fn StandardExpander::expand_term_values(
     Some(term_definition) => term_definition.container
     None => None
   }
+  // graph 容器应用（@graph 容器族——形态表见 todo §J2 开工钉）：次级
+  // @id/@index = map 形态（键附挂条目）；裸/@set = 逐值包成 graph 节点
+  if container_kind is Some(ContainerType::Graph) {
+    let graph_secondary = match active.terms.get(term) {
+      Some(term_definition) => term_definition.graph_secondary
+      None => None
+    }
+    return StandardExpander::expand_graph_container(
+      self, active, term, value, graph_secondary, options,
+    )
+  }
   if container_kind is Some(ContainerType::List) {
     // 值本身 = list/set 对象 → 拦截器直出，不二次包裹（#t0004 oracle：
     // {"@list": []} under list 容器 → {"@list": []} 单层）
@@ -2574,6 +2585,7 @@ impl ContextProcessor for StandardExpander with fn process_context(
                       reverse: None,
                       local_context: None,
                       index_mapping: None,
+                      graph_secondary: None,
                       is_protected: protected_default,
                     },
                     flags.override_protected,
@@ -2598,6 +2610,7 @@ impl ContextProcessor for StandardExpander with fn process_context(
                       reverse: None,
                       local_context: None,
                       index_mapping: None,
+                      graph_secondary: None,
                       is_protected: protected_default,
                     },
                     flags.override_protected,
@@ -2672,6 +2685,7 @@ fn StandardExpander::process_expanded_term_definition(
   let mut td_datatype : String? = None
   let mut td_container : ContainerType? = None
   let mut td_reverse : String? = None
+  let mut td_graph_secondary : ContainerType? = None
   let mut td_local_context : JsonValue? = None
   // {"@id": null} 显式空映射（scoped-context 批）：区别于"无 @id 键"——
   // 不落 vocab 兜底，term 保留但 IRI 映射为 null（展开期该键丢弃）
@@ -2775,6 +2789,28 @@ fn StandardExpander::process_expanded_term_definition(
               JsonValue::String("@index") =>
                 td_container = Some(ContainerType::Index)
               JsonValue::String("@id") => td_container = Some(ContainerType::Id)
+              JsonValue::String("@graph") =>
+                td_container = Some(ContainerType::Graph)
+              JsonValue::Array(combo_items) => {
+                // graph 组合（[@graph, @id|@index|@set]——graph 容器族）：
+                // container=Graph + 次级存 graph_secondary
+                let mut has_graph = false
+                let mut secondary : ContainerType? = None
+                for combo in combo_items {
+                  match combo {
+                    JsonValue::String("@graph") => has_graph = true
+                    JsonValue::String("@id") =>
+                      secondary = Some(ContainerType::Id)
+                    JsonValue::String("@index") =>
+                      secondary = Some(ContainerType::Index)
+                    _ => () // @set 不占次级（展开形态与裸 @graph 同——#t0080）
+                  }
+                }
+                if has_graph {
+                  td_container = Some(ContainerType::Graph)
+                  td_graph_secondary = secondary
+                }
+              }
               _ => ()
             }
             // 容器含 @type 的原始形态标记（数组形态亦算——REC 4.2.2 隐式 type
@@ -3008,6 +3044,7 @@ fn StandardExpander::process_expanded_term_definition(
           reverse: None,
           local_context: None,
           index_mapping: None,
+          graph_secondary: None,
           is_protected: td_protected,
         },
         override_protected,
@@ -3068,6 +3105,7 @@ fn StandardExpander::process_expanded_term_definition(
       reverse: td_reverse,
       local_context: td_local_context,
       index_mapping: td_index_mapping,
+      graph_secondary: td_graph_secondary,
       is_protected: td_protected,
     },
     override_protected,
@@ -3228,23 +3266,40 @@ fn validate_container_value(
       }
     }
     JsonValue::Array(items) => {
-      // 仅 1.1 图组合：@graph + 恰一 of @id/@index/@set（顺序无关）
+      // 仅 1.1 graph 组合（#t0083 oracle：三元 [@graph, @index, @set] 合法）：
+      // @graph + 至多一个 @id|@index + 可选 @set，禁重复/未知成员
       let mut has_graph = false
-      let mut extra_count = 0
-      let mut extra_valid = true
+      let mut has_key = false
+      let mut has_set = false
+      let mut valid = true
       for item in items {
         match item {
-          JsonValue::String("@graph") => has_graph = true
-          JsonValue::String(s) => {
-            extra_count = extra_count + 1
-            if !(s is ("@id" | "@index" | "@set")) {
-              extra_valid = false
+          JsonValue::String("@graph") =>
+            if has_graph {
+              valid = false
+            } else {
+              has_graph = true
             }
-          }
-          _ => extra_valid = false
+          JsonValue::String("@set") =>
+            if has_set {
+              valid = false
+            } else {
+              has_set = true
+            }
+          JsonValue::String(s) =>
+            if s is ("@id" | "@index") {
+              if has_key {
+                valid = false
+              } else {
+                has_key = true
+              }
+            } else {
+              valid = false
+            }
+          _ => valid = false
         }
       }
-      if !is_10 && has_graph && extra_count == 1 && extra_valid {
+      if !is_10 && has_graph && valid {
         Ok(())
       } else {
         Err(JsonLdError::InvalidContext("invalid container mapping"))
@@ -3498,5 +3553,224 @@ fn StandardExpander::expand_list_item(
         }
         Err(e) => Err(e)
       }
+  }
+}
+
+///|
+/// graph 容器展开（@graph 容器族——形态表见 todo §J2 开工钉）：
+/// 裸/@set → 逐值包成 graph 节点（{"@graph": [...]}——graph 对象值也再包一层，
+/// #t0102/#t0104 oracle）；@id → map 键 vocab 展开写条目 @id（保留既有——
+/// id map 语义，#t0085）；@index → 键原样写条目 @index、"@none" 直出（#tm013）；
+/// 条目值 = 既有 graph 对象 → 不二次包裹仅附键（#t0084/#t0087 oracle）；
+/// 数组条目逐项、@index 附挂每个子项（#t0105 oracle）。值形态递归一律走
+/// expand_term_values_inner（防容器壳重入——const §5）
+fn StandardExpander::expand_graph_container(
+  self : StandardExpander,
+  active : ActiveContext,
+  term : String,
+  value : JsonValue,
+  secondary : ContainerType?,
+  options : JsonLdOptions,
+) -> Result[Array[ExpandedValue], JsonLdError] {
+  match secondary {
+    Some(ContainerType::Id) | Some(ContainerType::Index) => {
+      // map 形态：值须 map（"Do not expand if value is not a map" 族语义）
+      let entries = match value {
+        JsonValue::Object(entries) => entries
+        _ =>
+          return Err(JsonLdError::InvalidValue("invalid graph container value"))
+      }
+      let out : Array[ExpandedValue] = []
+      for entry in entries {
+        // @none 别名识别（vocab 位展开——term 别名 "none": "@none"，
+        // #tm014 oracle；字面 "@none"——#tm015/#tm013 oracle）：识别为 @none
+        // 的条目直出不附挂
+        let none_key = match
+          IriExpander::expand_iri(self, active, entry.0, false, true) {
+          Ok(k) => k is "@none"
+          Err(_) => false
+        }
+        // @id 附挂值用 @id 值位旗（vocab=false/docRel=true——@id map 同款，
+        // REC 明文，同形异判表「索引键展开旗位」行）
+        let attach_id : String? = match secondary {
+          Some(ContainerType::Id) =>
+            if none_key {
+              None
+            } else {
+              match
+                IriExpander::expand_iri(self, active, entry.0, true, false) {
+                Ok(k) => Some(k)
+                Err(e) => return Err(e)
+              }
+            }
+          _ => None
+        }
+        // @index 附挂值 = 原始键名（两用值存原始形态——const §5）
+        let attach_index : String? = match secondary {
+          Some(ContainerType::Index) =>
+            if none_key {
+              None
+            } else {
+              Some(entry.0)
+            }
+          _ => None
+        }
+        // 索引映射属性（@index mapping 语义在 graph 容器内的延伸——#tpi11）：
+        // td 存原始名（const §5 两用值），用时 vocab 展开成属性 IRI；
+        // 条目键（原串）成其值对象。@none/"@none" 映射不写
+        let index_property : (String, ExpandedValue)? = match secondary {
+          Some(ContainerType::Index) =>
+            if none_key {
+              None
+            } else {
+              match active.terms.get(term) {
+                Some(term_definition) =>
+                  match term_definition.index_mapping {
+                    Some(mapping_name) =>
+                      if mapping_name is "@none" {
+                        None
+                      } else {
+                        match
+                          IriExpander::expand_iri(
+                            self, active, mapping_name, false, true,
+                          ) {
+                          Ok(prop_iri) => {
+                            let index_value : (String, ExpandedValue) = (
+                              prop_iri,
+                              literal_of(entry.0, None),
+                            )
+                            Some(index_value)
+                          }
+                          Err(e) => return Err(e)
+                        }
+                      }
+                    None => None
+                  }
+                None => None
+              }
+            }
+          _ => None
+        }
+        // @index 附挂值 = 原始键名（两用值存原始形态——const §5）；**有索引
+        // 映射时键走映射属性、不写 @index**（二者互斥——#tpi11 oracle）
+        let attach_index : String? = if index_property is Some(_) {
+          None
+        } else {
+          match secondary {
+            Some(ContainerType::Index) =>
+              if none_key {
+                None
+              } else {
+                Some(entry.0)
+              }
+            _ => None
+          }
+        }
+        // 条目值：数组逐项（每项独立 graph 对象、共享键附挂——#t0105）；单值单项
+        let items = match entry.1 {
+          JsonValue::Array(items) => items
+          _ => [entry.1]
+        }
+        for item in items {
+          match
+            StandardExpander::expand_term_values_inner(
+              self,
+              active,
+              entry.0,
+              item,
+              Some(entry.0),
+              options,
+            ) {
+            Ok(vs) =>
+              for v in vs {
+                match v {
+                  ExpandedValue::Node(node) =>
+                    if node.graph is None {
+                      // 普通节点条目 → 包成 graph 对象，键附挂**包裹层**
+                      //（内层值节点不落 @index——#t0082 oracle）；
+                      // 索引映射属性同层（#tpi11 oracle：与 @graph 同级）
+                      let entry_properties : Array[
+                        (String, Array[ExpandedValue]),
+                      ] = match index_property {
+                        Some((prop_iri, index_value)) =>
+                          [(prop_iri, [index_value])]
+                        None => []
+                      }
+                      let wrapped = ExpandedNode::{
+                        id: attach_id,
+                        types: [],
+                        properties: entry_properties,
+                        reverse_props: [],
+                        graph: Some([ExpandedValue::Node(node)]),
+                        included: None,
+                        index: attach_index,
+                      }
+                      out.push(ExpandedValue::Node(wrapped))
+                    } else {
+                      // 既有 graph 对象：不二次包裹，键就地附挂
+                      //（#t0084/#t0087 oracle）
+                      match attach_id {
+                        Some(id_key) =>
+                          if node.id is None {
+                            node.id = Some(id_key)
+                          }
+                        None => ()
+                      }
+                      match attach_index {
+                        Some(index_key) => node.index = Some(index_key)
+                        None => ()
+                      }
+                      match index_property {
+                        Some((prop_iri, index_value)) =>
+                          node.properties.push((prop_iri, [index_value]))
+                        None => ()
+                      }
+                      out.push(ExpandedValue::Node(node))
+                    }
+                  _ => out.push(v)
+                }
+              }
+            Err(e) => return Err(e)
+          }
+        }
+      }
+      Ok(out)
+    }
+    _ => {
+      // 裸/@set：逐值包成 graph 节点（#t0079/#t0080/#t0102/#t0104 oracle——
+      // graph 对象值也再包一层）
+      let items = match value {
+        JsonValue::Array(items) => items
+        _ => [value]
+      }
+      let out : Array[ExpandedValue] = []
+      for item in items {
+        match
+          StandardExpander::expand_term_values_inner(
+            self,
+            active,
+            term,
+            item,
+            Some(term),
+            options,
+          ) {
+          Ok(vs) =>
+            for v in vs {
+              let wrapper = ExpandedNode::{
+                id: None,
+                types: [],
+                properties: [],
+                reverse_props: [],
+                graph: Some([v]),
+                included: None,
+                index: None,
+              }
+              out.push(ExpandedValue::Node(wrapper))
+            }
+          Err(e) => return Err(e)
+        }
+      }
+      Ok(out)
+    }
   }
 }

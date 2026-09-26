@@ -28,6 +28,9 @@ pub(all) struct TermDefinition {
   datatype : String? // @type 在 term 定义里指向 datatype IRI
   container : ContainerType?
   reverse : String? // @reverse 映射（reverse 批）
+  /// @graph 组合次级容器（graph 容器族：[@graph, @set|@id|@index] 的次级——
+  /// 裸 @graph 为 None；展开期定条目键附挂形态，#t0085/#tm013 oracle）
+  graph_secondary : ContainerType?
   /// 属性作用域 context（scoped-context 批）：td 的 @context 值原样保留。
   /// 定义期已调用 Context Processing 校验（任何错误 → invalid scoped context，
   /// #tc032/#tc033 oracle）；展开期在该 term 的值展开前再处理并套用

@@ -421,6 +421,26 @@ async test "expand suite harness: manifest-driven buckets, all deferred pre-J2" 
     //   已有 @index 保留、null 跳过；#t0063：reverse 属性 + index 容器
      "#tpi01", "#tpi03", "#tpi04", "#tpi05", "#tpi06", "#tpi07", "#tpi08", "#tpi09",
     "#tpi10", "#t0131", "#t0036", "#t0063",
+    // —— @graph 容器族批（2026-09-27；单一机制 @graph 容器应用，前置全齐——
+    // 依赖复勘/形态表/批边界见 todo §J2 开工钉）——
+    // 裸 @graph（值包 graph 节点；graph 对象值再包一层）
+     "#t0079", "#t0093", "#t0102", "#t0103", "#t0104",
+    // [@graph, @set]（摊平同包裹）
+     "#t0080", "#t0094",
+    // [@graph, @index]（键附 @index；@none 直出；既有 graph 对象不重包）
+     "#t0082", "#t0096", "#t0105", "#t0107", "#t0084", "#t0098",
+    // [@graph, @id]（键 vocab 展开附 @id；既有 graph 对象不重包）
+     "#t0085", "#t0099", "#t0108", "#t0087", "#t0101", "#t0106",
+    // [@graph, @index, @set]
+     "#t0083", "#t0097",
+    // [@graph, @id, @set]
+     "#t0086", "#t0100",
+    // graph index/id map × @none（map 已落 + 容器本批）
+     "#tm013", "#tm014", "#tm015", "#tm016",
+    // property-valued index → graph（index mapping 已落 + 容器本批）
+     "#tpi11",
+    // type-scoped / protected 叠加（scoped/protected 批已落 + 容器本批）
+     "#tc025", "#tpr25", "#tpr43",
   ]
   // 两桶：迁移例走端到端对拍（输入 → expansion → 对 expected）；其余 deferred
   let deferred : Array[String] = []
@@ -502,10 +522,10 @@ async test "expand suite harness: manifest-driven buckets, all deferred pre-J2" 
           Ok(value) => value
           Err(_) => fail("\{id}: expected output unparseable")
         }
-        assert_eq(
-          @jsonld.canonical_for_suite(actual),
-          @jsonld.canonical_for_suite(expected),
-        )
+        if @jsonld.canonical_for_suite(actual) !=
+          @jsonld.canonical_for_suite(expected) {
+          fail("\{id}: mismatch")
+        }
       }
       plain.push(id)
     } else {
@@ -513,8 +533,8 @@ async test "expand suite harness: manifest-driven buckets, all deferred pre-J2" 
     }
   }
   // pin 闭合：桶总和 == 普查数；plain = 已迁移数
-  assert_eq(deferred.length(), 144)
-  assert_eq(plain.length(), 241)
+  assert_eq(deferred.length(), 113)
+  assert_eq(plain.length(), 272)
   // 解析覆盖闭合：每个有 input 的条目都走了解析通道
   assert_eq(parsed_ok + parse_err, 385)
   // 首例钉：#t0001 已迁 plain（manifest 顺序首条；J2 首件验收 = 此例端到端绿）

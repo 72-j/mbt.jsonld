@@ -166,6 +166,7 @@ pub(all) struct TermDefinition {
   datatype : String?
   container : ContainerType?
   reverse : String?
+  graph_secondary : ContainerType?
   local_context : JsonValue?
   index_mapping : String?
   is_protected : Bool
