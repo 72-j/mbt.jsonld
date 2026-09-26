@@ -421,18 +421,6 @@ test "invalid @version rejected (③批对拍)" {
 }
 
 ///|
-/// resolve_base_value 调试（一次性）
-test "debug resolve_base_value dotdot (throwaway)" {
-  assert_true(
-    resolve_base_value("..", Some("http://example/base/")) is "http://example/",
-  )
-  assert_true(
-    resolve_base_value("example/", Some("http://foo.bar/./baz/"))
-    is "http://foo.bar/baz/example/",
-  )
-}
-
-///|
 /// merge 绝对路径引用对拍（#t0051 oracle："/" 开头引用 → authority 保留、
 /// path 整体替换；相对引用仍截最后段——#t0129/#t0130 回归钉）
 test "merge_base_reference absolute-path reference (t0051 对拍)" {

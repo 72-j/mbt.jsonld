@@ -62,13 +62,20 @@ fn options_for(entry : @jsonld.JsonValue) -> @jsonld.JsonLdOptions {
     }
     None => ()
   }
-  // 默认 base 注入（document location 约定，W3C runner 同款）——「vocab 位
-  // base 门控批」第二件，与 expand_iri 第 7 步门控**同笔落**：键位
+  // 默认 base 注入 = **输入文档位置**（W3C runner document location 同款，
+  // 含文件名——fragment/query 相对解析锚定文档 URL，#t0029 oracle）——
+  // 「vocab 位 base 门控批」第二件，与 expand_iri 第 7 步门控**同笔落**：键位
   // documentRelative=false 不受注入影响（#t0003 oracle 保持），值位
-  // （@id/@type/coercion——docRel=true）据此解析（解挂 t0051/t0050/t0056/t0057）
+  // （@id/@type/coercion——docRel=true）据此解析（解挂 t0051/t0050/t0056/
+  // t0057/t0029/t0062）
   let base = match base {
     Some(b) => Some(b)
-    None => Some("https://w3c.github.io/json-ld-api/tests/expand/")
+    None =>
+      match json_string_get(entry, "input") {
+        Some(input_path) =>
+          Some("https://w3c.github.io/json-ld-api/tests/" + input_path)
+        None => None
+      }
   }
   { base, expand_context: None, processing_mode: mode, }
 }
@@ -162,12 +169,11 @@ async test "expand suite harness: manifest-driven buckets, all deferred pre-J2" 
      "#t0003", "#t0075", "#t0092", "#tc029", "#tc030", "#tc032", "#tc033", "#tdi08",
     "#tec02", "#ten01", "#ten02", "#ten03", "#ten04", "#tep02", "#tep03", "#ter04",
     "#ter05", "#ter06", "#ter07", "#ter12", "#ter13", "#ter23", "#ter24", "#ter25",
-    "#ter27", "#ter29", "#ter30", "#ter31", "#ter33", "#ter34", "#ter36", "#ter41",
-    "#ter42", "#ter55", "#ter56", "#tin07", "#tin08", "#tin09", "#tm020", "#tpi05",
-    "#tpr01", "#tpr03", "#tpr04", "#tpr05", "#tpr08", "#tpr09", "#tpr11", "#tpr12",
-    "#tpr17", "#tpr18", "#tpr20", "#tpr21", "#tpr26", "#tpr28", "#tpr31", "#tpr32",
-    "#tpr42", "#tso01", "#tso02", "#tso03", "#tso07", "#tso10", "#tso12", "#tso13",
-    "#ttn01",
+    "#ter27", "#ter29", "#ter30", "#ter31", "#ter33", "#ter34", "#ter41", "#ter42",
+    "#ter55", "#ter56", "#tin07", "#tin08", "#tin09", "#tm020", "#tpi05", "#tpr01",
+    "#tpr03", "#tpr04", "#tpr05", "#tpr08", "#tpr09", "#tpr11", "#tpr12", "#tpr17",
+    "#tpr18", "#tpr20", "#tpr21", "#tpr26", "#tpr28", "#tpr31", "#tpr32", "#tpr42",
+    "#tso01", "#tso02", "#tso03", "#tso07", "#tso10", "#tso12", "#tso13", "#ttn01",
     // —— ⑤批 A 组（td 对象形态 + coercion——2026-09-26；批边界/判据/对拍点见 todo §J2 ⑤批）——
     // #t0007：形态 D（td @type 显式 datatype）+ 两遍 context 处理（后置 prefix
     // 定义——简单 term——对对象形态 td 可用）
@@ -211,6 +217,25 @@ async test "expand suite harness: manifest-driven buckets, all deferred pre-J2" 
      "#ter53",
     // #ten05：td @nest 关键字值（"@id"）→ invalid @nest value
      "#ten05",
+    //（#ter36 C 组落码复测回桶：@reverse-only term（td @reverse 忽略位）+
+    // list 值——其无效点 = reverse 属性值验证，挂 @reverse 批，非 C 组边界）
+    // —— C 组·@list/@set 批（2026-09-26；拦截器/容器应用/1.0 嵌套门控——
+    // 批边界与判据见 todo §J2 C 组开工钉）——
+    // #t0004/#t0015：空 list/set 保留（属性门 container 放行）+ set 嵌套塌缩
+     "#t0004", "#t0015",
+    // #t0023：coercion × @container @list（元素 coercion 先行再包 List）
+     "#t0023",
+    // #t0027：duplicates 展开期保留（list/set 均不去重）
+     "#t0027",
+    // #tli01~#tli10：@list 关键字/容器全形态（嵌套 list 保留、空 list、
+    // coercion、数组内嵌转嵌套 list、深数组、多 list、混值）
+     "#tli01", "#tli02", "#tli03", "#tli04", "#tli05", "#tli06", "#tli07", "#tli08",
+    "#tli09", "#tli10",
+    //（#ter24 已在 ④批 A 组名单——1.0 list-of-lists 真拒绝随本批落地）
+    // #ter32（负·1.0 模式）：list of lists 按模式分叉（1.0 禁 1.1 允许）
+     "#ter32",
+    // base 批复测件（Relative IRIs，期望默认 base 已解锁）
+     "#t0029", "#t0062",
   ]
   // 两桶：迁移例走端到端对拍（输入 → expansion → 对 expected）；其余 deferred
   let deferred : Array[String] = []
@@ -295,8 +320,8 @@ async test "expand suite harness: manifest-driven buckets, all deferred pre-J2" 
     }
   }
   // pin 闭合：桶总和 == 普查数；plain = 已迁移数
-  assert_eq(deferred.length(), 272)
-  assert_eq(plain.length(), 113)
+  assert_eq(deferred.length(), 256)
+  assert_eq(plain.length(), 129)
   // 解析覆盖闭合：每个有 input 的条目都走了解析通道
   assert_eq(parsed_ok + parse_err, 385)
   // 首例钉：#t0001 已迁 plain（manifest 顺序首条；J2 首件验收 = 此例端到端绿）

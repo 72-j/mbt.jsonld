@@ -131,6 +131,39 @@ fn merge_base_reference(base : String, reference : String) -> String {
   if base is "" {
     return reference
   }
+  // base 自身 fragment 剥除（RFC 3986 5.2：fragment 不参与 base 解析——
+  // #t0029 oracle：base "file#with-a-fragment" + "#fragment-works" →
+  // "file#fragment-works"）
+  let base = match base.find("#") {
+    Some(idx) => base[:idx].to_owned()
+    None => base
+  }
+  // scheme 相对引用（"//" 开头 = 引用自带 authority——RFC 3986 5.2.3：
+  // 保留 base scheme、authority 整体换新，#t0029 oracle）
+  if reference.get_char(0) is Some('/') && reference.get_char(1) is Some('/') {
+    match colon_index(base) {
+      Some(at) => {
+        let scheme = base[:at + 1].to_owned()
+        return "\{scheme}\{reference}"
+      }
+      None => ()
+    }
+  }
+  // 同文档 fragment 引用（#t0029 oracle：#fragment-works 锚定 base 全 URL，
+  // 不动 path）；base 自带 fragment 场景套件内不出现
+  if reference.get_char(0) is Some('#') {
+    return "\{base}\{reference}"
+  }
+  // 查询引用（"?" 开头）：剥 base 自身 query 后拼接（RFC 3986 5.2.3）
+  if reference.get_char(0) is Some('?') {
+    match base.find("?") {
+      Some(idx) => {
+        let head = base[:idx].to_owned()
+        return "\{head}\{reference}"
+      }
+      None => return "\{base}\{reference}"
+    }
+  }
   if reference.get_char(0) is Some('/') {
     match authority_root(base) {
       Some(root) => return "\{root}\{reference}"
@@ -151,6 +184,36 @@ fn merge_base_reference(base : String, reference : String) -> String {
 }
 
 ///|
+/// authority/path 切分（RFC 3986 5.2.4 点段消除只作用于 path——平台中立
+/// 字符迭代拼装）。无 scheme://authority 形态 → ("", 全串)
+fn split_authority_path(value : String) -> (String, String) {
+  let scheme_end = match colon_index(value) {
+    Some(at) => at
+    None => return ("", value)
+  }
+  if !(value.get_char(scheme_end + 1) is Some('/') &&
+    value.get_char(scheme_end + 2) is Some('/')) {
+    return ("", value)
+  }
+  let authority = StringBuilder()
+  let path = StringBuilder()
+  let mut in_path = false
+  let mut i = 0
+  for ch in value {
+    if i > scheme_end + 2 && ch is '/' {
+      in_path = true
+    }
+    if in_path {
+      path.write_string("\{ch}")
+    } else {
+      authority.write_string("\{ch}")
+    }
+    i += 1
+  }
+  (authority.to_string(), path.to_string())
+}
+
+///|
 fn resolve_base_value(value : String, previous : String?) -> String {
   if is_valid_absolute_iri(value) {
     return value
@@ -160,19 +223,22 @@ fn resolve_base_value(value : String, previous : String?) -> String {
     None => ""
   }
   let merged = merge_base_reference(prev, value)
+  // RFC 3986 5.2.4：点段消除只作用于 path（".. " 弹前段不出 authority 根、
+  // "." 丢弃；空段保留——"//" 与尾 "/" 语义不变，#t0029 oracle：../ 逐级出、
+  // 超根截停；#t0091 oracle：合并后 /./ 不保留）
+  let (authority, path) = split_authority_path(merged)
+  if authority is "" {
+    return merged
+  }
   let segs : Array[String] = []
-  for seg in merged.split("/").to_array() {
+  for seg in path.split("/").to_array() {
     let seg = seg.to_owned()
     if seg is ".." {
-      // RFC 3986 5.2.4：".." 弹前段并补根段（/base/.. → /）
       if segs.length() > 1 {
         let _ = segs.pop()
-        segs.push("")
-      } else {
-        segs.push("")
       }
     } else if seg is "." {
-      // "." 段消除（RFC 3986 5.2.4；#t0091 oracle 期望 /./ 不保留）
+      ()
     } else {
       segs.push(seg)
     }
@@ -184,7 +250,7 @@ fn resolve_base_value(value : String, previous : String?) -> String {
     }
     out <+ "\{seg}"
   }
-  out.to_string()
+  "\{authority}\{out.to_string()}"
 }
 
 ///|
@@ -262,13 +328,13 @@ impl IriExpander for StandardExpander with fn expand_iri(
   // vocab 位键展开（docRel=false）→ 原样返回不落 base merge（#t0003 oracle：
   // 未映射 term 须被属性门丢弃，全局注入默认 base 亦不得改变键行为）；
   // document-relative 位（@id/@type 值、coercion 值——#t0051/#t0050/#t0056/
-  // #t0057 oracle）→ RFC 3986 5.2.3 merge（base 截最后 "/" 含 + 引用）；
-  // 无 base → 原样
+  // #t0057 oracle）→ 复用 resolve_base_value（raw 合并 + RFC 3986 5.2.4
+  // 点段消除——#t0029 oracle：./ 与 ../ 相对解析消点段）；无 base → 原样
   if !document_relative {
     return Ok(value)
   }
   match active.base {
-    Some(base) => Ok(merge_base_reference(base, value))
+    Some(base) => Ok(resolve_base_value(value, Some(base)))
     None => Ok(value)
   }
 }
@@ -390,6 +456,11 @@ fn StandardExpander::expand_object(
     // 关键字位判定按归一键：字面关键字与别名 term 汇流
     let routes_to_keyword = expanded_key.get_char(0) is Some('@')
     if !routes_to_keyword {
+      // null 值属性整体丢弃（#t0003 oracle；区别于空数组字面值保留——
+      // #t0004 oracle：set3: [] 保留）
+      if pair.1 is JsonValue::Null {
+        continue
+      }
       // term 位（_term 缺省路由）：键已归一；属性值展开，键合法即累加
       let values = match
         StandardExpander::expand_term(
@@ -404,9 +475,12 @@ fn StandardExpander::expand_object(
         Err(e) => return Err(e)
       }
       // 键合法性：绝对 IRI 或 bnode 标签（规范：expanded property 可为 blank
-      // node identifier——scheme-ALPHA 收紧后 bnode 在此显式放行）
-      if values.length() > 0 &&
-        (is_valid_absolute_iri(expanded_key) || is_bnode_label(expanded_key)) {
+      // node identifier——scheme-ALPHA 收紧后 bnode 在此显式放行）；
+      // container List/Set 位空值保留属性（C 组——#t0004/#t0015 oracle：
+      // "myset1": [] 空集合不丢弃）
+      // 空数组属性无条件保留（#t0004 oracle：set1~set5 无 term 定义亦保留
+      // "set1": [] 空数组——键合法性门不受影响）
+      if is_valid_absolute_iri(expanded_key) || is_bnode_label(expanded_key) {
         properties.push((expanded_key, values))
       }
       continue
@@ -747,7 +821,63 @@ impl Expander for StandardExpander with fn expand_term(
 }
 
 ///|
+/// 容器应用壳（C 组——判据③）：@container @list → 元素展开 + List 包裹后
+/// 委托内层（包裹仅此一层——元素递归一律走 expand_term_values_inner，防
+/// 容器/标量 coercion 互咬重入）。@container @set = 现有摊平即塌缩
+/// （no-op 语义，#t0015 oracle），无需专码
 fn StandardExpander::expand_term_values(
+  self : StandardExpander,
+  active : ActiveContext,
+  term : String,
+  value : JsonValue,
+  active_property : String?,
+  options : JsonLdOptions,
+) -> Result[Array[ExpandedValue], JsonLdError] {
+  let container_kind = match active.terms.get(term) {
+    Some(term_definition) => term_definition.container
+    None => None
+  }
+  if container_kind is Some(ContainerType::List) {
+    // 值本身 = list/set 对象 → 拦截器直出，不二次包裹（#t0004 oracle：
+    // {"@list": []} under list 容器 → {"@list": []} 单层）
+    match value {
+      JsonValue::Object(obj_pairs) =>
+        if obj_pairs.length() > 0 &&
+          (obj_pairs[0].0 is "@list" || obj_pairs[0].0 is "@set") {
+          match
+            StandardExpander::expand_list_set_object(
+              self, active, term, obj_pairs, options,
+            ) {
+            Ok(Some(vs)) => return Ok(vs)
+            Ok(None) => ()
+            Err(e) => return Err(e)
+          }
+        }
+      _ => ()
+    }
+    let items = match value {
+      JsonValue::Array(items) => items
+      _ => [value]
+    }
+    let out : Array[ExpandedValue] = []
+    for item in items {
+      match
+        StandardExpander::expand_list_item(self, active, term, item, options) {
+        Ok(Some(v)) => out.push(v)
+        Ok(None) => () // null 元素丢弃（1.1）
+        Err(e) => return Err(e)
+      }
+    }
+    return Ok([ExpandedValue::List(out)])
+  }
+  StandardExpander::expand_term_values_inner(
+    self, active, term, value, active_property, options,
+  )
+}
+
+///|
+/// 内层 term 位展开（容器应用已由外层壳处理——递归调用方一律走此层）
+fn StandardExpander::expand_term_values_inner(
   self : StandardExpander,
   active : ActiveContext,
   term : String,
@@ -757,6 +887,19 @@ fn StandardExpander::expand_term_values(
 ) -> Result[Array[ExpandedValue], JsonLdError] {
   match value {
     JsonValue::Object(_) => {
+      // list/set 对象拦截（C 组——判据①；#ter41/#tli01 oracle）
+      match value {
+        JsonValue::Object(obj_pairs) =>
+          match
+            StandardExpander::expand_list_set_object(
+              self, active, term, obj_pairs, options,
+            ) {
+            Ok(Some(vs)) => return Ok(vs)
+            Ok(None) => ()
+            Err(e) => return Err(e)
+          }
+        _ => ()
+      }
       // @language 容器值检查（⑤后半——#ter35 oracle）：语言映射值仅收
       // 字符串/对象；标量/数组 → invalid language map value（应用挂语言映射批）
       match active.terms.get(term) {
@@ -1259,10 +1402,15 @@ fn StandardExpander::process_expanded_term_definition(
         // 串值按模式白名单、数组仅 1.1 图组合；仅验证不启用应用
         match validate_container_value(td_pair.1, options) {
           Ok(_) =>
-            // 仅 @language 存值（#ter35 展开期值检查依赖）；余应用挂账存 None
+            // 存 List/Set/Language 三态（C 组容器应用 + #ter35 展开期检查
+            // 依赖）；@id/@type/@graph 容器应用挂账存 None
             match td_pair.1 {
               JsonValue::String("@language") =>
                 td_container = Some(ContainerType::Language)
+              JsonValue::String("@list") =>
+                td_container = Some(ContainerType::List)
+              JsonValue::String("@set") =>
+                td_container = Some(ContainerType::Set)
               _ => ()
             }
           Err(e) => return Err(e)
@@ -1408,4 +1556,222 @@ fn terms_without(
     }
   }
   out
+}
+
+///|
+/// list/set 对象拦截与展开（C 组——判据①）：值对象键纯 {@list} 或纯 {@set}
+/// （混入他键/双键 → invalid set or list object——#ter41 oracle）。
+/// @list → [List(元素)]（元素经 expand_list_item——1.0 list-of-lists 门控）；
+/// @set → 元素摊平为属性多值（不包 wrapper——#t0004 oracle）。
+/// Ok(None) = 非 list/set 对象（调用方走既有路由）
+fn StandardExpander::expand_list_set_object(
+  self : StandardExpander,
+  active : ActiveContext,
+  term : String,
+  obj_pairs : Array[(String, JsonValue)],
+  options : JsonLdOptions,
+) -> Result[Array[ExpandedValue]?, JsonLdError] {
+  let mut list_value : JsonValue? = None
+  let mut set_value : JsonValue? = None
+  let mut impure = false
+  for pair in obj_pairs {
+    match pair.0 {
+      "@list" => list_value = Some(pair.1)
+      "@set" => set_value = Some(pair.1)
+      _ => impure = true
+    }
+  }
+  if list_value is None && set_value is None {
+    let no_values : Array[ExpandedValue]? = None
+    return Ok(no_values)
+  }
+  if impure || (list_value is Some(_) && set_value is Some(_)) {
+    return Err(JsonLdError::InvalidList("invalid set or list object"))
+  }
+  let outcome : Result[Array[ExpandedValue]?, JsonLdError] = match list_value {
+    Some(list_items) => {
+      // 非数组 @list 值 = 单元素 list（#t0004 oracle："@list": "one item" →
+      // {"@list": [{"@value": ...}]}）
+      let items = match list_items {
+        JsonValue::Array(items) => items
+        single => [single]
+      }
+      let out : Array[ExpandedValue] = []
+      for item in items {
+        match
+          StandardExpander::expand_list_item(self, active, term, item, options) {
+          Ok(Some(v)) => out.push(v)
+          Ok(None) => () // null 元素丢弃（1.1）
+          Err(e) => return Err(e)
+        }
+      }
+      // 1.0 模式：list 内嵌 list = list of lists（#ter32 oracle）
+      if options.processing_mode is JsonLd10 {
+        for v in out {
+          match v {
+            ExpandedValue::List(_) =>
+              return Err(JsonLdError::InvalidList("list of lists"))
+            _ => ()
+          }
+        }
+      }
+      let wrapped : Array[ExpandedValue]? = Some([ExpandedValue::List(out)])
+      Ok(wrapped)
+    }
+    Some(_) => Err(JsonLdError::InvalidList("invalid set or list object"))
+    None =>
+      match set_value {
+        Some(JsonValue::Array(items)) => {
+          let out : Array[ExpandedValue] = []
+          for item in items {
+            match
+              StandardExpander::expand_term_values_inner(
+                self,
+                active,
+                term,
+                item,
+                None,
+                options,
+              ) {
+              Ok(vs) =>
+                for v in vs {
+                  out.push(v)
+                }
+              Err(e) => return Err(e)
+            }
+          }
+          let values : Array[ExpandedValue]? = Some(out)
+          Ok(values)
+        }
+        Some(single) =>
+          match
+            StandardExpander::expand_term_values_inner(
+              self,
+              active,
+              term,
+              single,
+              None,
+              options,
+            ) {
+            Ok(vs) => {
+              let values : Array[ExpandedValue]? = Some(vs)
+              Ok(values)
+            }
+            Err(e) => Err(e)
+          }
+        None => {
+          let no_values : Array[ExpandedValue]? = None
+          Ok(no_values)
+        }
+      }
+  }
+  outcome
+}
+
+///|
+/// list 元素展开（C 组——判据②）：数组 → 嵌套 List（1.1——#tli05/#tli07
+/// oracle；1.0 → list of lists——#ter24 oracle）；list/set 对象 → 拦截器
+/// 递归（#tli01 oracle：嵌套 @list 保留）；其余 → expand_term_values 单值
+/// （coercion 保持 term 上下文——#t0023/#tli03 oracle）。
+/// Ok(None) = null 元素丢弃（1.1）；递归一律走 expand_term_values_inner
+///（容器包裹仅外层壳一次——防重入）
+fn StandardExpander::expand_list_item(
+  self : StandardExpander,
+  active : ActiveContext,
+  term : String,
+  item : JsonValue,
+  options : JsonLdOptions,
+) -> Result[ExpandedValue?, JsonLdError] {
+  match item {
+    JsonValue::Array(inner) => {
+      if options.processing_mode is JsonLd10 {
+        return Err(JsonLdError::InvalidList("list of lists"))
+      }
+      let out : Array[ExpandedValue] = []
+      for el in inner {
+        match
+          StandardExpander::expand_list_item(self, active, term, el, options) {
+          Ok(Some(v)) => out.push(v)
+          Ok(None) => () // null 元素丢弃（1.1）
+          Err(e) => return Err(e)
+        }
+      }
+      let nested : ExpandedValue? = Some(ExpandedValue::List(out))
+      Ok(nested)
+    }
+    JsonValue::Object(obj_pairs) =>
+      if obj_pairs.length() > 0 &&
+        (obj_pairs[0].0 is "@list" || obj_pairs[0].0 is "@set") {
+        match
+          StandardExpander::expand_list_set_object(
+            self, active, term, obj_pairs, options,
+          ) {
+          Ok(Some(vs)) => {
+            if options.processing_mode is JsonLd10 {
+              for v in vs {
+                match v {
+                  ExpandedValue::List(_) =>
+                    return Err(JsonLdError::InvalidList("list of lists"))
+                  _ => ()
+                }
+              }
+            }
+            if vs.length() == 1 {
+              let single : ExpandedValue? = Some(vs[0])
+              Ok(single)
+            } else {
+              let grouped : ExpandedValue? = Some(ExpandedValue::List(vs))
+              Ok(grouped)
+            }
+          }
+          Ok(None) =>
+            Err(JsonLdError::InvalidList("invalid set or list object"))
+          Err(e) => Err(e)
+        }
+      } else {
+        match
+          StandardExpander::expand_term_values_inner(
+            self,
+            active,
+            term,
+            item,
+            None,
+            options,
+          ) {
+          Ok(vs) => {
+            let first : ExpandedValue? = if vs.length() > 0 {
+              Some(vs[0])
+            } else {
+              None
+            }
+            Ok(first)
+          }
+          Err(e) => Err(e)
+        }
+      }
+    JsonValue::Null => {
+      let none_value : ExpandedValue? = None
+      Ok(none_value)
+    }
+    _ =>
+      match
+        StandardExpander::expand_term_values_inner(
+          self,
+          active,
+          term,
+          item,
+          None,
+          options,
+        ) {
+        Ok(vs) => {
+          let first : ExpandedValue? = if vs.length() > 0 {
+            Some(vs[0])
+          } else {
+            None
+          }
+          Ok(first)
+        }
+        Err(e) => Err(e)
+      }
+  }
 }
