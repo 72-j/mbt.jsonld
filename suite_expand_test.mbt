@@ -374,6 +374,24 @@ async test "expand suite harness: manifest-driven buckets, all deferred pre-J2" 
      "#tpr01", "#tpr03", "#tpr04", "#tpr05", "#tpr08", "#tpr09", "#tpr11", "#tpr12",
     "#tpr17", "#tpr18", "#tpr20", "#tpr21", "#tpr26", "#tpr28", "#tpr31", "#tpr32",
     "#tpr42",
+    // —— @container 映射批（@type type map + @index index map 最小子集；2026-09-26）——
+    // 机制 = REC 13.8.3 映射分支：容器 ∈ {@type,@index} 且**值为 map** 才进映射分支；
+    // map context 按容器种类分叉（**@id/@type 用 previous、@index 用 active**）+ 仅
+    // @type 面套用**索引项**的 scoped context（"用类型索引项的 scoped context，不用
+    // 包含方的"）+ from-map 语境（不回退）+ 索引写入（@type **前插** / **@none 跳过**；
+    // @index 写原始键）+ 定义面**隐式 type mapping**（容器含 @type ⇒ 缺省 @id，显式
+    // 须 @id/@vocab，否则 invalid type mapping）
+    // #tc013（本批主例）：@index 容器 + @type 容器叠加——内层 map 用 base 的 index
+    //   容器定义（不用外层 type-scoped 的），条目得 @index 与内层 scoped 词表
+    // #tm003/#tm004：type map 键为绝对 IRI / bnode；已有 @type 时**前插**
+    // #tm006/#tm007：键按 vocab 展开为 @type（显式 label 定义不影响）
+    // #tm008：索引项（"Type"）自带 scoped context → 作用于条目
+    // #tm012：@none 及别名键 → 不加 @type（条目仍产出）
+    // #tm017/#tm018/#tm019：值层字符串 → **隐式 @id**（document-relative）/ 显式
+    //   @id / 显式 @vocab 三种 type mapping
+    // #tm020（负）：容器 @type + 非 @id/@vocab 的 @type → invalid type mapping
+     "#tc013", "#tm003", "#tm004", "#tm006", "#tm007", "#tm008", "#tm012", "#tm017",
+    "#tm018", "#tm019", "#tm020",
   ]
   // 两桶：迁移例走端到端对拍（输入 → expansion → 对 expected）；其余 deferred
   let deferred : Array[String] = []
@@ -466,8 +484,8 @@ async test "expand suite harness: manifest-driven buckets, all deferred pre-J2" 
     }
   }
   // pin 闭合：桶总和 == 普查数；plain = 已迁移数
-  assert_eq(deferred.length(), 176)
-  assert_eq(plain.length(), 209)
+  assert_eq(deferred.length(), 165)
+  assert_eq(plain.length(), 220)
   // 解析覆盖闭合：每个有 input 的条目都走了解析通道
   assert_eq(parsed_ok + parse_err, 385)
   // 首例钉：#t0001 已迁 plain（manifest 顺序首条；J2 首件验收 = 此例端到端绿）

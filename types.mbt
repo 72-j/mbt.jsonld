@@ -60,6 +60,9 @@ pub(all) struct ExpandedNode {
   // Included Blocks（@included 纯形批——in01-in04 oracle：@included 作为节点
   // 对象键渲染，非顶层拼接；嵌套 included 随序列化递归自展）
   included : Array[ExpandedNode]?
+  /// 节点 @index（@container 映射批：index map 应用——#tc013 oracle：index map
+  /// 的键写入条目 @index；值对象位未落，挂后续 index 批）
+  mut index : String?
 } derive(Debug)
 
 ///|

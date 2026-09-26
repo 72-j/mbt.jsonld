@@ -66,6 +66,7 @@ pub(all) struct ExpandedNode {
   reverse_props : Array[(String, Array[ExpandedValue])]
   graph : Array[ExpandedValue]?
   included : Array[ExpandedNode]?
+  mut index : String?
 } derive(@debug.Debug)
 pub fn ExpandedNode::to_repr(Self) -> @debug.Repr
 

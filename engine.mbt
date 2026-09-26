@@ -244,6 +244,11 @@ fn serialize_node(node : ExpandedNode) -> JsonValue {
       )
     None => ()
   }
+  // index map 条目 @index（@container 映射批——#tc013 oracle）
+  match node.index {
+    Some(index) => pairs.push(("@index", JsonValue::String(index)))
+    None => ()
+  }
   JsonValue::Object(pairs)
 }
 

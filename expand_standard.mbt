@@ -1283,6 +1283,7 @@ fn StandardExpander::expand_object(
           } else {
             None
           },
+          index: None,
         }),
       ),
     )
@@ -1608,9 +1609,200 @@ fn StandardExpander::expand_term_values(
     }
     return Ok([ExpandedValue::List(out)])
   }
+  // @container 映射分支（REC 13.8.3 "container mapping includes @index, @type, or
+  // @id and value is a map"）：本批落 @type（type map）+ @index（index map 最小
+  // 子集——#tc013 的 fixture 需 index map 侧）；@id 容器随 @id map 批。
+  // 值为 map 才走映射分支；其他形态落通用分支（字符串经**隐式 @id type mapping**
+  // 成节点引用——#tm017 oracle）
+  match container_kind {
+    Some(ContainerType::Type) =>
+      match value {
+        JsonValue::Object(entries) =>
+          return StandardExpander::expand_container_map(
+            self,
+            active,
+            term,
+            entries,
+            ContainerType::Type,
+            options,
+          )
+        _ => ()
+      }
+    Some(ContainerType::Index) =>
+      match value {
+        JsonValue::Object(entries) =>
+          return StandardExpander::expand_container_map(
+            self,
+            active,
+            term,
+            entries,
+            ContainerType::Index,
+            options,
+          )
+        _ => ()
+      }
+    _ => ()
+  }
   StandardExpander::expand_term_values_inner(
     self, active, term, value, active_property, options,
   )
+}
+
+///|
+/// type map 展开（@container @type；REC 13.8.3）：
+/// ① **map context** = active 的 previous（存在即用，否则 active）——"type map 用
+///    **类型索引项**的 scoped context，不用包含方的"（#tc013 oracle）；
+/// ② 索引项（map 键）的 term 定义在 map context 中若有 local context → 套用
+///    （#tm008 oracle）；
+/// ③ 逐条目：expanded index = 键的 IRI 展开（vocab 位）；条目值为数组则逐项；
+///    条目经**属性值展开**（含 coercion——#tm017 字符串经隐式 @id 成节点引用）；
+/// ④ 每个展开项：expanded index ≠ @none ⇒ **前插** @type（#tm004 已有 @type 时前插；
+///    #tm012 @none 及别名不加）
+fn StandardExpander::expand_container_map(
+  self : StandardExpander,
+  active : ActiveContext,
+  term : String,
+  entries : Array[(String, JsonValue)],
+  kind : ContainerType,
+  options : JsonLdOptions,
+) -> Result[Array[ExpandedValue], JsonLdError] {
+  // ① map context：@id/@type ⇒ previous 存在即回退；@index ⇒ 用 active（REC 13.8.3）
+  let uses_previous = kind is (ContainerType::Type | ContainerType::Id)
+  let mut map_context = if uses_previous {
+    match active.previous {
+      Some(_) => StandardExpander::revert_previous(active)
+      None => active
+    }
+  } else {
+    active
+  }
+  let expanded : Array[ExpandedValue] = []
+  for entry in entries {
+    let index_key = entry.0
+    let index_value = entry.1
+    // ② 仅 @type 容器：索引项的 scoped context（在 map context 中查 td；用元素级
+    // 默认旗标——REC 此调用未传 override protected/propagate；#tm008 oracle）
+    if kind is ContainerType::Type {
+      map_context = match map_context.terms.get(index_key) {
+        Some(term_definition) =>
+          match term_definition.local_context {
+            Some(local_context) =>
+              match
+                ContextProcessor::process_context(
+                  self,
+                  map_context,
+                  local_context,
+                  ContextFlags::element(),
+                  options,
+                ) {
+                Ok(next) => next
+                Err(e) => return Err(e)
+              }
+            None => map_context
+          }
+        None => map_context
+      }
+    }
+    // ③ 索引与索引值（REC："Initialize expanded index to the result of IRI
+    // expanding index"）
+    let expanded_index = match
+      IriExpander::expand_iri(self, map_context, index_key, false, true) {
+      Ok(expanded_index) => expanded_index
+      Err(e) => return Err(e)
+    }
+    let items = match index_value {
+      JsonValue::Array(items) => items
+      _ => [index_value]
+    }
+    // from map 语境（REC 递归调用传 true for from map）：**不回退 previous**——
+    // 以"previous 已清空"的等价 context 表达（本批索引项展开的全部路径都按此）
+    let item_context = ActiveContext::{
+      base: map_context.base,
+      vocab: map_context.vocab,
+      terms: map_context.terms,
+      previous: None,
+    }
+    for item in items {
+      let item_values = match
+        StandardExpander::expand_map_item_values(
+          self, item_context, term, item, options,
+        ) {
+        Ok(values) => values
+        Err(e) => return Err(e)
+      }
+      for item_value in item_values {
+        // ④ 按容器种类写入索引语义（@none 及其别名一律跳过）
+        if expanded_index != "@none" {
+          match kind {
+            ContainerType::Type =>
+              // 前插 @type（已有 @type 时前插——#tm004 oracle）
+              match item_value {
+                ExpandedValue::Node(node) =>
+                  node.types.insert(0, expanded_index)
+                ExpandedValue::Value(literal) =>
+                  // 值对象位：无 datatype 时写为 @type（先验；无 oracle）
+                  if literal.datatype is None {
+                    literal.datatype = Some(expanded_index)
+                  }
+                ExpandedValue::List(_) => ()
+              }
+            ContainerType::Index =>
+              // 条目无 @index 时写 @index = 原始索引键（REC "add @index-index"）
+              match item_value {
+                ExpandedValue::Node(node) =>
+                  if node.index is None {
+                    node.index = Some(index_key)
+                  }
+                _ => ()
+              }
+            _ => ()
+          }
+        }
+        expanded.push(item_value)
+      }
+    }
+  }
+  Ok(expanded)
+}
+
+///|
+/// type map 条目的值展开（from map 语境——REC 13.8.3 递归调用）：属性值语义
+/// （含 coercion / property-scoped / 不回退），数组逐项摊平；null 丢弃。
+/// 不重入容器壳（容器已由外层键位处理）
+fn StandardExpander::expand_map_item_values(
+  self : StandardExpander,
+  active : ActiveContext,
+  term : String,
+  item : JsonValue,
+  options : JsonLdOptions,
+) -> Result[Array[ExpandedValue], JsonLdError] {
+  match item {
+    JsonValue::Array(items) => {
+      let out : Array[ExpandedValue] = []
+      for sub in items {
+        match
+          StandardExpander::expand_map_item_values(
+            self, active, term, sub, options,
+          ) {
+          Ok(values) =>
+            for v in values {
+              out.push(v)
+            }
+          Err(e) => return Err(e)
+        }
+      }
+      Ok(out)
+    }
+    _ =>
+      StandardExpander::expand_term_values_inner(
+        self,
+        active,
+        term,
+        item,
+        Some(term),
+        options,
+      )
+  }
 }
 
 ///|
@@ -1730,6 +1922,7 @@ fn StandardExpander::expand_term_values_inner(
                         reverse_props: [],
                         graph: None,
                         included: None,
+                        index: None,
                       }),
                     )
                   Err(e) => Err(e)
@@ -1747,6 +1940,7 @@ fn StandardExpander::expand_term_values_inner(
                         reverse_props: [],
                         graph: None,
                         included: None,
+                        index: None,
                       }),
                     )
                   Err(e) => Err(e)
@@ -2260,6 +2454,9 @@ fn StandardExpander::process_expanded_term_definition(
   // td 级 @protected 覆盖上下文级默认（REC 4.2.2 步 10；非布尔 → invalid
   // @protected value、1.0 → invalid term definition）
   let mut td_protected = protected_default
+  // 容器含 @type 标记（REC 4.2.2：container mapping includes @type 时——
+  // 缺省 type mapping = @id，且只允许 @id/@vocab；#tm017/#tm018/#tm020 oracle）
+  let mut td_container_has_type = false
   for td_pair in td_pairs {
     match td_pair.0 {
       "@id" =>
@@ -2334,7 +2531,7 @@ fn StandardExpander::process_expanded_term_definition(
         // 容器映射验证（⑤后半——#tem01/#ter21/#tes01/#tes02 oracle）：
         // 串值按模式白名单、数组仅 1.1 图组合
         match validate_container_value(td_pair.1, options) {
-          Ok(_) =>
+          Ok(_) => {
             // 存 List/Set/Language/Type 四态（@type 批——type map 应用依赖 Type）；
             // @id/@graph 容器应用挂账存 None
             match td_pair.1 {
@@ -2344,8 +2541,26 @@ fn StandardExpander::process_expanded_term_definition(
                 td_container = Some(ContainerType::List)
               JsonValue::String("@set") =>
                 td_container = Some(ContainerType::Set)
+              JsonValue::String("@type") =>
+                td_container = Some(ContainerType::Type)
+              JsonValue::String("@index") =>
+                td_container = Some(ContainerType::Index)
               _ => ()
             }
+            // 容器含 @type 的原始形态标记（数组形态亦算——REC 4.2.2 隐式 type
+            // mapping 规则按"container mapping includes @type"判，非按存储态）
+            match td_pair.1 {
+              JsonValue::String("@type") => td_container_has_type = true
+              JsonValue::Array(items) =>
+                for item in items {
+                  match item {
+                    JsonValue::String("@type") => td_container_has_type = true
+                    _ => ()
+                  }
+                }
+              _ => ()
+            }
+          }
           Err(e) => return Err(e)
         }
       "@language" =>
@@ -2463,6 +2678,18 @@ fn StandardExpander::process_expanded_term_definition(
   if td_reverse is Some(_) &&
     (td_iri is Some(_) || td_id_null || td_container is Some(_)) {
     return Err(JsonLdError::InvalidContext("invalid reverse property"))
+  }
+  // 容器含 @type 的隐式 type mapping（REC 4.2.2）：未声明 @type ⇒ 置 @id；
+  // 已声明则须为 @id/@vocab，否则 invalid type mapping（#tm017/#tm018/#tm019/
+  // #tm020 oracle）
+  if td_container_has_type {
+    match td_datatype {
+      None => td_datatype = Some("@id")
+      Some(existing) =>
+        if !(existing is "@id" || existing is "@vocab") {
+          return Err(JsonLdError::InvalidContext("invalid type mapping"))
+        }
+    }
   }
   // 关键字面（REC 4.2.2 开头三步，@protected 批——#pr30/#pr31/#pr32 oracle）：
   // ① keyword term 的 td 值只允许"仅 {@container:@set} 和/或 {@protected}"——

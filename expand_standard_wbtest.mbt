@@ -802,3 +802,91 @@ test "td unknown key vs unimplemented key (#ter56 同族对拍)" {
   let unimplemented = "{\"@context\": {\"p\": {\"@id\": \"ex:p\", \"@index\": \"i\"}}}"
   assert_true(expand_document(unimplemented, options) is Err(Unsupported(_)))
 }
+
+///|
+/// @container 映射批对拍①（#tm003/#tm017 oracle）：type map = 键按 vocab 展开为
+/// @type **前插**；值层字符串经**隐式 @id** type mapping 成节点引用
+test "type map: prepend @type + implicit @id mapping (#tm003/#tm017 对拍)" {
+  let options = JsonLdOptions::{
+    base: Some("http://example.org/base/"),
+    expand_context: None,
+    processing_mode: JsonLd11,
+  }
+  let input = "{\"@context\": {\"@vocab\": \"http://example.org/ns/\", \"@base\": \"http://example.org/base/\", \"foo\": {\"@container\": \"@type\"}}, \"foo\": {\"bar\": \"baz\"}}"
+  assert_true(
+    expand_document(input, options)
+    is Ok(
+      Array(
+        [
+          Object(
+            [
+              (
+                "http://example.org/ns/foo",
+                Array(
+                  [
+                    Object(
+                      [
+                        ("@id", String("http://example.org/base/baz")),
+                        ("@type", Array([String("http://example.org/ns/bar")])),
+                      ]
+                    ),
+                  ]
+                ),
+              ),
+            ]
+          ),
+        ]
+      )
+    ),
+  )
+}
+
+///|
+/// @container 映射批对拍②（#tc013 同族 oracle）：index map = 条目无 @index 时写入
+/// **原始索引键**；值为对象按常规展开
+test "index map: writes @index from map key (#tc013 同族对拍)" {
+  let options = JsonLdOptions::{
+    base: None,
+    expand_context: None,
+    processing_mode: JsonLd11,
+  }
+  let input = "{\"@context\": {\"@vocab\": \"http://example/\", \"idx\": {\"@container\": \"@index\"}}, \"idx\": {\"k\": {\"@id\": \"ex:i\"}}}"
+  assert_true(
+    expand_document(input, options)
+    is Ok(
+      Array(
+        [
+          Object(
+            [
+              (
+                "http://example/idx",
+                Array(
+                  [Object([("@id", String("ex:i")), ("@index", String("k"))])]
+                ),
+              ),
+            ]
+          ),
+        ]
+      )
+    ),
+  )
+}
+
+///|
+/// @container 映射批对拍③（#tm020 oracle）：容器含 @type 时 type mapping 只允许
+/// @id/@vocab（显式其它值 → invalid type mapping）
+test "container @type restricts type mapping to @id/@vocab (#tm020 对拍)" {
+  let options = JsonLdOptions::{
+    base: None,
+    expand_context: None,
+    processing_mode: JsonLd11,
+  }
+  let bad = "{\"@context\": {\"foo\": {\"@type\": \"literal\", \"@container\": \"@type\"}}, \"foo\": {}}"
+  match expand_document(bad, options) {
+    Err(InvalidContext(message)) =>
+      assert_true(message.contains("invalid type mapping"))
+    _ => fail("expected invalid type mapping")
+  }
+  let vocab_ok = "{\"@context\": {\"@vocab\": \"ex:\", \"foo\": {\"@type\": \"@vocab\", \"@container\": \"@type\"}}, \"foo\": {\"bar\": \"baz\"}}"
+  assert_true(expand_document(vocab_ok, options) is Ok(_))
+}

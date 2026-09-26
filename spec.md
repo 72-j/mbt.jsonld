@@ -90,6 +90,9 @@
 | #pr23/#pr24/#pr27/#pr41 vs #pr26/#pr28/#pr42 | 定义面分叉（**保护穿透**） | 新定义与旧定义是否**等价（除 protected 位外）** | 等价 ⇒ 允许重定义**且保留旧定义**（保护位不丢，#pr42）；不等价 ⇒ `protected term redefinition`（判据看**旧定义**是否受保护——#pr04：新定义带 `@protected:false` 也不豁免） |
 | #pr06/#pr14/#pr16 vs #pr17/#pr18/#pr20/#pr21 | 调用面分叉（**同一空化形态**） | override protected 的**传导面** | property-scoped 应用与定义期 scoped 校验传 true ⇒ 空化保护 term 允许；**type-scoped 应用不传（false）**⇒ 同一 `null`/`[null]` 形态报 `invalid context nullification` |
 | #tec02 vs #pr30 | 形态分叉（**关键字 term 的 td 值**） | `{"@container":"@set"}`/`{"@protected":…}` 的有无 | "only either **or both of** following entries" ⇒ 须**至少一条**：`{"@type": {}}` → `keyword redefinition`；`{"@container":"@set","@protected":true}` → 合法（关键字可保护） |
+| #tc013 vs #tm003/#tm006 | 容器种类分叉（**map context 的来源**） | 容器 ∈ {@type}（用 previous）vs {@index}（用 active） | @id/@type 容器的 map context = active 的 **previous**（存在即用）；@index 容器 = **active**——#tc013 因此让内层 map 用 base 的 index 容器定义、而非外层 type-scoped 的 |
+| #tm003/#tm004 vs #tm012 | 键形态分叉（**@none 与索引写入**） | 索引键是否展开为 `@none` | 普通键 ⇒ **前插** @type（已有 @type 时前插，非替换）；`@none` 及其别名 ⇒ **不写索引**（条目仍产出） |
+| #tm017/#tm018/#tm019 vs #tm020 | **定义面分叉**（container @type × type mapping） | 显式 `@type` 是否 ∈ {@id,@vocab} | 容器含 `@type`：未声明 ⇒ **隐式 @id**（#tm017）；显式 `@id`（#tm018）/`@vocab`（#tm019）合法；其它值（如 `"literal"` 经 vocab 展开成 IRI）⇒ **invalid type mapping**（#tm020 负） |
 
 ### term 名一致性检查（REC 4.2.2 @id 臂 "must be consistent"；2026-09-26 修正）
 - 判据：term 名含冒号（**非**首位、**非**末位）或含斜杠时，**term 名自身的 IRI
@@ -163,6 +166,47 @@ type-scoped 快照必须以"元素 @context 已生效"的 active context 为底�
 （`@import` 面）、#pr29/#pr33~#pr39（compact-IRI 非前缀 term / 关键字形 term，各归其批）。
 **真缺口 3 枚**（#pr01/#pr08/#pr11，属本批）——当前"负例却展开成功"的直接机制 = td 级
 `@protected` 被未知键 catch-all 静默吞掉（机制缺席，非校验缺口）。
+
+### @protected 已落实现注记（2026-09-26 收口）
+### @container 完整状态表（2026-09-26 立；**逐值列状态，账里不留模糊表述**）
+| `@container` 值 | 定义期校验 | 展开期应用 | 状态与归属批 |
+|---|---|---|---|
+| `@list` | ✅ 白名单（1.1/1.0 分叉） | ✅ 元素展开 + List 包裹 | **已落**（C 组批：#t0004/#t0023/#tli01~#tli10/#ter24/#ter32） |
+| `@set` | ✅ | ✅ 摊平即塌缩（no-op） | **已落**（C 组批：#t0015） |
+| `@type` | ✅ + **隐式 type mapping 规则**（本批：容器含 @type ⇒ 缺省 @id、显式须 @id/@vocab） | ✅ type map（REC 13.8.3；键前插 @type、@none 跳过） | **已落**（@container 映射批：11 例）；**数组形态**含 @type 未落（无 oracle，挂账） |
+| `@index` | ✅（容器合法性） | ⚠️ **仅最小子集**：值为 map 时"条目无 @index ⇒ 写原始键" | **部分落**（解锁 #tc013）；**td `@index` mapping（索引属性）未落** ⇒ 余挂「@index mapping + index map 校验批」 |
+| `@id` | ✅（容器合法性；1.0 拒绝见 #ter21） | ❌ **@id map 应用未落** | 挂「**@id 容器 + language map 批**」（#tm001/#tm002/#tm005/#tm011） |
+| `@language` | ✅（含展开期值检查 #ter35） | ❌ **language map 应用未落** | 挂「**@id 容器 + language map 批**」（#tm009/#tm010） |
+| `@graph` | ✅ | ❌ **@graph 容器应用未落**（值包裹 graph object + 与 @id/@index/@set 组合） | 挂「**@graph 容器族批**」：34 例（#t0079~#t0108/#tc025/#tpr25/#tpr43 + graph index/id map #tm013~#tm016） |
+| `@none` | —（**非**容器值：它是索引/映射键关键字） | ✅ type/index map 键展开为 @none ⇒ **不写索引**（本批；#tm012 含别名）；@id/graph 容器侧随各自批 | 已落（type/index map 面） |
+
+**批归属定案（2026-09-26 用户令确认；命名统一）**：`@id` 容器与 language map **合成一批**
+——**批名 =「@id 容器 + language map 批」**。理由：两者同属 REC 的**相邻映射分支**
+（13.8.2 language map / 13.8.3 @id map）、**同一落点**（`expand_term_values` 壳的容器分派）、
+**共享 context 面规则**（map context 来源 / from-map 语境），合并降低机制切换成本；
+仍按**逐例归因**记账（@id map #tm001/#tm002/#tm005/#tm011 + language map #tm009/#tm010，
+开工时按现状复勘"直接相关同族例"再定终稿）。
+
+### @container 映射批已落实现注记（@type type map + @index index map 最小子集；2026-09-26）
+- **触发**：REC 13.8.3——词条容器 ∈ {@index,@type,@id} **且值为 map** 才进映射分支；
+  非 map 值落通用分支（字符串经定义面**隐式 @id type mapping** 成节点引用——#tm017）。
+- **定义面（隐式 type mapping）**：容器含 `@type` ⇒ 未声明 `@type` 时置 `@id`；已声明
+  则须为 `@id`/`@vocab`，否则 `invalid type mapping`（#tm017/#tm018/#tm019 正 / #tm020 负）。
+- **map context 按容器种类分叉**：`@id`/`@type` ⇒ active 的 **previous**（存在即用）；
+  `@index` ⇒ **active**（REC 原文两分支）。**仅 @type 面**再套用**索引项**的 scoped
+  context（在 map context 中查 td；#tm008），故"type map 用类型索引项的 scoped context、
+  不用包含方的"（#tc013）。
+- **from map 语境**：条目展开传 `true for from map`（不回退 previous）——本引擎以
+  "previous 已清空的等价 context"表达（省一维参数；语义等价，机制面记入 const §5）。
+- **索引写入**：`@type` ⇒ `types = [expanded index] ++ 既有`（**前插**，非替换——#tm004；
+  键按 vocab 位 IRI 展开）且 `@none`/别名跳过（#tm012；条目仍产出）；`@index` ⇒ 条目无
+  `@index` 时写**原始索引键**（`ExpandedNode.index` 新字段 + 序列化 `@index`）。
+- **迁移**：**11 例**（#tc013 + #tm003/#tm004/#tm006/#tm007/#tm008/#tm012/#tm017/
+  #tm018/#tm019 + 负 #tm020）。
+- **挂账（各归其批）**：`@id` 容器（#tm001/#tm002/#tm005/#tm011）、language map 应用
+  （#tm009/#tm010）、`@index` **mapping**（td `@index` → 索引属性）与 index map 校验
+  （#tpi01~#tpi11 + #t0036/#t0040/#t0044/#t0063/#t0131）、`@graph` 容器族 34 例 +
+  graph index/id map（#tm013~#tm016；index/id map 语义须随该批立项）。
 
 ### @protected 已落实现注记（2026-09-26 收口）
 - **落码面**：`TermDefinition.is_protected`（字段名避开保留字 `protected`）+ 上下文级
