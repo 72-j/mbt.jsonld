@@ -188,6 +188,14 @@ fn serialize_node(node : ExpandedNode) -> JsonValue {
   for pair in node.properties {
     pairs.push((pair.0, JsonValue::Array(pair.1.map(serialize_value))))
   }
+  // @reverse 映射输出（reverse 批——#t0042 oracle："@reverse": {iri: [values]}）
+  if node.reverse_props.length() > 0 {
+    let rev_pairs : Array[(String, JsonValue)] = []
+    for pair in node.reverse_props {
+      rev_pairs.push((pair.0, JsonValue::Array(pair.1.map(serialize_value))))
+    }
+    pairs.push(("@reverse", JsonValue::Object(rev_pairs)))
+  }
   JsonValue::Object(pairs)
 }
 

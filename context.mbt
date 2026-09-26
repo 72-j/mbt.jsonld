@@ -14,6 +14,7 @@ pub(all) struct TermDefinition {
   iri : String?
   datatype : String? // @type 在 term 定义里指向 datatype IRI
   container : ContainerType?
+  reverse : String? // @reverse 映射（reverse 批）
   // ...待 J2 扩
 }
 

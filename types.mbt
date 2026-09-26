@@ -55,6 +55,7 @@ pub(all) struct ExpandedNode {
   id : String?
   types : Array[String]
   properties : Array[(String, Array[ExpandedValue])]
+  reverse_props : Array[(String, Array[ExpandedValue])] // @reverse 映射（reverse 批）
 } derive(Debug)
 
 ///|

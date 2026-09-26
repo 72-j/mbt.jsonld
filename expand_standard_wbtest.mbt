@@ -167,11 +167,13 @@ test "term/IRI chain with constructed context (②批对拍)" {
     iri: Some("http://example.com/"),
     datatype: None,
     container: None,
+    reverse: None,
   }
   terms["name"] = TermDefinition::{
     iri: Some("http://example.com/name"),
     datatype: None,
     container: None,
+    reverse: None,
   }
   let active = ActiveContext::{ base: None, vocab: None, terms, }
   // term 精确查表（lookup_term 真行为）
@@ -240,6 +242,7 @@ test "property key routing via chain (②批)" {
     iri: Some("http://example.com/name"),
     datatype: None,
     container: None,
+    reverse: None,
   }
   let active = ActiveContext::{ base: None, vocab: None, terms, }
   let options = JsonLdOptions::{
@@ -342,6 +345,7 @@ test "debug ter48: vocab=false excludes term lookup" {
     iri: Some("http://example.com/terms-are-not-considered-in-id"),
     datatype: None,
     container: None,
+    reverse: None,
   }
   let active = ActiveContext::{
     base: None,

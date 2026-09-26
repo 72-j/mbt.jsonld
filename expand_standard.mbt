@@ -435,6 +435,7 @@ fn StandardExpander::expand_object(
   let mut node_id : String? = None
   let types : Array[String] = []
   let properties : Array[(String, Array[ExpandedValue])] = []
+  let reverse_props : Array[(String, Array[ExpandedValue])] = []
   let mut literal : ExpandedLiteral? = None
   let mut is_value_object = false
   let mut has_datatype = false
@@ -474,10 +475,33 @@ fn StandardExpander::expand_object(
         Ok(values) => values
         Err(e) => return Err(e)
       }
+      // reverse 项路由（reverse 批——#t0042/#t0049 oracle）：值进主体
+      // @reverse 映射；值对象/@list 形态 → invalid reverse property value
+      //（#ter36 oracle）
+      match current.terms.get(pair.0) {
+        Some(term_definition) =>
+          match term_definition.reverse {
+            Some(rev) => {
+              for v in values {
+                match v {
+                  ExpandedValue::List(_) | ExpandedValue::Value(_) =>
+                    return Err(
+                      JsonLdError::InvalidValue(
+                        "invalid reverse property value",
+                      ),
+                    )
+                  _ => ()
+                }
+              }
+              reverse_props.push((rev, values))
+              continue
+            }
+            None => ()
+          }
+        None => ()
+      }
       // 键合法性：绝对 IRI 或 bnode 标签（规范：expanded property 可为 blank
       // node identifier——scheme-ALPHA 收紧后 bnode 在此显式放行）；
-      // container List/Set 位空值保留属性（C 组——#t0004/#t0015 oracle：
-      // "myset1": [] 空集合不丢弃）
       // 空数组属性无条件保留（#t0004 oracle：set1~set5 无 term 定义亦保留
       // "set1": [] 空数组——键合法性门不受影响）
       if is_valid_absolute_iri(expanded_key) || is_bnode_label(expanded_key) {
@@ -705,6 +729,55 @@ fn StandardExpander::expand_object(
               Err(e) => return Err(e)
             }
         }
+      "@reverse" =>
+        // @reverse 节点位（reverse 批——#t0037/#t0039/#t0064 oracle）：
+        // 值须 map（映射 IRI → 节点值，键经 vocab 展开，值经 term 位展开）；
+        // 非 map → invalid @reverse value（#ter33 oracle）
+        match pair.1 {
+          JsonValue::Object(rev_pairs) =>
+            for rev_pair in rev_pairs {
+              // 反向映射键不得为关键字（#ter25 oracle：invalid reverse
+              // property map）
+              if rev_pair.0.get_char(0) is Some('@') {
+                return Err(
+                  JsonLdError::InvalidValue("invalid reverse property map"),
+                )
+              }
+              let rev_key = match
+                IriExpander::expand_iri(self, current, rev_pair.0, false, true) {
+                Ok(k) => k
+                Err(e) => return Err(e)
+              }
+              match
+                StandardExpander::expand_term_values_inner(
+                  self,
+                  current,
+                  rev_pair.0,
+                  rev_pair.1,
+                  Some(rev_pair.0),
+                  options,
+                ) {
+                Ok(vs) => {
+                  // 反向映射值须为节点对象（#ter34 oracle：字符串值 →
+                  // invalid reverse property value；@list 同禁）
+                  for v in vs {
+                    match v {
+                      ExpandedValue::List(_) | ExpandedValue::Value(_) =>
+                        return Err(
+                          JsonLdError::InvalidValue(
+                            "invalid reverse property value",
+                          ),
+                        )
+                      _ => ()
+                    }
+                  }
+                  reverse_props.push((rev_key, vs))
+                }
+                Err(e) => return Err(e)
+              }
+            }
+          _ => return Err(JsonLdError::InvalidValue("invalid @reverse value"))
+        }
       other =>
         return Err(
           JsonLdError::Unsupported(
@@ -730,7 +803,12 @@ fn StandardExpander::expand_object(
   } else {
     Ok(
       Some(
-        ExpandedValue::Node(ExpandedNode::{ id: node_id, types, properties, }),
+        ExpandedValue::Node(ExpandedNode::{
+          id: node_id,
+          types,
+          properties,
+          reverse_props,
+        }),
       ),
     )
   }
@@ -974,6 +1052,7 @@ fn StandardExpander::expand_term_values_inner(
                         id: Some(iri),
                         types: [],
                         properties: [],
+                        reverse_props: [],
                       }),
                     )
                   Err(e) => Err(e)
@@ -988,6 +1067,7 @@ fn StandardExpander::expand_term_values_inner(
                         id: Some(iri),
                         types: [],
                         properties: [],
+                        reverse_props: [],
                       }),
                     )
                   Err(e) => Err(e)
@@ -1291,6 +1371,7 @@ impl ContextProcessor for StandardExpander with fn process_context(
                   iri: Some(expanded),
                   datatype: None,
                   container: None,
+                  reverse: None,
                 }
               }
               JsonValue::Null => new_terms.remove(other)
@@ -1350,6 +1431,7 @@ fn StandardExpander::process_expanded_term_definition(
   let mut td_iri : String? = None
   let mut td_datatype : String? = None
   let mut td_container : ContainerType? = None
+  let mut td_reverse : String? = None
   for td_pair in td_pairs {
     match td_pair.0 {
       "@id" =>
@@ -1440,8 +1522,25 @@ fn StandardExpander::process_expanded_term_definition(
           }
           _ => return Err(JsonLdError::InvalidContext("invalid @nest value"))
         }
+      "@reverse" =>
+        // 反向映射（reverse 批——#ter15 oracle：非串 → invalid IRI mapping）
+        match td_pair.1 {
+          JsonValue::String(rev) => {
+            let building = ActiveContext::{ base, vocab, terms: new_terms, }
+            match IriExpander::expand_iri(_self, building, rev, false, true) {
+              Ok(k) => td_reverse = Some(k)
+              Err(e) => return Err(e)
+            }
+          }
+          _ => return Err(JsonLdError::InvalidIri("invalid IRI mapping"))
+        }
       _ => () // @context（scoped）等：挂账，忽略
     }
+  }
+  // @id 与 @reverse 同 td 互斥（#ter14 oracle：invalid reverse property）；
+  // @container 与 @reverse 同 td 互斥（#ter17 oracle：reverse 项不带容器）
+  if td_reverse is Some(_) && (td_iri is Some(_) || td_container is Some(_)) {
+    return Err(JsonLdError::InvalidContext("invalid reverse property"))
   }
   // 关键字重定义规则（#tec02 oracle）：term 为关键字时必须 @id 映射回自身
   // （空 map / 无 @id / 异关键字 = keyword redefinition）
@@ -1454,21 +1553,26 @@ fn StandardExpander::process_expanded_term_definition(
       return Err(JsonLdError::InvalidContext("keyword redefinition"))
     }
   }
-  // 无 @id 位：term 名自身 vocab 展开（spec §6.1；t0011 路径）
+  // 无 @id 位：term 名自身 vocab 展开（spec §6.1；t0011 路径）；
+  // reverse-only term（@reverse 无 @id）→ IRI 映射保持 null（不可作正属性）
   let final_iri = match td_iri {
     Some(iri) => Some(iri)
-    None => {
-      let building = ActiveContext::{ base, vocab, terms: new_terms, }
-      match IriExpander::expand_iri(_self, building, term_name, false, true) {
-        Ok(k) => Some(k)
-        Err(e) => return Err(e)
+    None =>
+      if td_reverse is Some(_) {
+        None
+      } else {
+        let building = ActiveContext::{ base, vocab, terms: new_terms, }
+        match IriExpander::expand_iri(_self, building, term_name, false, true) {
+          Ok(k) => Some(k)
+          Err(e) => return Err(e)
+        }
       }
-    }
   }
   new_terms[term_name] = TermDefinition::{
     iri: final_iri,
     datatype: td_datatype,
     container: td_container,
+    reverse: td_reverse,
   }
   Ok(())
 }

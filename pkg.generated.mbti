@@ -50,6 +50,7 @@ pub(all) struct ExpandedNode {
   id : String?
   types : Array[String]
   properties : Array[(String, Array[ExpandedValue])]
+  reverse_props : Array[(String, Array[ExpandedValue])]
 } derive(@debug.Debug)
 pub fn ExpandedNode::to_repr(Self) -> @debug.Repr
 
@@ -141,6 +142,7 @@ pub(all) struct TermDefinition {
   iri : String?
   datatype : String?
   container : ContainerType?
+  reverse : String?
 }
 
 // Type aliases

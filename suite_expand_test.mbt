@@ -236,6 +236,16 @@ async test "expand suite harness: manifest-driven buckets, all deferred pre-J2" 
      "#ter32",
     // base 批复测件（Relative IRIs，期望默认 base 已解锁）
      "#t0029", "#t0062",
+    // —— @reverse 批（2026-09-26；独立于 @graph——勘定入 todo §J2）——
+    // #t0037/#t0039/#t0042/#t0049/#t0064/#t0078：@reverse 节点位/term 位/
+    // coercion 值/bnode 值/多 reverse（值进主体 "@reverse" 映射）
+     "#t0037", "#t0039", "#t0042", "#t0049", "#t0064", "#t0078",
+    // #ter14（负）：@id 与 @reverse 同 td → invalid reverse property
+    // #ter15（负）：td @reverse 非串 → invalid IRI mapping
+    // #ter17（负）：reverse td @container 验证（容器验证批已落，复测回迁）
+    //（#ter33 已在四族批名单——值对象位 @reverse 非 map 随本批真拒绝）
+    // #ter36（负）：reverse 项 @list 值 → invalid reverse property value
+     "#ter14", "#ter15", "#ter17", "#ter36",
   ]
   // 两桶：迁移例走端到端对拍（输入 → expansion → 对 expected）；其余 deferred
   let deferred : Array[String] = []
@@ -320,8 +330,8 @@ async test "expand suite harness: manifest-driven buckets, all deferred pre-J2" 
     }
   }
   // pin 闭合：桶总和 == 普查数；plain = 已迁移数
-  assert_eq(deferred.length(), 256)
-  assert_eq(plain.length(), 129)
+  assert_eq(deferred.length(), 246)
+  assert_eq(plain.length(), 139)
   // 解析覆盖闭合：每个有 input 的条目都走了解析通道
   assert_eq(parsed_ok + parse_err, 385)
   // 首例钉：#t0001 已迁 plain（manifest 顺序首条；J2 首件验收 = 此例端到端绿）
