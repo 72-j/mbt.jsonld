@@ -139,7 +139,10 @@ fn serialize_top(expanded : ExpandedValue?) -> JsonValue {
 /// （#t0001：仅 @id 丢弃；同族：{} 亦丢弃；@graph-bearing 节点不算
 /// free-floating——图对象有意义，文档级批扩展）
 fn is_free_floating(node : ExpandedNode) -> Bool {
-  node.properties.is_empty() && node.types.is_empty() && node.graph is None
+  node.properties.is_empty() &&
+  node.types.is_empty() &&
+  node.graph is None &&
+  node.included is None // included-bearing 节点不弃（#tin03：仅 @included 的根节点保留）
 }
 
 ///|
@@ -169,6 +172,20 @@ fn serialize_value(value : ExpandedValue) -> JsonValue {
       }
       match literal.direction {
         Some(dir) => pairs.push(("@direction", JsonValue::String(dir)))
+        None => ()
+      }
+      // 值对象位 Included Blocks 保形（#tin05 oracle：还原 "@included" 键，
+      // 内层节点照常渲染）
+      match literal.included {
+        Some(inc_nodes) =>
+          pairs.push(
+            (
+              "@included",
+              JsonValue::Array(
+                inc_nodes.map(fn(n) { serialize_value(ExpandedValue::Node(n)) }),
+              ),
+            ),
+          )
         None => ()
       }
       JsonValue::Object(pairs)
@@ -210,6 +227,21 @@ fn serialize_node(node : ExpandedNode) -> JsonValue {
   match node.graph {
     Some(items) =>
       pairs.push(("@graph", JsonValue::Array(items.map(serialize_value))))
+    None => ()
+  }
+  // Included Blocks 键渲染（@included 纯形批——in01-in04 oracle：@included
+  // 作为节点对象键保形输出，included 节点照常渲染；嵌套 included 随递归
+  // 自展——in04）
+  match node.included {
+    Some(inc_nodes) =>
+      pairs.push(
+        (
+          "@included",
+          JsonValue::Array(
+            inc_nodes.map(fn(n) { serialize_value(ExpandedValue::Node(n)) }),
+          ),
+        ),
+      )
     None => ()
   }
   JsonValue::Object(pairs)

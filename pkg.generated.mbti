@@ -45,6 +45,7 @@ pub(all) struct ExpandedLiteral {
   mut language : String?
   mut direction : String?
   mut raw : JsonValue?
+  mut included : Array[ExpandedNode]?
 } derive(@debug.Debug)
 pub fn ExpandedLiteral::to_repr(Self) -> @debug.Repr
 
@@ -54,6 +55,7 @@ pub(all) struct ExpandedNode {
   properties : Array[(String, Array[ExpandedValue])]
   reverse_props : Array[(String, Array[ExpandedValue])]
   graph : Array[ExpandedValue]?
+  included : Array[ExpandedNode]?
 } derive(@debug.Debug)
 pub fn ExpandedNode::to_repr(Self) -> @debug.Repr
 

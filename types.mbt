@@ -57,6 +57,9 @@ pub(all) struct ExpandedNode {
   properties : Array[(String, Array[ExpandedValue])]
   reverse_props : Array[(String, Array[ExpandedValue])] // @reverse 映射（reverse 批）
   graph : Array[ExpandedValue]? // 节点位 @graph（文档级批——t0020 保留 / t0009 顶层表面化）
+  // Included Blocks（@included 纯形批——in01-in04 oracle：@included 作为节点
+  // 对象键渲染，非顶层拼接；嵌套 included 随序列化递归自展）
+  included : Array[ExpandedNode]?
 } derive(Debug)
 
 ///|
@@ -77,6 +80,9 @@ pub(all) struct ExpandedLiteral {
   mut direction : String?
   /// 原始标量（number/bool 保形用；string 为 None——序列化时按词形输出）
   mut raw : JsonValue?
+  /// Included Blocks 于值对象位保形（#tin05 oracle：值对象内 @included 不弃，
+  /// 内层照节点对象展开——展开后随字面量携带，序列化还原 "@included" 键）
+  mut included : Array[ExpandedNode]?
 } derive(Debug)
 
 ///|

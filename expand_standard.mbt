@@ -262,6 +262,7 @@ fn literal_of(value : String, raw : JsonValue?) -> ExpandedValue {
     language: None,
     direction: None,
     raw,
+    included: None,
   })
 }
 
@@ -440,6 +441,10 @@ fn StandardExpander::expand_object(
   // 节点位 @nest 值收集（nest 纯形批——REC 13.4.14：主键循环中只收集，
   // 循环后延后处理；文档序）
   let nest_values : Array[JsonValue] = []
+  // Included Blocks 收集（@included 纯形批——主键循环中只收集不展开，
+  // 循环后延后处理；值对象位同样收集——#tin05 oracle 保形）
+  let included_values : Array[JsonValue] = []
+  let included_nodes : Array[ExpandedNode] = []
   let mut literal : ExpandedLiteral? = None
   let mut is_value_object = false
   let mut has_datatype = false
@@ -615,6 +620,7 @@ fn StandardExpander::expand_object(
                     language: None,
                     direction: None,
                     raw: None,
+                    included: None,
                   }
               },
             )
@@ -633,6 +639,7 @@ fn StandardExpander::expand_object(
                     language: None,
                     direction: None,
                     raw: Some(JsonValue::Number(nv)),
+                    included: None,
                   }
               },
             )
@@ -651,6 +658,7 @@ fn StandardExpander::expand_object(
                     language: None,
                     direction: None,
                     raw: Some(JsonValue::Bool(bv)),
+                    included: None,
                   }
               },
             )
@@ -679,6 +687,7 @@ fn StandardExpander::expand_object(
                   language: Some(lang),
                   direction: None,
                   raw: None,
+                  included: None,
                 })
             }
           }
@@ -709,6 +718,7 @@ fn StandardExpander::expand_object(
                   language: None,
                   direction: Some(dir),
                   raw: None,
+                  included: None,
                 })
             }
           }
@@ -852,6 +862,24 @@ fn StandardExpander::expand_object(
           single => nest_values.push(single)
         }
       }
+      // 节点位 @included（Included Blocks 纯形批——REC：主键循环中只收集，
+      // 循环后延后展开。值对象位不拒——#tin05 oracle：值对象内 @included
+      // 保形且内层照常展开，区别于 @nest 的 invalid value object 门）
+      "@included" =>
+        match pair.1 {
+          JsonValue::Array(items) =>
+            for item in items {
+              // 数组元素须为对象（#tin07 oracle：串 → invalid @included value）
+              if item is JsonValue::Object(_) {
+                included_values.push(item)
+              } else {
+                return Err(JsonLdError::InvalidValue("invalid @included value"))
+              }
+            }
+          JsonValue::Object(_) => included_values.push(pair.1)
+          JsonValue::Null => () // null = 空（先验，循 @graph/@nest 同款）
+          _ => return Err(JsonLdError::InvalidValue("invalid @included value"))
+        }
       other =>
         return Err(
           JsonLdError::Unsupported(
@@ -919,7 +947,38 @@ fn StandardExpander::expand_object(
       Err(e) => return Err(e)
     }
   }
-  // 形态判定：值对象（@value 键已见）优先于节点对象
+  // Included Blocks 延后处理（@included 纯形批——REC：循环后逐条目展开。
+  // 条目须为节点对象：@value/@list 键嗅探即拒——#tin08/#tin09 oracle
+  // （值对象/list 对象 → invalid @included value）；串值在收集臂已拒
+  // （#tin07）。值对象位结果挂字面量（#tin05），节点位挂节点）
+  for included_entry in included_values {
+    let entry_pairs = match included_entry {
+      JsonValue::Object(ps) => ps
+      _ => return Err(JsonLdError::InvalidValue("invalid @included value"))
+    }
+    for entry_pair in entry_pairs {
+      if entry_pair.0 is ("@value" | "@list") {
+        return Err(JsonLdError::InvalidValue("invalid @included value"))
+      }
+    }
+    match
+      StandardExpander::expand_object(
+        self,
+        current,
+        included_entry,
+        None,
+        options,
+      ) {
+      Ok(Some(ExpandedValue::Node(included_node))) =>
+        included_nodes.push(included_node)
+      Ok(None) => () // 空产物（先验；无 oracle——循 @graph: null 同款丢弃）
+      Ok(Some(_)) =>
+        return Err(JsonLdError::InvalidValue("invalid @included value"))
+      Err(e) => return Err(e)
+    }
+  }
+  // 形态判定：值对象（@value 键已见）优先于 node object——
+  // @included 结果按形态挂载：值对象位挂字面量（#tin05 保形），节点位挂节点
   if is_value_object {
     match literal {
       Some(found) => {
@@ -928,6 +987,10 @@ fn StandardExpander::expand_object(
         // @value: null 在臂内已置 literal=None，先于本校验丢弃（规范次序）
         if has_language && found.raw is Some(_) {
           return Err(JsonLdError::InvalidValue("invalid language-tagged value"))
+        }
+        // 值对象位 Included Blocks 挂字面量（#tin05 oracle：保形输出）
+        if included_nodes.length() > 0 {
+          found.included = Some(included_nodes)
         }
         Ok(Some(ExpandedValue::Value(found)))
       }
@@ -942,6 +1005,11 @@ fn StandardExpander::expand_object(
           properties,
           reverse_props,
           graph: node_graph,
+          included: if included_nodes.length() > 0 {
+            Some(included_nodes)
+          } else {
+            None
+          },
         }),
       ),
     )
@@ -1290,6 +1358,7 @@ fn StandardExpander::expand_term_values_inner(
                         properties: [],
                         reverse_props: [],
                         graph: None,
+                        included: None,
                       }),
                     )
                   Err(e) => Err(e)
@@ -1306,6 +1375,7 @@ fn StandardExpander::expand_term_values_inner(
                         properties: [],
                         reverse_props: [],
                         graph: None,
+                        included: None,
                       }),
                     )
                   Err(e) => Err(e)
@@ -1318,6 +1388,7 @@ fn StandardExpander::expand_term_values_inner(
                     language: None,
                     direction: None,
                     raw: None,
+                    included: None,
                   }),
                 )
               }
@@ -1538,21 +1609,39 @@ impl ContextProcessor for StandardExpander with fn process_context(
                   JsonLdError::InvalidContext("@base must be string or null"),
                 )
             }
-          "@version" =>
-            // 1.1 API：@version 仅接受 json-ld-1.1（本引擎默认即 1.1 语义 = no-op）；
-            // 其他值 → invalid @version value。1.0 模式切换（ActiveContext 载入
-            // processing_mode）挂后续批
-            match pair.1 {
-              JsonValue::String("json-ld-1.1") => ()
+          "@version" => {
+            // 1.1 API：@version 接受串 "json-ld-1.1" 与数值 1.1（套件实证
+            // 159 例全为数值形且期望成功——REC"须为串"被套件输入形态否决；
+            // 数值 1.0 → 错，#tep03 负例钉边界）。1.0 模式切换（ActiveContext
+            // 载入 processing_mode）挂后续批
+            let version_is_11 = match pair.1 {
+              JsonValue::String("json-ld-1.1") => true
+              JsonValue::Number(v) =>
+                if v == 1.1 {
+                  true
+                } else {
+                  return Err(
+                    JsonLdError::InvalidContext("invalid @version value"),
+                  )
+                }
               JsonValue::String(v) =>
                 return Err(
                   JsonLdError::InvalidContext("invalid @version value (\{v})"),
                 )
               _ =>
                 return Err(
-                  JsonLdError::InvalidContext("@version must be a string"),
+                  JsonLdError::InvalidContext("invalid @version value"),
                 )
             }
+            // #tep02 oracle：processingMode json-ld-1.0 与 @version:1.1 冲突 → 错
+            if version_is_11 && _options.processing_mode is JsonLd10 {
+              return Err(
+                JsonLdError::InvalidContext(
+                  "processingMode json-ld-1.0 conflicts with @version: 1.1",
+                ),
+              )
+            }
+          }
           "@language" | "@direction" | "@propagate" | "@import" =>
             return Err(
               JsonLdError::Unsupported(

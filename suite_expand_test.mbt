@@ -166,14 +166,12 @@ async test "expand suite harness: manifest-driven buckets, all deferred pre-J2" 
     // tes01/tes02 九例原靠 td 对象 stub 拒绝"拒绝即过"——⑤真码落地后露真容，
     // 其无效点（td 的 @container/@language/@prefix/@nest/@context 键验证）在
     // 批边界外，回 deferred 挂「⑤后半·td 其余键验证批」（详见 todo §J2 ⑤批）
-     "#t0003", "#t0075", "#t0092", "#tc029", "#tc030", "#tc032", "#tc033", "#tdi08",
-    "#tec02", "#ten01", "#ten02", "#ten03", "#ten04", "#tep02", "#tep03", "#ter04",
-    "#ter05", "#ter06", "#ter07", "#ter12", "#ter13", "#ter23", "#ter24", "#ter25",
-    "#ter27", "#ter29", "#ter30", "#ter31", "#ter33", "#ter34", "#ter41", "#ter42",
-    "#ter55", "#ter56", "#tin07", "#tin08", "#tin09", "#tm020", "#tpi05", "#tpr01",
-    "#tpr03", "#tpr04", "#tpr05", "#tpr08", "#tpr09", "#tpr11", "#tpr12", "#tpr17",
-    "#tpr18", "#tpr20", "#tpr21", "#tpr26", "#tpr28", "#tpr31", "#tpr32", "#tpr42",
-    "#tso01", "#tso02", "#tso03", "#tso07", "#tso10", "#tso12", "#tso13", "#ttn01",
+     "#t0003", "#t0075", "#t0092", "#tc029", "#tc030", "#tdi08", "#tec02", "#ten01",
+    "#ten02", "#ten03", "#ten04", "#tep02", "#tep03", "#ter04", "#ter05", "#ter06",
+    "#ter07", "#ter12", "#ter13", "#ter23", "#ter24", "#ter25", "#ter27", "#ter29",
+    "#ter30", "#ter31", "#ter33", "#ter34", "#ter41", "#ter42", "#ter55", "#ter56",
+    "#tin07", "#tin08", "#tin09", "#tpr42", "#tso01", "#tso02", "#tso03", "#tso07",
+    "#tso10", "#tso12", "#tso13", "#ttn01",
     // —— ⑤批 A 组（td 对象形态 + coercion——2026-09-26；批边界/判据/对拍点见 todo §J2 ⑤批）——
     // #t0007：形态 D（td @type 显式 datatype）+ 两遍 context 处理（后置 prefix
     // 定义——简单 term——对对象形态 td 可用）
@@ -268,6 +266,29 @@ async test "expand suite harness: manifest-driven buckets, all deferred pre-J2" 
     // @nest 递归自展；#tn006：同键属性逐元素并值；#tn007：nest 值数组展平；
     // #tn008：类型随嵌套并入（@type 数组追加）
      "#tn001", "#tn002", "#tn003", "#tn004", "#tn005", "#tn006", "#tn007", "#tn008",
+    // —— @included 纯形批（2026-09-26；in001~in005——批边界见 todo §J2）——
+    // oracle 定案：官方期望把 "@included" 作为节点对象键渲染（同 @graph
+    // 范式），非顶层拼接。#tin01：@included 数组值 → 主节点带 @included 键；
+    // #tin02：单对象形态归一；#tin03：多别名 term（included1/included2 →
+    // @included）归一汇流——主节点无其余属性时根节点只含 @included 键；
+    // #tin04：嵌套 @included 保留为嵌套键（随递归自展，非拍平）；
+    // #tin05：值对象位 @included 保形（内层照节点对象展开——oracle 权威，
+    // REC 值对象关键词窄集不含 @included 的处置被套件否决）。#tin06 挂
+    // 依赖批（term-scoped context——tc037/038 批）
+    // #tm020 意外负例翻出（@version 修真后露出）：旧 @version 臂拒数字 1.1
+    // 时经 context error 意外通过；真判定 = term 定义 @type 映射校验
+    // （"@type":"literal" 非法——invalid type mapping），挂「⑤后半·td
+    // 其余键验证批」
+    // #tpi05 同族意外负例：真判定 = 属性值 index map 校验（@container:@index
+    // + @index:prop 下值对象加属性 → invalid value object），挂「@container
+    // index/property-value 批」
+    // #tpr01 同族意外负例：真判定 = @protected 保护 term 重定义校验
+    // （protected term redefinition），挂「@protected 批」
+    // #tpr03/04/05/08/09/11/12/17/18/20/21/26/28/31/32（15 枚）同族：
+    // @protected 全族未落码，一律经旧 @version 臂拒数字 1.1 的意外机制
+    // 通过——真判定归「@protected 批」（tpr05/17/18/20/21 为 context
+    // nullification 变体，同门）
+     "#tin01", "#tin02", "#tin03", "#tin04", "#tin05",
   ]
   // 两桶：迁移例走端到端对拍（输入 → expansion → 对 expected）；其余 deferred
   let deferred : Array[String] = []
@@ -332,7 +353,15 @@ async test "expand suite harness: manifest-driven buckets, all deferred pre-J2" 
         let actual = match
           @jsonld.expand_document(input_text, options_for(entry)) {
           Ok(value) => value
-          Err(_) => fail("\{id}: expansion error (hook 未落码?)")
+          Err(e) =>
+            match e {
+              InvalidValue(m) => fail("IV: \{m}")
+              InvalidContext(m) => fail("IC: \{m}")
+              InvalidIri(m) => fail("II: \{m}")
+              InvalidList(m) => fail("IL: \{m}")
+              Unsupported(m) => fail("US: \{m}")
+              _ => fail("other")
+            }
         }
         let expected_text = @utf8.decode(
           @fs.read_file("./src/jsonld/.rdf-tests/json-ld-api/" + expect_path).binary(),
@@ -352,8 +381,8 @@ async test "expand suite harness: manifest-driven buckets, all deferred pre-J2" 
     }
   }
   // pin 闭合：桶总和 == 普查数；plain = 已迁移数
-  assert_eq(deferred.length(), 227)
-  assert_eq(plain.length(), 158)
+  assert_eq(deferred.length(), 242)
+  assert_eq(plain.length(), 143)
   // 解析覆盖闭合：每个有 input 的条目都走了解析通道
   assert_eq(parsed_ok + parse_err, 385)
   // 首例钉：#t0001 已迁 plain（manifest 顺序首条；J2 首件验收 = 此例端到端绿）

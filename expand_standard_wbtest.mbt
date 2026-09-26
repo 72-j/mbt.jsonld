@@ -81,6 +81,7 @@ test "contract smoke: pending hooks refuse politely (red-not-wrong)" {
         language: Some(""),
         direction: None,
         raw: None,
+        included: None,
       }),
     ) {
     Ok(ExpandedValue::Value(lit)) => {
