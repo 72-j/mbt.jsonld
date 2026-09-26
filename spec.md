@@ -69,9 +69,11 @@
   datatype）。波及面：expand_iri 第 5 步绝对判定 / 值对象 @type datatype 合法性 /
   属性门（bnode 键在此**显式放行**——规范允许 blank node predicate）。
 - **vocab 位 base 门控（勘定挂账，2026-09-26）**：vocab 位键展开在无 @vocab 时
-  规范语义 = 原样返回、**不落 base merge**（#t0003 oracle：未映射 term 必须丢弃，
-  全局 base 注入实测破之）；harness 默认 base 注入（document location 约定）
-  与此门控**同批落**（t0051 解挂前置）。
+  规范语义 = 原样返回、**不落 base merge**（#t0003 oracle：未映射 term 必须丢弃）。
+  **挂「vocab 位 base 门控批」**（t0051 解挂前置）。harness 默认 base 注入
+  （document location 约定，t0051 需要）**禁止先行单独落**——实测全局注入即刻
+  破 #t0003（未映射键被解析成绝对 IRI 而保留，本应丢弃）。**注入与门控必须
+  同笔落**：先门控、后注入；任何一边单独落 = 引入红例。
 
 ### 红线与判据（2026-09-25 定）
 - 递归策略、搜索剪枝、工程权衡一律不进表；condition 只收可枚举的形态判断；
