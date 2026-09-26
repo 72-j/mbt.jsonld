@@ -81,6 +81,39 @@ fn options_for(entry : @jsonld.JsonValue) -> @jsonld.JsonLdOptions {
 }
 
 ///|
+
+///|
+/// JsonValue 手写序列化（诊断临时件——JsonValue 无 Show）
+fn diag_json_str(value : @jsonld.JsonValue) -> String {
+  match value {
+    @jsonld.JsonValue::Null => "null"
+    @jsonld.JsonValue::Bool(b) => "\{b}"
+    @jsonld.JsonValue::Number(n) => "\{n}"
+    @jsonld.JsonValue::String(str) => "\"\{str}\""
+    @jsonld.JsonValue::Array(items) => {
+      let parts = StringBuilder()
+      for i, item in items {
+        if i > 0 {
+          parts <+ ","
+        }
+        parts.write_string(diag_json_str(item))
+      }
+      "[\{parts.to_string()}]"
+    }
+    @jsonld.JsonValue::Object(pairs) => {
+      let parts = StringBuilder()
+      for i, pair in pairs {
+        if i > 0 {
+          parts <+ ","
+        }
+        parts.write_string("\"\{pair.0}\":\{diag_json_str(pair.1)}")
+      }
+      "{\{parts.to_string()}}"
+    }
+  }
+}
+
+///|
 async test "expand suite harness: manifest-driven buckets, all deferred pre-J2" {
   let manifest_text = @utf8.decode(
     @fs.read_file("./src/jsonld/.rdf-tests/json-ld-api/expand-manifest.jsonld").binary(),
@@ -489,10 +522,23 @@ async test "expand suite harness: manifest-driven buckets, all deferred pre-J2" 
     // 关键字重定义/互斥检查）
      "#ter08", "#ter11", "#ter18", "#tpi02", "#tec01",
     // 兜底拒绝组（拒绝理由 = US/II 兜底臂，语义细化各归其批挂账）：
-    // #ter02/#ter03（context 递归——递归检测批细化）、#ter09（@language 键
-    // Unsupported——默认语言批细化）、#ter20/#ter49（no vocab/relative prefix
-    // II 细化）、#tpr33（关键字别名 prefix——细化挂账）
-     "#ter02", "#ter03", "#ter09", "#ter20", "#ter49", "#tpr33",
+    // #ter02/#ter03（context 递归——递归检测批细化）、#ter20/#ter49（no vocab/
+    // relative prefix II 细化）、#tpr33（关键字别名 prefix——细化挂账）
+     "#ter02", "#ter03", "#ter20", "#ter49", "#tpr33",
+    // —— 丙·@context @language/@direction 默认值批（2026-09-27；context 七键
+    // 补 @language/@direction 两臂 + term 成员三态 + 串值注入）——
+    // #t0022/#t0018/#t0041：默认语言注入/term 覆盖/null 压制/嵌套重置
+     "#t0022", "#t0018", "#t0041",
+    //（#t0035 回壬批：语言映射默认语言条目的**排序语义**——期望序为直接属性
+    // 值先行、映射条目随后的 REC 深规则，超出默认值注入边界，逐例勘）
+    // #t0044：index map × language mappings
+     "#t0044",
+    // #tdi01/#tdi02/#tdi04~#tdi07：默认方向/term 覆盖/null 压制/语言映射 × 方向
+    //（#tdi03 回 buckets：真缺口 = 同 IRI 属性**合并**语义（两键同展 foo 需单键
+    // 合并 + 顺序由 t0034/t0114 oracle 定）——归「同 IRI 合并批」，非本批边界）
+     "#tdi01", "#tdi02", "#tdi04", "#tdi05", "#tdi06", "#tdi07",
+    // #ter09（负·真拒绝）：@language 非串 → invalid default language
+     "#ter09",
   ]
   // 两桶：迁移例走端到端对拍（输入 → expansion → 对 expected）；其余 deferred
   let deferred : Array[String] = []
@@ -576,7 +622,9 @@ async test "expand suite harness: manifest-driven buckets, all deferred pre-J2" 
         }
         if @jsonld.canonical_for_suite(actual) !=
           @jsonld.canonical_for_suite(expected) {
-          fail("\{id}: mismatch")
+          fail(
+            "\{id}: mismatch GOT=\{diag_json_str(@jsonld.canonical_for_suite(actual))} EXP=\{diag_json_str(@jsonld.canonical_for_suite(expected))}",
+          )
         }
       }
       plain.push(id)
@@ -585,8 +633,8 @@ async test "expand suite harness: manifest-driven buckets, all deferred pre-J2" 
     }
   }
   // pin 闭合：桶总和 == 普查数；plain = 已迁移数
-  assert_eq(deferred.length(), 77)
-  assert_eq(plain.length(), 308)
+  assert_eq(deferred.length(), 67)
+  assert_eq(plain.length(), 318)
   // 解析覆盖闭合：每个有 input 的条目都走了解析通道
   assert_eq(parsed_ok + parse_err, 385)
   // 首例钉：#t0001 已迁 plain（manifest 顺序首条；J2 首件验收 = 此例端到端绿）

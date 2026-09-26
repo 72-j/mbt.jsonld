@@ -9,6 +9,8 @@ test "expand_iri absolute passthrough (#t0001 对拍)" {
     vocab: None,
     terms: Map([]),
     previous: None,
+    default_language: None,
+    default_direction: None,
   }
   assert_true(
     IriExpander::expand_iri(
@@ -27,6 +29,8 @@ test "expand_iri bnode passthrough (#t0001 对拍)" {
     vocab: None,
     terms: Map([]),
     previous: None,
+    default_language: None,
+    default_direction: None,
   }
   assert_true(
     IriExpander::expand_iri(e, active, "_:b0", true, false) is Ok("_:b0"),
@@ -72,6 +76,8 @@ test "contract smoke: pending hooks refuse politely (red-not-wrong)" {
     vocab: None,
     terms: Map([]),
     previous: None,
+    default_language: None,
+    default_direction: None,
   }
   let options = JsonLdOptions::{
     base: None,
@@ -189,6 +195,8 @@ test "term/IRI chain with constructed context (②批对拍)" {
     is_protected: false,
     index_mapping: None,
     graph_secondary: None,
+    language_mapping: None,
+    direction_mapping: None,
   }
   terms["name"] = TermDefinition::{
     iri: Some("http://example.com/name"),
@@ -199,12 +207,16 @@ test "term/IRI chain with constructed context (②批对拍)" {
     is_protected: false,
     index_mapping: None,
     graph_secondary: None,
+    language_mapping: None,
+    direction_mapping: None,
   }
   let active = ActiveContext::{
     base: None,
     vocab: None,
     terms,
     previous: None,
+    default_language: None,
+    default_direction: None,
   }
   // term 精确查表（lookup_term 真行为）
   assert_true(
@@ -249,6 +261,8 @@ test "base-relative resolution (②批对拍)" {
     vocab: None,
     terms,
     previous: None,
+    default_language: None,
+    default_direction: None,
   }
   assert_true(
     IriExpander::resolve_base(e, based, "zzz") is Ok("http://example.org/zzz"),
@@ -278,12 +292,16 @@ test "property key routing via chain (②批)" {
     is_protected: false,
     index_mapping: None,
     graph_secondary: None,
+    language_mapping: None,
+    direction_mapping: None,
   }
   let active = ActiveContext::{
     base: None,
     vocab: None,
     terms,
     previous: None,
+    default_language: None,
+    default_direction: None,
   }
   let options = JsonLdOptions::{
     base: None,
@@ -313,6 +331,8 @@ test "concat_vocab stays unsupported until @context batch" {
     vocab: None,
     terms: Map([]),
     previous: None,
+    default_language: None,
+    default_direction: None,
   }
   // concat_vocab 已落码（③批）：@vocab 未声明 = Err 非静默拼接——烟雾活账翻转
   assert_true(
@@ -438,12 +458,16 @@ test "debug ter48: vocab=false excludes term lookup" {
     is_protected: false,
     index_mapping: None,
     graph_secondary: None,
+    language_mapping: None,
+    direction_mapping: None,
   }
   let active = ActiveContext::{
     base: None,
     vocab: Some("http://example.org/vocab-is-not-considered-for-id"),
     terms,
     previous: None,
+    default_language: None,
+    default_direction: None,
   }
   assert_true(
     IriExpander::expand_iri(e, active, "term", true, false) is Ok("term"),
@@ -459,6 +483,8 @@ test "@version declaration (③批对拍)" {
     vocab: None,
     terms: Map([]),
     previous: None,
+    default_language: None,
+    default_direction: None,
   }
   let options = JsonLdOptions::{
     base: None,
@@ -486,6 +512,8 @@ test "invalid @version rejected (③批对拍)" {
     vocab: None,
     terms: Map([]),
     previous: None,
+    default_language: None,
+    default_direction: None,
   }
   let options = JsonLdOptions::{
     base: None,
@@ -543,6 +571,8 @@ test "term value expands against in-progress vocab (t0072 对拍)" {
     vocab: None,
     terms: Map([]),
     previous: None,
+    default_language: None,
+    default_direction: None,
   }
   let options = JsonLdOptions::{
     base: None,
@@ -758,6 +788,8 @@ test "@propagate must be boolean and 1.1-only (#tc029/#tc030 对拍)" {
     vocab: None,
     terms: Map([]),
     previous: None,
+    default_language: None,
+    default_direction: None,
   }
   let options_11 = JsonLdOptions::{
     base: None,
@@ -858,9 +890,15 @@ test "td unknown key vs unimplemented key (#ter56 同族对拍)" {
       assert_true(message.contains("invalid term definition"))
     _ => fail("expected invalid term definition")
   }
-  // 仍未落码的 td 键走 Unsupported（落码活账）
-  let unimplemented = "{\"@context\": {\"p\": {\"@id\": \"ex:p\", \"@direction\": \"ltr\"}}}"
-  assert_true(expand_document(unimplemented, options) is Err(Unsupported(_)))
+  // @direction 已落码（丙批）：合法 ltr 接受；非法值 → invalid base direction
+  let direction_ok = "{\"@context\": {\"p\": {\"@id\": \"ex:p\", \"@direction\": \"ltr\"}}}"
+  assert_true(expand_document(direction_ok, options) is Ok(_))
+  let direction_bad = "{\"@context\": {\"p\": {\"@id\": \"ex:p\", \"@direction\": \"sideways\"}}}"
+  match expand_document(direction_bad, options) {
+    Err(InvalidContext(message)) =>
+      assert_true(message.contains("invalid base direction"))
+    _ => fail("expected invalid base direction")
+  }
 }
 
 ///|

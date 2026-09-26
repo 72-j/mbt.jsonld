@@ -9,8 +9,11 @@ pub(all) struct ActiveContext {
   /// 时置位）——展开**新节点对象**时回退到此（"term-scoped context 不跨新节点"。
   /// type-scoped 批）。平铺结构（不复用 ActiveContext）以免自引用类型；规格只
   /// 单层回退，「已有 previous 不覆盖」语义由本字段的表达方式承担。
-  /// @language/@direction 默认值待后续批扩
   previous : PreviousContext?
+  /// 默认语言（@context @language 成员——丙批）：串值无语言时注入
+  default_language : String?
+  /// 默认文字方向（@context @direction 成员——丙批）：ltr/rtl
+  default_direction : String?
 }
 
 ///|
@@ -44,6 +47,18 @@ pub(all) struct TermDefinition {
   /// 覆盖。受保护定义不可被**不等价**重定义覆盖；等价重定义允许且**保留旧定义**
   /// （保护位不丢——#pr42 oracle）
   is_protected : Bool
+  /// 语言映射三态（丙批）：None = 未声明（串值继承 context 默认语言）；
+  /// Null = 显式压制（@language: null）；Set = 覆盖（#t0018/#tdi06 oracle）
+  language_mapping : LanguageMember?
+  /// 方向映射三态（丙批）：同上三态；#tdi01/#tdi04~#tdi07 oracle
+  direction_mapping : LanguageMember?
+}
+
+///|
+/// 语言/方向成员三态（丙批）
+pub(all) enum LanguageMember {
+  Set(String)
+  Null
 }
 
 ///|

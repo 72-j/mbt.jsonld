@@ -492,6 +492,8 @@ fn StandardExpander::revert_previous(active : ActiveContext) -> ActiveContext {
         vocab: previous.vocab,
         terms: previous.terms,
         previous: None,
+        default_language: None,
+        default_direction: None,
       }
     None => active
   }
@@ -1819,6 +1821,8 @@ fn StandardExpander::expand_container_map(
       vocab: map_context.vocab,
       terms: map_context.terms,
       previous: None,
+      default_language: None,
+      default_direction: None,
     }
     for item in items {
       let item_values = match
@@ -1960,8 +1964,19 @@ fn StandardExpander::expand_language_map(
   entries : Array[(String, JsonValue)],
   options : JsonLdOptions,
 ) -> Result[Array[ExpandedValue], JsonLdError] {
-  let _ = term
   let _ = options
+  // 方向三态解析（丙批——#tdi04~#tdi07 oracle）：term direction 成员
+  // Set 覆盖 / Null 压制 / 未声明继承 context 默认方向；"@none" 键条目
+  // 不附方向（#tdi07 同族语义：none 条目保持最小形态）
+  let term_direction : String? = match active.terms.get(term) {
+    Some(term_definition) =>
+      match term_definition.direction_mapping {
+        Some(LanguageMember::Set(dir)) => Some(dir)
+        Some(LanguageMember::Null) => None
+        None => active.default_direction
+      }
+    None => active.default_direction
+  }
   let expanded : Array[ExpandedValue] = []
   for entry in entries {
     let language = entry.0
@@ -1979,13 +1994,19 @@ fn StandardExpander::expand_language_map(
       match item {
         JsonValue::Null => () // 条目值 null：跳过（#tl001 oracle）
         JsonValue::String(text) => {
+          // @none 条目：语言与方向均不附（最小形态——#tdi07 对照）
           let language_tag = if is_none { None } else { Some(language) }
+          let direction_tag : String? = if is_none {
+            None
+          } else {
+            term_direction
+          }
           expanded.push(
             ExpandedValue::Value(ExpandedLiteral::{
               value: text,
               datatype: None,
               language: language_tag,
-              direction: None,
+              direction: direction_tag,
               raw: None,
               index: None,
               included: None,
@@ -2115,6 +2136,27 @@ fn StandardExpander::expand_term_values_inner(
         Ok(context) => context
         Err(e) => return Err(e)
       }
+      // 默认语言/方向解析（丙批——#t0022/#t0018/#tdi01 oracle）：term 成员
+      // 三态优先（Set 覆盖 / Null 压制），未声明继承 context 默认（scoped
+      // context 链已继承——property-scoped 应用保留默认值）；仅串值注入
+      let term_language : String? = match scoped.terms.get(term) {
+        Some(term_definition) =>
+          match term_definition.language_mapping {
+            Some(LanguageMember::Set(lang)) => Some(lang)
+            Some(LanguageMember::Null) => None
+            None => scoped.default_language
+          }
+        None => scoped.default_language
+      }
+      let term_direction : String? = match scoped.terms.get(term) {
+        Some(term_definition) =>
+          match term_definition.direction_mapping {
+            Some(LanguageMember::Set(dir)) => Some(dir)
+            Some(LanguageMember::Null) => None
+            None => scoped.default_direction
+          }
+        None => scoped.default_direction
+      }
       // coercion 应用（⑤批 A 组——判据②）：type mapping 三形态只转**串值**
       // （number/bool 不转，#t0088 oracle）；形态 B "@id" = document-relative、
       // 形态 C "@vocab" = vocab 位、形态 D = 显式 datatype 值对象
@@ -2175,9 +2217,31 @@ fn StandardExpander::expand_term_values_inner(
                 Err(e) => Err(e)
               }
             }
-            None => Ok([literal_of(sv, None)])
+            None => {
+              let lit = ExpandedLiteral::{
+                value: sv,
+                datatype: None,
+                language: term_language,
+                direction: term_direction,
+                raw: None,
+                index: None,
+                included: None,
+              }
+              Ok([ExpandedValue::Value(lit)])
+            }
           }
-        None => Ok([literal_of(sv, None)])
+        None => {
+          let lit = ExpandedLiteral::{
+            value: sv,
+            datatype: None,
+            language: term_language,
+            direction: term_direction,
+            raw: None,
+            index: None,
+            included: None,
+          }
+          Ok([ExpandedValue::Value(lit)])
+        }
       }
     }
     JsonValue::Number(nv) =>
@@ -2346,6 +2410,8 @@ impl ContextProcessor for StandardExpander with fn process_context(
         vocab: None,
         terms: Map([]),
         previous: previous_after(active, flags.propagate),
+        default_language: None,
+        default_direction: None,
       })
     }
     JsonValue::String(_) =>
@@ -2401,6 +2467,9 @@ impl ContextProcessor for StandardExpander with fn process_context(
       // 保护位）：1.0 模式非法（先验，与 @propagate 同门）；非布尔 → invalid
       // @protected value
       let mut protected_default = false
+      // 默认语言/方向（丙批——@language/@direction 臂）
+      let mut default_language : String? = None
+      let mut default_direction : String? = None
       for pair in pairs {
         if pair.0 is "@propagate" {
           if _options.processing_mode is JsonLd10 {
@@ -2512,7 +2581,36 @@ impl ContextProcessor for StandardExpander with fn process_context(
           "@propagate" => ()
           // @protected 同上（对象臂入口预扫描：默认保护位）
           "@protected" => ()
-          "@language" | "@direction" | "@import" =>
+          "@language" =>
+            // 默认语言（丙批——#t0022/#t0041/#ter09 oracle）：串设置/null
+            // 重置；非串 → invalid default language
+            match pair.1 {
+              JsonValue::String(lang) => default_language = Some(lang)
+              JsonValue::Null => default_language = None
+              _ =>
+                return Err(
+                  JsonLdError::InvalidContext("invalid default language"),
+                )
+            }
+          "@direction" =>
+            // 默认方向（丙批——#tdi01 oracle）：ltr/rtl/null；其他 →
+            // invalid base direction（#tdi08 同族）
+            match pair.1 {
+              JsonValue::Null => default_direction = None
+              JsonValue::String(dir) =>
+                if dir is ("ltr" | "rtl") {
+                  default_direction = Some(dir)
+                } else {
+                  return Err(
+                    JsonLdError::InvalidContext("invalid base direction"),
+                  )
+                }
+              _ =>
+                return Err(
+                  JsonLdError::InvalidContext("invalid base direction"),
+                )
+            }
+          "@import" =>
             return Err(
               JsonLdError::Unsupported(
                 "context keyword pending later batches (\{pair.0})",
@@ -2559,6 +2657,8 @@ impl ContextProcessor for StandardExpander with fn process_context(
                   vocab,
                   terms: lookup_terms,
                   previous: None,
+                  default_language: None,
+                  default_direction: None,
                 }
                 let expanded = match
                   IriExpander::expand_iri(_self, building, iri, false, true) {
@@ -2587,6 +2687,8 @@ impl ContextProcessor for StandardExpander with fn process_context(
                       index_mapping: None,
                       graph_secondary: None,
                       is_protected: protected_default,
+                      language_mapping: None,
+                      direction_mapping: None,
                     },
                     flags.override_protected,
                   ) {
@@ -2612,6 +2714,8 @@ impl ContextProcessor for StandardExpander with fn process_context(
                       index_mapping: None,
                       graph_secondary: None,
                       is_protected: protected_default,
+                      language_mapping: None,
+                      direction_mapping: None,
                     },
                     flags.override_protected,
                   ) {
@@ -2655,6 +2759,8 @@ impl ContextProcessor for StandardExpander with fn process_context(
         vocab,
         terms: new_terms,
         previous: previous_after(active, propagate),
+        default_language,
+        default_direction,
       })
     }
     _ =>
@@ -2686,6 +2792,8 @@ fn StandardExpander::process_expanded_term_definition(
   let mut td_container : ContainerType? = None
   let mut td_reverse : String? = None
   let mut td_graph_secondary : ContainerType? = None
+  let mut td_language : LanguageMember? = None
+  let mut td_direction : LanguageMember? = None
   let mut td_local_context : JsonValue? = None
   // {"@id": null} 显式空映射（scoped-context 批）：区别于"无 @id 键"——
   // 不落 vocab 兜底，term 保留但 IRI 映射为 null（展开期该键丢弃）
@@ -2723,6 +2831,8 @@ fn StandardExpander::process_expanded_term_definition(
               vocab,
               terms: lookup_terms,
               previous: None,
+              default_language: None,
+              default_direction: None,
             }
             match IriExpander::expand_iri(_self, building, iri, false, true) {
               Ok(k) => {
@@ -2754,6 +2864,8 @@ fn StandardExpander::process_expanded_term_definition(
                 vocab,
                 terms: new_terms,
                 previous: None,
+                default_language: None,
+                default_direction: None,
               }
               match IriExpander::expand_iri(_self, building, t, false, true) {
                 Ok(k) => k
@@ -2832,11 +2944,27 @@ fn StandardExpander::process_expanded_term_definition(
           Err(e) => return Err(e)
         }
       "@language" =>
-        // 语言映射验证（⑤后半——#ter22 oracle）：串或 null；应用挂后
+        // 语言映射（丙批应用化——#ter22 验证保留：非串 → invalid language
+        // mapping；null = 显式压制默认语言）
         match td_pair.1 {
-          JsonValue::String(_) | JsonValue::Null => ()
+          JsonValue::String(lang) =>
+            td_language = Some(LanguageMember::Set(lang))
+          JsonValue::Null => td_language = Some(LanguageMember::Null)
           _ =>
             return Err(JsonLdError::InvalidContext("invalid language mapping"))
+        }
+      "@direction" =>
+        // 方向映射（丙批——#tdi01/#tdi04~#tdi07 oracle）：ltr/rtl 或 null
+        // 压制；非法值 → invalid base direction
+        match td_pair.1 {
+          JsonValue::String(dir) =>
+            if dir is ("ltr" | "rtl") {
+              td_direction = Some(LanguageMember::Set(dir))
+            } else {
+              return Err(JsonLdError::InvalidContext("invalid base direction"))
+            }
+          JsonValue::Null => td_direction = Some(LanguageMember::Null)
+          _ => return Err(JsonLdError::InvalidContext("invalid base direction"))
         }
       "@prefix" =>
         // 前缀标记验证（⑤后半——#ter53 oracle）：须布尔；IRI 尾段 / 或 #
@@ -2871,6 +2999,8 @@ fn StandardExpander::process_expanded_term_definition(
           vocab,
           terms: new_terms,
           previous: None,
+          default_language: None,
+          default_direction: None,
         }
         match
           ContextProcessor::process_context(
@@ -2899,6 +3029,8 @@ fn StandardExpander::process_expanded_term_definition(
               vocab,
               terms: new_terms,
               previous: None,
+              default_language: None,
+              default_direction: None,
             }
             match IriExpander::expand_iri(_self, building, rev, false, true) {
               Ok(k) =>
@@ -2938,6 +3070,8 @@ fn StandardExpander::process_expanded_term_definition(
               vocab,
               terms: new_terms,
               previous: None,
+              default_language: None,
+              default_direction: None,
             }
             match
               IriExpander::expand_iri(_self, building, index_name, false, true) {
@@ -2960,14 +3094,6 @@ fn StandardExpander::process_expanded_term_definition(
             return Err(JsonLdError::InvalidContext("invalid term definition"))
         }
       }
-      // 未落码 td 键：**显式 Unsupported**（禁静默忽略——静默 catch-all 是假绿
-      // 温床：#pr01/#pr08/#pr11 三枚真缺口即 td 级 @protected 被吞所致）
-      "@direction" =>
-        return Err(
-          JsonLdError::Unsupported(
-            "term definition keyword pending later batches (\{td_pair.0})",
-          ),
-        )
       // 其余键按 REC 4.2.2 键白名单报错（"any entry other than @id, @reverse,
       // @container, @context, @direction, @index, @language, @nest, @prefix,
       // @protected, or @type → invalid term definition"）
@@ -3046,6 +3172,8 @@ fn StandardExpander::process_expanded_term_definition(
           index_mapping: None,
           graph_secondary: None,
           is_protected: td_protected,
+          language_mapping: None,
+          direction_mapping: None,
         },
         override_protected,
       ) {
@@ -3080,6 +3208,8 @@ fn StandardExpander::process_expanded_term_definition(
               vocab,
               terms: new_terms,
               previous: None,
+              default_language: None,
+              default_direction: None,
             }
             match
               IriExpander::expand_iri(_self, building, term_name, false, true) {
@@ -3106,6 +3236,8 @@ fn StandardExpander::process_expanded_term_definition(
       local_context: td_local_context,
       index_mapping: td_index_mapping,
       graph_secondary: td_graph_secondary,
+      language_mapping: td_language,
+      direction_mapping: td_direction,
       is_protected: td_protected,
     },
     override_protected,
@@ -3602,16 +3734,6 @@ fn StandardExpander::expand_graph_container(
                 Ok(k) => Some(k)
                 Err(e) => return Err(e)
               }
-            }
-          _ => None
-        }
-        // @index 附挂值 = 原始键名（两用值存原始形态——const §5）
-        let attach_index : String? = match secondary {
-          Some(ContainerType::Index) =>
-            if none_key {
-              None
-            } else {
-              Some(entry.0)
             }
           _ => None
         }
