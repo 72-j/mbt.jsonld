@@ -745,9 +745,16 @@ fn StandardExpander::expand_object(
     let routes_to_keyword = expanded_key.get_char(0) is Some('@')
     if !routes_to_keyword {
       // null 值属性整体丢弃（#t0003 oracle；区别于空数组字面值保留——
-      // #t0004 oracle：set3: [] 保留）
+      // #t0004 oracle：set3: [] 保留）；**@json term 豁免**——null 即
+      // JSON null 字面量（#tjs18 oracle）
       if pair.1 is JsonValue::Null {
-        continue
+        let json_null_member = match current.terms.get(pair.0) {
+          Some(term_definition) => term_definition.datatype is Some("@json")
+          None => false
+        }
+        if !json_null_member {
+          continue
+        }
       }
       // term 位（_term 缺省路由）：键已归一；属性值展开，键合法即累加
       let values = match
@@ -834,7 +841,15 @@ fn StandardExpander::expand_object(
                   self, type_scoped_context, t, true, true,
                 ) {
                 Ok(dt) =>
-                  if !is_valid_absolute_iri(dt) {
+                  if dt is "@json" {
+                    // @json 值对象直通（丁批——#tjs15/#tjs16 oracle）：datatype
+                    // = @json，@value 允许任意 JSON（见 @value 臂 Array/Object）
+                    has_datatype = true
+                    match literal {
+                      Some(l) => l.datatype = Some("@json")
+                      None => ()
+                    }
+                  } else if !is_valid_absolute_iri(dt) {
                     return Err(JsonLdError::InvalidValue("invalid typed value"))
                   } else if has_language {
                     // @type 与 @language 互斥（#ter38）
@@ -894,7 +909,21 @@ fn StandardExpander::expand_object(
         // @value：值对象核心（string/number/bool 词形保形；null → 值对象丢弃）
         is_value_object = true
         match pair.1 {
-          JsonValue::Null => literal = None
+          JsonValue::Null =>
+            // @json 值对象（#tjs22 oracle）：null = JSON null 字面量保留
+            if StandardExpander::is_json_value_object(self, current, pairs) {
+              literal = Some(ExpandedLiteral::{
+                value: "",
+                datatype: Some("@json"),
+                language: None,
+                direction: None,
+                raw: Some(JsonValue::Null),
+                index: None,
+                included: None,
+              })
+            } else {
+              literal = None
+            }
           JsonValue::String(sv) =>
             literal = Some(
               match literal {
@@ -954,12 +983,30 @@ fn StandardExpander::expand_object(
                   }
               },
             )
-          _ =>
-            return Err(
-              JsonLdError::InvalidValue(
-                "@value must be string, number, boolean or null",
-              ),
+          JsonValue::Array(_) | JsonValue::Object(_) => {
+            // @json 值对象（丁批——#tjs15/#tjs16 oracle）：@type 为 "@json"
+            // 时，@value 允许任意 JSON（对象/数组原样入 raw）
+            let is_json_value = StandardExpander::is_json_value_object(
+              self, current, pairs,
             )
+            if is_json_value {
+              literal = Some(ExpandedLiteral::{
+                value: "",
+                datatype: Some("@json"),
+                language: None,
+                direction: None,
+                raw: Some(pair.1),
+                index: None,
+                included: None,
+              })
+            } else {
+              return Err(
+                JsonLdError::InvalidValue(
+                  "@value must be string, number, boolean or null",
+                ),
+              )
+            }
+          }
         }
       }
       "@language" =>
@@ -2062,6 +2109,40 @@ fn StandardExpander::expand_map_item_values(
 
 ///|
 /// 内层 term 位展开（容器应用已由外层壳处理——递归调用方一律走此层）
+
+///|
+/// @json 值对象识别（丁批——#tjs15/#tjs16/#tjs22 oracle）：同对象存在 vocab
+/// 展开为 @type 的键、其值（可别名 term，"json" → @json）展开为 @json
+fn StandardExpander::is_json_value_object(
+  self : StandardExpander,
+  current : ActiveContext,
+  pairs : Array[(String, JsonValue)],
+) -> Bool {
+  let mut is_json_value = false
+  for p in pairs {
+    let sibling = match
+      IriExpander::expand_iri(self, current, p.0, false, true) {
+      Ok(k) => k
+      Err(_) => p.0
+    }
+    match (sibling, p.1) {
+      ("@type", JsonValue::String(t)) => {
+        let expanded_type = match
+          IriExpander::expand_iri(self, current, t, false, true) {
+          Ok(k) => k
+          Err(_) => t
+        }
+        if expanded_type is "@json" {
+          is_json_value = true
+        }
+      }
+      _ => ()
+    }
+  }
+  is_json_value
+}
+
+///|
 fn StandardExpander::expand_term_values_inner(
   self : StandardExpander,
   active : ActiveContext,
@@ -2070,6 +2151,34 @@ fn StandardExpander::expand_term_values_inner(
   active_property : String?,
   options : JsonLdOptions,
 ) -> Result[Array[ExpandedValue], JsonLdError] {
+  // @json 字面量拦截（丁批——REC 13.8.1 @json 值展开）：值原样（JSON 解析
+  // 结果）进 @value，datatype = @json 关键字形态（oracle tjs01：输出
+  // `"@type": "@json"`）；对象/数组**不作节点展开**（#tjs06/#tjs08 oracle）。
+  // canonical 选项只影响序列化词形（JCS/RFC 8785，挂 J3），展开按解析值对拍
+  let scoped_for_json = match
+    StandardExpander::apply_property_scoped_context(self, active, term, options) {
+    Ok(context) => context
+    Err(e) => return Err(e)
+  }
+  match scoped_for_json.terms.get(term) {
+    Some(term_definition) =>
+      match term_definition.datatype {
+        Some("@json") => {
+          let lit = ExpandedLiteral::{
+            value: "",
+            datatype: Some("@json"),
+            language: None,
+            direction: None,
+            raw: Some(value),
+            index: None,
+            included: None,
+          }
+          return Ok([ExpandedValue::Value(lit)])
+        }
+        _ => ()
+      }
+    None => ()
+  }
   match value {
     JsonValue::Object(_) => {
       // list/set 对象拦截（C 组——判据①；#ter41/#tli01 oracle）
@@ -2855,8 +2964,8 @@ fn StandardExpander::process_expanded_term_definition(
       "@type" =>
         match td_pair.1 {
           JsonValue::String(t) => {
-            // 关键字形态原样（"@id"/"@vocab"）；其余 vocab 展开
-            let expanded = if t is "@id" || t is "@vocab" {
+            // 关键字形态原样（"@id"/"@vocab"/"@json"——丁批）；其余 vocab 展开
+            let expanded = if t is ("@id" | "@vocab" | "@json") {
               t
             } else {
               let building = ActiveContext::{
@@ -2872,9 +2981,8 @@ fn StandardExpander::process_expanded_term_definition(
                 Err(e) => return Err(e)
               }
             }
-            // type mapping 只收关键字形态或绝对 IRI（invalid type mapping）
-            if !(expanded is "@id" ||
-              expanded is "@vocab" ||
+            // type mapping 只收关键字形态（@id/@vocab/@json——丁批）或绝对 IRI
+            if !(expanded is ("@id" | "@vocab" | "@json") ||
               is_valid_absolute_iri(expanded)) {
               return Err(JsonLdError::InvalidContext("invalid type mapping"))
             }

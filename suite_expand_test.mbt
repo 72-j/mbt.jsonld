@@ -539,6 +539,16 @@ async test "expand suite harness: manifest-driven buckets, all deferred pre-J2" 
      "#tdi01", "#tdi02", "#tdi04", "#tdi05", "#tdi06", "#tdi07",
     // #ter09（负·真拒绝）：@language 非串 → invalid default language
      "#ter09",
+    // —— 丁·@json literal 批（2026-09-27；@json 拦截：值原样进 @value，
+    // datatype=@json；canonical 选项不影响展开对拍——REC 钉见 todo §J2）——
+    // #tjs01~#tjs07：标量/对象/数组 JSON 字面量
+     "#tjs01", "#tjs02", "#tjs03", "#tjs04", "#tjs05", "#tjs06", "#tjs07",
+    // #tjs08~#tjs14：canonical 变体（数组/字符串/结构化/unicode/值/wierd/
+    // 不展开 context——JCS 只影响序列化词形）
+     "#tjs08", "#tjs09", "#tjs10", "#tjs11", "#tjs12", "#tjs13", "#tjs14",
+    // #tjs15~#tjs23：已展开形态/别名 @type/@value/@context/null/空数组
+     "#tjs15", "#tjs16", "#tjs17", "#tjs18", "#tjs19", "#tjs20", "#tjs21", "#tjs22",
+    "#tjs23",
   ]
   // 两桶：迁移例走端到端对拍（输入 → expansion → 对 expected）；其余 deferred
   let deferred : Array[String] = []
@@ -633,8 +643,8 @@ async test "expand suite harness: manifest-driven buckets, all deferred pre-J2" 
     }
   }
   // pin 闭合：桶总和 == 普查数；plain = 已迁移数
-  assert_eq(deferred.length(), 67)
-  assert_eq(plain.length(), 318)
+  assert_eq(deferred.length(), 44)
+  assert_eq(plain.length(), 341)
   // 解析覆盖闭合：每个有 input 的条目都走了解析通道
   assert_eq(parsed_ok + parse_err, 385)
   // 首例钉：#t0001 已迁 plain（manifest 顺序首条；J2 首件验收 = 此例端到端绿）
