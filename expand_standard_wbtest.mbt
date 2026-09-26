@@ -363,40 +363,6 @@ test "debug ter48: vocab=false excludes term lookup" {
 }
 
 ///|
-/// ter48 端到端调试（一次性）：最小输入应 Err
-test "debug ter48 e2e minimal (throwaway)" {
-  let options = JsonLdOptions::{
-    base: None,
-    expand_context: None,
-    processing_mode: JsonLd11,
-  }
-  assert_true(
-    expand_document(
-      "{\"@context\": {\"term\": \"http://example.com/terms-are-not-considered-in-id\"}, \"@id\": \"term\"}",
-      options,
-    )
-    is Err(_),
-  )
-}
-
-///|
-/// ter48 完整输入调试（一次性）：与最小输入对照
-test "debug ter48 full input (throwaway)" {
-  let options = JsonLdOptions::{
-    base: None,
-    expand_context: None,
-    processing_mode: JsonLd11,
-  }
-  assert_true(
-    expand_document(
-      "{\"@context\": {\"term\": \"http://example.com/terms-are-not-considered-in-id\", \"compact-iris\": \"http://example.com/compact-iris#\", \"property\": \"http://example.com/property\", \"@vocab\": \"http://example.org/vocab-is-not-considered-for-id\"}, \"@id\": \"term\", \"property\": [{\"@id\": \"compact-iris:are-considered\", \"property\": \"a\"}]}",
-      options,
-    )
-    is Err(_),
-  )
-}
-
-///|
 /// ③批 @version 落码对拍：接受 json-ld-1.1 / 拒绝其他值
 test "@version declaration (③批对拍)" {
   let e = StandardExpander::{ }
@@ -454,35 +420,6 @@ test "merge_base_reference absolute-path reference (t0051 对拍)" {
     merge_base_reference("http://example/base", "relative-iri")
     is "http://example/relative-iri",
   )
-}
-
-///|
-/// t0091 链路调试（一次性）
-test "debug t0091 chain (throwaway)" {
-  let e = StandardExpander::{ }
-  let active = ActiveContext::{ base: None, vocab: None, terms: Map([]), }
-  let options = JsonLdOptions::{
-    base: None,
-    expand_context: None,
-    processing_mode: JsonLd11,
-  }
-  let c1 = match parse_json("{\"@base\": \"http://foo.bar/./baz/\"}") {
-    Ok(c) => c
-    Err(_) => fail("c1")
-  }
-  let a1 = match ContextProcessor::process_context(e, active, c1, options) {
-    Ok(a) => a
-    Err(_) => fail("c1 process")
-  }
-  let c2 = match parse_json("{\"@base\": \"example/\"}") {
-    Ok(c) => c
-    Err(_) => fail("c2")
-  }
-  let a2 = match ContextProcessor::process_context(e, a1, c2, options) {
-    Ok(a) => a
-    Err(_) => fail("c2 process")
-  }
-  assert_true(a2.base is Some("http://foo.bar/baz/example/"))
 }
 
 ///|
