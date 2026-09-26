@@ -56,6 +56,7 @@ pub(all) struct ExpandedNode {
   types : Array[String]
   properties : Array[(String, Array[ExpandedValue])]
   reverse_props : Array[(String, Array[ExpandedValue])] // @reverse 映射（reverse 批）
+  graph : Array[ExpandedValue]? // 节点位 @graph（文档级批——t0020 保留 / t0009 顶层表面化）
 } derive(Debug)
 
 ///|

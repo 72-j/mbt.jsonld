@@ -436,6 +436,7 @@ fn StandardExpander::expand_object(
   let types : Array[String] = []
   let properties : Array[(String, Array[ExpandedValue])] = []
   let reverse_props : Array[(String, Array[ExpandedValue])] = []
+  let mut node_graph : Array[ExpandedValue]? = None
   let mut literal : ExpandedLiteral? = None
   let mut is_value_object = false
   let mut has_datatype = false
@@ -794,6 +795,42 @@ fn StandardExpander::expand_object(
             }
           _ => return Err(JsonLdError::InvalidValue("invalid @reverse value"))
         }
+      "@graph" =>
+        // 节点位 @graph（文档级批——#t0020 oracle：节点下 @graph 保留于节点
+        // 对象；#t0009/#t0021/#t0046 顶层表面化由 engine.serialize_top 门承担）
+        match pair.1 {
+          JsonValue::Array(items) => {
+            let collected : Array[ExpandedValue] = []
+            for item in items {
+              match
+                StandardExpander::append_collection_item(
+                  self, current, item, options, collected,
+                ) {
+                Ok(_) => ()
+                Err(e) => return Err(e)
+              }
+            }
+            node_graph = Some(collected)
+          }
+          JsonValue::Object(_) => {
+            // 单节点对象形态归一为数组（规范允许 @graph: {...}）
+            let collected : Array[ExpandedValue] = []
+            match
+              StandardExpander::append_collection_item(
+                self,
+                current,
+                pair.1,
+                options,
+                collected,
+              ) {
+              Ok(_) => ()
+              Err(e) => return Err(e)
+            }
+            node_graph = Some(collected)
+          }
+          JsonValue::Null => () // @graph: null = 无图内容（先验；无 oracle）
+          _ => return Err(JsonLdError::InvalidValue("invalid @graph value"))
+        }
       other =>
         return Err(
           JsonLdError::Unsupported(
@@ -824,10 +861,95 @@ fn StandardExpander::expand_object(
           types,
           properties,
           reverse_props,
+          graph: node_graph,
         }),
       ),
     )
   }
+}
+
+///|
+/// 集合位条目展开（文档级 @graph 批）：图内容逐项收集。自由浮动 @set/@list
+/// 纯形节点对象先分派（#t0047 oracle）：@set = 透明（其值逐项并入集合）；
+/// @list = 整体丢弃（含带属性节点——list 内容随 list 消亡）。
+/// 常规分派 = 对象 → expand_object（值对象/free-floating 丢弃——#t0046 oracle：
+/// 标量/值对象/@id-only 全弃）；标量 → 直接弃；嵌套数组 = 忽略（先验；无
+/// oracle 不扩面）。顶层数组位的自由浮动 @set/@list 未落（同先验）。
+fn StandardExpander::append_collection_item(
+  self : StandardExpander,
+  active : ActiveContext,
+  item : JsonValue,
+  options : JsonLdOptions,
+  out : Array[ExpandedValue],
+) -> Result[Unit, JsonLdError] {
+  // 自由浮动 @set/@list 纯形节点对象分派（单键纯形才走；混合形态未钉，
+  // 走常规分派由关键字臂 Unsupported 报错——先验，防过宽）
+  match item {
+    JsonValue::Object(pairs) =>
+      if pairs.length() == 1 && pairs[0].0 is ("@set" | "@list") {
+        match pairs[0].0 {
+          "@set" => {
+            // @set 透明：其值逐项并入集合（#t0047 set 臂：set 内标量弃、
+            // 带属性节点保留）；非数组 = 单元素递归（C 组单元素包裹对偶）
+            match pairs[0].1 {
+              JsonValue::Array(set_items) =>
+                for sub in set_items {
+                  match
+                    StandardExpander::append_collection_item(
+                      self, active, sub, options, out,
+                    ) {
+                    Ok(_) => ()
+                    Err(e) => return Err(e)
+                  }
+                }
+              JsonValue::Null => () // @set: null 透明丢弃（先验）
+              single =>
+                match
+                  StandardExpander::append_collection_item(
+                    self, active, single, options, out,
+                  ) {
+                  Ok(_) => ()
+                  Err(e) => return Err(e)
+                }
+            }
+            return Ok(())
+          }
+          "@list" => return Ok(()) // 整体丢弃：内容随 list 消亡（#t0047 list 臂）
+          _ => ()
+        }
+      }
+    _ => ()
+  }
+  // 常规分派：对象 → expand_object（graph-bearing 节点保留——is_free_floating
+  // 已扩）；值对象/free-floating 弃
+  match item {
+    JsonValue::Object(_) => {
+      let expanded : ExpandedValue? = match
+        StandardExpander::expand_object(self, active, item, None, options) {
+        Ok(v) => v
+        Err(e) => return Err(e)
+      }
+      match expanded {
+        Some(ExpandedValue::Node(node)) =>
+          // 图内容 free-floating 门（#t0001 同族——@id-only/无属性节点弃；
+          // graph 字段节点不受此门（is_free_floating 已扩）
+          if is_free_floating(node) {
+            ()
+          } else {
+            out.push(ExpandedValue::Node(node))
+          }
+        Some(ExpandedValue::Value(_)) => () // 值对象即弃（#t0046）
+        Some(ExpandedValue::List(_)) => () // 自由浮动 list 产物丢弃（防御；与 @list 整弃一致）
+        None => () // @value: null → 丢弃
+      }
+    }
+    JsonValue::Null
+    | JsonValue::Number(_)
+    | JsonValue::Bool(_)
+    | JsonValue::String(_) => ()
+    JsonValue::Array(_) => () // 嵌套数组于集合位忽略（先验）
+  }
+  Ok(())
 }
 
 ///|
@@ -1069,12 +1191,13 @@ fn StandardExpander::expand_term_values_inner(
                         types: [],
                         properties: [],
                         reverse_props: [],
+                        graph: None,
                       }),
                     )
                   Err(e) => Err(e)
                 }
               } else if coercion is "@vocab" {
-                // @vocab coercion 双真旗（#t0057 oracle：vocab miss 后落
+                // @vocab coercion 构造点（#t0057 oracle：vocab miss 后落
                 // document-relative 位——base 解析）
                 match IriExpander::expand_iri(self, active, sv, true, true) {
                   Ok(iri) =>
@@ -1084,6 +1207,7 @@ fn StandardExpander::expand_term_values_inner(
                         types: [],
                         properties: [],
                         reverse_props: [],
+                        graph: None,
                       }),
                     )
                   Err(e) => Err(e)
@@ -1380,7 +1504,16 @@ impl ContextProcessor for StandardExpander with fn process_context(
                 }
                 let expanded = match
                   IriExpander::expand_iri(_self, building, iri, false, true) {
-                  Ok(k) => k
+                  Ok(k) => {
+                    // 关键字 IRI 映射模式门（#t0026/#ter43 同形异判对：1.0 允许
+                    // @type 别名 [t0026 用对象形态]；1.1 禁 → invalid IRI
+                    // mapping。@id/#t0051、@graph/#t0017 别名两模式均合法——
+                    // 1.1 只禁 @type；simple 臂与 td @id 臂同规则同源）
+                    if !(_options.processing_mode is JsonLd10) && k is "@type" {
+                      return Err(JsonLdError::InvalidIri("invalid IRI mapping"))
+                    }
+                    k
+                  }
                   Err(e) => return Err(e)
                 }
                 new_terms[other] = TermDefinition::{
@@ -1466,7 +1599,14 @@ fn StandardExpander::process_expanded_term_definition(
             }
             let building = ActiveContext::{ base, vocab, terms: lookup_terms, }
             match IriExpander::expand_iri(_self, building, iri, false, true) {
-              Ok(k) => td_iri = Some(k)
+              Ok(k) => {
+                // 关键字 IRI 映射模式门（ter43 批——#ter43 oracle：1.1 模式禁
+                // @type 别名 → invalid IRI mapping；1.0 允许 [#t0026 oracle]）
+                if !(options.processing_mode is JsonLd10) && k is "@type" {
+                  return Err(JsonLdError::InvalidIri("invalid IRI mapping"))
+                }
+                td_iri = Some(k)
+              }
               Err(e) => return Err(e)
             }
           }

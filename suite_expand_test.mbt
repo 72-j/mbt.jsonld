@@ -252,6 +252,14 @@ async test "expand suite harness: manifest-driven buckets, all deferred pre-J2" 
     // #t0043：@reverse 位双反转互消（键自身为 reverse term → 值升级为当前节点
     // 普通正属性，键 = td 的 reverse IRI）
      "#ter50", "#t0043",
+    // —— @graph 文档级批（2026-09-26；两族拆分之文档级族——批边界见 todo §J2）——
+    // #t0009/#t0012/#t0017：顶层 @graph 表面化（仅 @graph 的根节点 → 图内容数组；
+    // t0017 = "data" 别名 @graph 路由）；#t0020：节点下 @graph 保留；#t0021：顶层
+    // 属性 + @graph 并存（表面化门不触发）；#t0026：1.0 @type 别名 + 顶层图；
+    // #t0046：图内容自由浮动全弃（标量/值对象/@id-only）；#t0047：自由浮动
+    // @set 透明/@list 整弃；#ter43（负·1.1 模式）：@type 别名禁 → invalid IRI mapping
+     "#t0009", "#t0012", "#t0017", "#t0020", "#t0021", "#t0026", "#t0046", "#t0047",
+    "#ter43",
   ]
   // 两桶：迁移例走端到端对拍（输入 → expansion → 对 expected）；其余 deferred
   let deferred : Array[String] = []
@@ -336,8 +344,8 @@ async test "expand suite harness: manifest-driven buckets, all deferred pre-J2" 
     }
   }
   // pin 闭合：桶总和 == 普查数；plain = 已迁移数
-  assert_eq(deferred.length(), 244)
-  assert_eq(plain.length(), 141)
+  assert_eq(deferred.length(), 235)
+  assert_eq(plain.length(), 150)
   // 解析覆盖闭合：每个有 input 的条目都走了解析通道
   assert_eq(parsed_ok + parse_err, 385)
   // 首例钉：#t0001 已迁 plain（manifest 顺序首条；J2 首件验收 = 此例端到端绿）

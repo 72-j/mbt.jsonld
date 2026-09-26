@@ -116,7 +116,16 @@ fn serialize_top(expanded : ExpandedValue?) -> JsonValue {
     // 顶层值对象即弃（#t0045："Top-level value objects are removed"）
     Some(ExpandedValue::Value(_)) => Array([])
     Some(ExpandedValue::Node(node)) =>
-      if is_free_floating(node) {
+      // 顶层 @graph 单一门（文档级批——#t0009/#t0021/#t0046 oracle）：展开后
+      // 仅存 @graph 的根节点对象表面化为图内容数组；带任何其他属性（含 @id、
+      // @type、正属性、@reverse）则保留节点形态（#t0021：title + @graph 并存）
+      if node.graph is Some(graph_items) &&
+        node.id is None &&
+        node.types.is_empty() &&
+        node.properties.is_empty() &&
+        node.reverse_props.is_empty() {
+        Array(graph_items.map(serialize_value))
+      } else if is_free_floating(node) {
         Array([])
       } else {
         Array([serialize_value(ExpandedValue::Node(node))])
@@ -127,9 +136,10 @@ fn serialize_top(expanded : ExpandedValue?) -> JsonValue {
 
 ///|
 /// free-floating：无属性、无类型（@id 有无均计）——顶层展开即弃
-/// （#t0001：仅 @id 丢弃；同族：{} 亦丢弃。@graph/嵌套位置挂后续例）
+/// （#t0001：仅 @id 丢弃；同族：{} 亦丢弃；@graph-bearing 节点不算
+/// free-floating——图对象有意义，文档级批扩展）
 fn is_free_floating(node : ExpandedNode) -> Bool {
-  node.properties.is_empty() && node.types.is_empty()
+  node.properties.is_empty() && node.types.is_empty() && node.graph is None
 }
 
 ///|
@@ -195,6 +205,12 @@ fn serialize_node(node : ExpandedNode) -> JsonValue {
       rev_pairs.push((pair.0, JsonValue::Array(pair.1.map(serialize_value))))
     }
     pairs.push(("@reverse", JsonValue::Object(rev_pairs)))
+  }
+  // 节点位 @graph 输出（文档级批——#t0020 oracle：节点下 @graph 保留）
+  match node.graph {
+    Some(items) =>
+      pairs.push(("@graph", JsonValue::Array(items.map(serialize_value))))
+    None => ()
   }
   JsonValue::Object(pairs)
 }
