@@ -7,6 +7,7 @@ pub(all) enum JsonLdError {
   InvalidValue(String) // @value 形态非法
   InvalidList(String) // @list 形态非法
   Unsupported(String) // 未实现/不在范围（如 framing）
+  ContextOverflow(String) // 远程 context 链深超限（己批——REC 4.1.2 步 5.2.3）
 }
 
 ///|
@@ -15,7 +16,12 @@ pub(all) struct JsonLdOptions {
   base : String? // 文档基 IRI
   expand_context : JsonValue? // 外部 context（可为空）
   processing_mode : ProcessingMode
-} derive(Debug)
+  /// 远程 context 装载器（己递归 scoped 批——REC 4.1.2 步 5.2.5）：入参 = core
+  /// 解析后的绝对 context URL，返回 = 文档原文 / 错误消息。core 包无 fs，IO
+  /// 由调用方注入；None + string context → Unsupported（红非静默）。同步闭包
+  /// ——expand_document 保持同步。fn 字段不可派生 Debug，故本结构不再 derive
+  load_context : ((String) -> Result[String, String])?
+}
 
 ///|
 /// [0079] 消警：Debug 派生的 to_repr 显式升格（2026-09-25）
@@ -36,10 +42,6 @@ pub extend ExpandedNode with @moonbitlang/core/debug.Debug::{to_repr}
 ///|
 /// [0079] 消警：Debug 派生的 to_repr 显式升格（2026-09-25）
 pub extend ProcessingMode with @moonbitlang/core/debug.Debug::{to_repr}
-
-///|
-/// [0079] 消警：Debug 派生的 to_repr 显式升格（2026-09-25）
-pub extend JsonLdOptions with @moonbitlang/core/debug.Debug::{to_repr}
 
 ///|
 /// 处理模式：json-ld-1.0 / json-ld-1.1

@@ -43,9 +43,11 @@ fn json_string_get(value : @jsonld.JsonValue, key : String) -> String? {
 ///|
 /// per-case options：manifest option.specVersion → processing_mode
 /// （③细化勘定：@vocab 判定模式分叉——#t0092[1.1] vs #t0115/#t0116[1.0]）
-fn options_for(entry : @jsonld.JsonValue) -> @jsonld.JsonLdOptions {
+fn options_for(
+  entry : @jsonld.JsonValue,
+  map : Map[String, String],
+) -> @jsonld.JsonLdOptions {
   let mut mode = @jsonld.ProcessingMode::JsonLd11
-  let mut base : String? = None
   match json_object_get(entry, "option") {
     Some(option_value) => {
       match json_string_get(option_value, "specVersion") {
@@ -58,7 +60,6 @@ fn options_for(entry : @jsonld.JsonValue) -> @jsonld.JsonLdOptions {
         Some("json-ld-1.0") => mode = @jsonld.ProcessingMode::JsonLd10
         _ => ()
       }
-      base = json_string_get(option_value, "base")
     }
     None => ()
   }
@@ -68,16 +69,14 @@ fn options_for(entry : @jsonld.JsonValue) -> @jsonld.JsonLdOptions {
   // documentRelative=false 不受注入影响（#t0003 oracle 保持），值位
   // （@id/@type/coercion——docRel=true）据此解析（解挂 t0051/t0050/t0056/
   // t0057/t0029/t0062）
-  let base = match base {
-    Some(b) => Some(b)
-    None =>
-      match json_string_get(entry, "input") {
-        Some(input_path) =>
-          Some("https://w3c.github.io/json-ld-api/tests/" + input_path)
-        None => None
-      }
+  let base = base_for_entry(entry)
+  let loader = loader_from_map(map)
+  {
+    base,
+    expand_context: None,
+    processing_mode: mode,
+    load_context: Some(loader),
   }
-  { base, expand_context: None, processing_mode: mode, }
 }
 
 ///|
@@ -550,6 +549,11 @@ async test "expand suite harness: manifest-driven buckets, all deferred pre-J2" 
     // #t0124/#t0125：@vocab 值 compact/term 动态解析；#tpr29：@prefix:false
     // 抑制 compact；#t0067：prefix:// 非 compact（suffix "//" 排除）
      "#t0124", "#t0125", "#tpr29", "#t0067",
+    // —— 己·递归 scoped 批（2026-09-27；REC 4.1.2 步 5.2 终止两机制：td 定义期
+    // validate=false 链上跳过 + context overflow limit=32；loader 注入 +
+    // harness BFS 预载，键一致性由平铺目录保证）——
+    // #t0126：直接自指；#t0127：间接环；#t0128：共享菱形 + 自指
+     "#t0126", "#t0127", "#t0128",
     // —— 戊·受限 @ 键/关键字别名批（2026-09-27；keyword 形态判定 + 真关键字
     // 互斥 + 空 term + @context 别名禁 + 未知 @ 键忽略）——
     // #t0119/#t0120/#t0121：@ 前缀非关键字键/值——@ 后纯 ALPHA = keyword
@@ -625,8 +629,20 @@ async test "expand suite harness: manifest-driven buckets, all deferred pre-J2" 
       let input_text = @utf8.decode(
         @fs.read_file("./src/jsonld/.rdf-tests/json-ld-api/" + input_path).binary(),
       )
+      // 己批：预载 @context/@import 引用链（先解析输入、BFS 预载建表，loader =
+      // 同步查表；core 侧解析键 = options.base 合并引用 = 预载 join 键）
+      let context_map : Map[String, String] = Map([])
+      match @jsonld.parse_json(input_text) {
+        Ok(parsed_input) =>
+          match base_for_entry(entry) {
+            Some(anchor) => preload_contexts(anchor, parsed_input, context_map)
+            None => ()
+          }
+        Err(_) => ()
+      }
       if is_negative {
-        match @jsonld.expand_document(input_text, options_for(entry)) {
+        match
+          @jsonld.expand_document(input_text, options_for(entry, context_map)) {
           Err(_) => ()
           Ok(_) => fail("\{id}: negative case unexpectedly expanded")
         }
@@ -636,7 +652,7 @@ async test "expand suite harness: manifest-driven buckets, all deferred pre-J2" 
           None => fail("\{id}: migrated positive but no expect")
         }
         let actual = match
-          @jsonld.expand_document(input_text, options_for(entry)) {
+          @jsonld.expand_document(input_text, options_for(entry, context_map)) {
           Ok(value) => value
           Err(e) =>
             match e {
@@ -675,8 +691,8 @@ async test "expand suite harness: manifest-driven buckets, all deferred pre-J2" 
   for d in deferred {
     dbg = dbg + d + " "
   }
-  assert_eq(deferred.length(), 24)
-  assert_eq(plain.length(), 361)
+  assert_eq(deferred.length(), 21)
+  assert_eq(plain.length(), 364)
   // 解析覆盖闭合：每个有 input 的条目都走了解析通道
   assert_eq(parsed_ok + parse_err, 385)
   // 首例钉：#t0001 已迁 plain（manifest 顺序首条；J2 首件验收 = 此例端到端绿）

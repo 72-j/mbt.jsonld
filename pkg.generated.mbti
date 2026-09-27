@@ -45,10 +45,12 @@ pub(all) enum ContainerType {
 pub(all) struct ContextFlags {
   propagate : Bool
   override_protected : Bool
+  base_url : String?
+  remote_contexts : Array[String]
+  validate_scoped : Bool
 }
 pub fn ContextFlags::element() -> Self
 pub fn ContextFlags::property_scoped() -> Self
-pub fn ContextFlags::scoped_validation() -> Self
 pub fn ContextFlags::type_scoped() -> Self
 
 pub(all) struct ExpandedLiteral {
@@ -87,6 +89,7 @@ pub(all) enum JsonLdError {
   InvalidValue(String)
   InvalidList(String)
   Unsupported(String)
+  ContextOverflow(String)
 }
 
 pub(all) struct JsonLdIriRoute {
@@ -111,8 +114,8 @@ pub(all) struct JsonLdOptions {
   base : String?
   expand_context : JsonValue?
   processing_mode : ProcessingMode
-} derive(@debug.Debug)
-pub fn JsonLdOptions::to_repr(Self) -> @debug.Repr
+  load_context : ((String) -> Result[String, String])?
+}
 
 pub(all) struct JsonLdQuad {
   subject : String

@@ -320,6 +320,7 @@ async test "interface gate smoke: mock surface is callable" {
     default_direction: None,
   }
   let options = @jsonld.JsonLdOptions::{
+    load_context: None,
     base: None,
     expand_context: None,
     processing_mode: @jsonld.ProcessingMode::JsonLd11,

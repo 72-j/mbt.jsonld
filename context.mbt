@@ -65,39 +65,69 @@ pub(all) enum LanguageMember {
 }
 
 ///|
-/// Context Processing 的调用面旗标（REC 4.1.2 的两个可选输入）——用结构体而非
-/// 相邻两个裸 bool，防调用点位置错配；四面语义见各构造器注释
+/// Context Processing 的调用面旗标（REC 4.1.2 的可选输入；己批扩到五件）——
+/// 用结构体而非相邻裸 bool，防调用点位置错配；面语义见各构造器注释
 pub(all) struct ContextFlags {
   /// false = 置 previous context（供新节点回退）
   propagate : Bool
   /// true = 允许覆盖受保护 term
   override_protected : Bool
+  /// 步 5.2.1 的 base URL（**独立于 active.base** 的算法输入，随装载递归传播为
+  /// documentUrl；None = 回落 active.base——文档级初调 active.base 即 options.base）
+  base_url : String?
+  /// 步 5.2 的 remote contexts 链（"used to detect cyclical context inclusions"）；
+  /// 默认新空数组，递归边界取**副本**（新建数组）
+  remote_contexts : Array[String]
+  /// 步 5.2.2 的 validate scoped context（默认 true；td 定义期校验传 false =
+  /// 链上已有则**跳过非错误**——破环主机制）
+  validate_scoped : Bool
 }
 
 ///|
+/// REC 4.1.2 步 5.2.3 的 processor-defined limit（context overflow 触发深度）——
+/// 套件最深链 4，取 32 余量充足；validate=true 的文档级环靠此截断（有界装载，
+/// 无超时面）
+const CONTEXT_CHAIN_LIMIT : Int = 32
+
+///|
 /// type-scoped 应用面（REC 5.1.2：不传 override protected、`false for propagate`）——
-/// 故 type-scoped 内空化保护 term 即错（#pr17/#pr18/#pr20/#pr21 oracle）
+/// 故 type-scoped 内空化保护 term 即错（#pr17/#pr18/#pr20/#pr21 oracle）。
+/// 应用面取**新空链** + validate=true（REC expansion 算法不传 remote contexts）
 pub fn ContextFlags::type_scoped() -> ContextFlags {
-  { propagate: false, override_protected: false, }
+  {
+    propagate: false,
+    override_protected: false,
+    base_url: None,
+    remote_contexts: [],
+    validate_scoped: true,
+  }
 }
 
 ///|
 /// property-scoped 应用面（REC 5.1.2："and true for override protected"；propagate
-/// 默认 true）——故属性作用域内可清保护（#pr06/#pr14/#pr15/#pr16 oracle）
+/// 默认 true）——故属性作用域内可清保护（#pr06/#pr14/#pr15/#pr16 oracle）。
+/// 应用面取**新空链** + validate=true（REC expansion 13.9.6 不传 remote contexts）
 pub fn ContextFlags::property_scoped() -> ContextFlags {
-  { propagate: true, override_protected: true, }
+  {
+    propagate: true,
+    override_protected: true,
+    base_url: None,
+    remote_contexts: [],
+    validate_scoped: true,
+  }
 }
 
 ///|
-/// 元素级 @context 面（propagate 默认 true、override protected 默认 false）
+/// 元素级 @context 面（propagate 默认 true、override protected 默认 false）——
+/// 新空链 + validate=true；base_url 留 None（回落 active.base）
 pub fn ContextFlags::element() -> ContextFlags {
-  { propagate: true, override_protected: false, }
-}
-
-///|
-/// td 定义期 scoped 校验面（REC 4.2.2 @context 臂："true for override protected"）
-pub fn ContextFlags::scoped_validation() -> ContextFlags {
-  { propagate: true, override_protected: true, }
+  {
+    propagate: true,
+    override_protected: false,
+    base_url: None,
+    remote_contexts: [],
+    validate_scoped: true,
+  }
 }
 
 ///|

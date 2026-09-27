@@ -2577,7 +2577,7 @@ impl ContextProcessor for StandardExpander with fn process_context(
   active : ActiveContext,
   local_context : JsonValue,
   flags : ContextFlags,
-  _options : JsonLdOptions,
+  options : JsonLdOptions,
 ) -> Result[ActiveContext, JsonLdError] {
   let mut vocab = active.vocab
   let mut base = active.base
@@ -2596,7 +2596,7 @@ impl ContextProcessor for StandardExpander with fn process_context(
       // （REC 4.1.2 步 5.2.1："if propagate is false, previous context in result
       // to the previous value of result"）
       Ok(ActiveContext::{
-        base: initial_context(_options).base,
+        base: initial_context(options).base,
         vocab: None,
         terms: Map([]),
         previous: previous_after(active, flags.propagate),
@@ -2604,15 +2604,100 @@ impl ContextProcessor for StandardExpander with fn process_context(
         default_direction: None,
       })
     }
-    JsonValue::String(_) =>
-      return Err(JsonLdError::Unsupported("remote context pending later batch"))
+    JsonValue::String(context_ref) => {
+      // 远程 context 臂（己批——REC 4.1.2 步 5.2：resolve → skip → overflow → load → recurse）
+      let loader = match options.load_context {
+        Some(loader) => loader
+        None =>
+          return Err(JsonLdError::Unsupported("context loader not provided"))
+      }
+      let resolve_base = match flags.base_url {
+        Some(url) => url
+        None =>
+          match active.base {
+            None =>
+              return Err(
+                JsonLdError::InvalidContext(
+                  "loading remote context failed: no base URL to resolve \{context_ref}",
+                ),
+              )
+            Some(url) => url
+          }
+      }
+      let resolved = merge_base_reference(resolve_base, context_ref)
+      // 步 5.2.2：validate=false（td 定义期校验）且链上已有 → 跳过非错误（破环主机制）
+      if !flags.validate_scoped && flags.remote_contexts.contains(resolved) {
+        return Ok(active)
+      }
+      // 步 5.2.3：链深超 processor-defined limit → context overflow（validate=true 的文档级环靠此截断）
+      if flags.remote_contexts.length() >= CONTEXT_CHAIN_LIMIT {
+        return Err(
+          JsonLdError::ContextOverflow("context overflow: \{resolved}"),
+        )
+      }
+      // 步 5.2.5：loader 装载（失败 → loading remote context failed）
+      let text = match loader(resolved) {
+        Ok(text) => text
+        Err(msg) =>
+          return Err(
+            JsonLdError::InvalidContext("loading remote context failed: \{msg}"),
+          )
+      }
+      let loaded = match parse_json(text) {
+        Ok(value) => value
+        Err(_e) =>
+          return Err(
+            JsonLdError::InvalidContext(
+              "loading remote context failed: invalid JSON at \{resolved}",
+            ),
+          )
+      }
+      // 装载结果须含 @context 成员（步 5.2.5）：非对象或无该成员 → invalid remote context
+      let inner : JsonValue? = match loaded {
+        JsonValue::Object(pairs) => {
+          let mut found : JsonValue? = None
+          for pair in pairs {
+            if pair.0 is "@context" {
+              found = if found is None { Some(pair.1) } else { found }
+            }
+          }
+          found
+        }
+        _ => None
+      }
+      if inner is None {
+        return Err(
+          JsonLdError::InvalidContext("invalid remote context: \{resolved}"),
+        )
+      }
+      // 步 5.2.6：递归——local context = 装载内容、base URL = documentUrl（= resolved，loader 无重定向）、链副本（新建数组）、validate 原样
+      let chain : Array[String] = []
+      for url in flags.remote_contexts {
+        chain.push(url)
+      }
+      chain.push(resolved)
+      let inner_flags : ContextFlags = {
+        propagate: flags.propagate,
+        override_protected: flags.override_protected,
+        base_url: Some(resolved),
+        remote_contexts: chain,
+        validate_scoped: flags.validate_scoped,
+      }
+      match inner {
+        Some(inner_value) =>
+          ContextProcessor::process_context(
+            _self, active, inner_value, inner_flags, options,
+          )
+        None => Ok(active)
+      }
+    }
     JsonValue::Array(items) => {
       // 数组 context：逐项合并（前项产出为后项输入）
       let mut current = active
       for item in items {
         match
           ContextProcessor::process_context(
-            _self, current, item, flags, _options,
+            _self, current, item, flags, options,
           ) {
           Ok(next) => current = next
           Err(e) => return Err(e)
@@ -2662,7 +2747,7 @@ impl ContextProcessor for StandardExpander with fn process_context(
       let mut default_direction : String? = None
       for pair in pairs {
         if pair.0 is "@propagate" {
-          if _options.processing_mode is JsonLd10 {
+          if options.processing_mode is JsonLd10 {
             return Err(JsonLdError::InvalidContext("invalid context entry"))
           }
           match pair.1 {
@@ -2674,7 +2759,7 @@ impl ContextProcessor for StandardExpander with fn process_context(
           }
         }
         if pair.0 is "@protected" {
-          if _options.processing_mode is JsonLd10 {
+          if options.processing_mode is JsonLd10 {
             return Err(JsonLdError::InvalidContext("invalid context entry"))
           }
           match pair.1 {
@@ -2698,7 +2783,7 @@ impl ContextProcessor for StandardExpander with fn process_context(
                 // 1.0 校验（#t0115/#t0116 oracle：相对/空串非法）豁免 bnode
                 // 标签（#t0075 oracle：@vocab "_:" 合法——处理模式依赖第一实证
                 // 的边界细化）；bnode 不落 base 拼接
-                if _options.processing_mode is JsonLd10 &&
+                if options.processing_mode is JsonLd10 &&
                   !(is_valid_absolute_iri(v) || is_bnode_label(v)) {
                   return Err(
                     JsonLdError::InvalidContext("invalid vocab mapping"),
@@ -2794,7 +2879,7 @@ impl ContextProcessor for StandardExpander with fn process_context(
                 )
             }
             // #tep02 oracle：processingMode json-ld-1.0 与 @version:1.1 冲突 → 错
-            if version_is_11 && _options.processing_mode is JsonLd10 {
+            if version_is_11 && options.processing_mode is JsonLd10 {
               return Err(
                 JsonLdError::InvalidContext(
                   "processingMode json-ld-1.0 conflicts with @version: 1.1",
@@ -2916,7 +3001,7 @@ impl ContextProcessor for StandardExpander with fn process_context(
                 // simple 臂与 td @id 臂同规则同源）
                 match
                   StandardExpander::check_term_name_consistency(
-                    _self, building, other, expanded, _options,
+                    _self, building, other, expanded, options,
                   ) {
                   Ok(_) => ()
                   Err(e) => return Err(e)
@@ -2994,8 +3079,8 @@ impl ContextProcessor for StandardExpander with fn process_context(
             base,
             vocab,
             protected_default,
-            flags.override_protected,
-            _options,
+            flags,
+            options,
             deferred.0,
             deferred.1,
           ) {
@@ -3031,7 +3116,7 @@ fn StandardExpander::process_expanded_term_definition(
   base : String?,
   vocab : String?,
   protected_default : Bool,
-  override_protected : Bool,
+  flags : ContextFlags,
   options : JsonLdOptions,
   term_name : String,
   td_pairs : Array[(String, JsonValue)],
@@ -3276,7 +3361,16 @@ fn StandardExpander::process_expanded_term_definition(
             _self,
             building,
             td_pair.1,
-            ContextFlags::scoped_validation(),
+            // REC 4.2.2 步 21.3：override protected=true、remote contexts 传
+            // **现链**（string 臂递归从不原地改链——新建数组追加，引用共享即
+            // 副本语义）、validate_scoped=false（链上已有 → 跳过非错误）
+            {
+              propagate: true,
+              override_protected: true,
+              base_url: flags.base_url,
+              remote_contexts: flags.remote_contexts,
+              validate_scoped: false,
+            },
             options,
           ) {
           Ok(_) => td_local_context = Some(td_pair.1)
@@ -3462,7 +3556,7 @@ fn StandardExpander::process_expanded_term_definition(
           direction_mapping: None,
           is_prefix: None,
         },
-        override_protected,
+        flags.override_protected,
       ) {
       Ok(_) => return Ok(())
       Err(e) => return Err(e)
@@ -3534,7 +3628,7 @@ fn StandardExpander::process_expanded_term_definition(
       is_protected: td_protected,
       is_prefix: td_is_prefix,
     },
-    override_protected,
+    flags.override_protected,
   )
 }
 

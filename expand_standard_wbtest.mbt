@@ -41,6 +41,7 @@ test "expand_iri bnode passthrough (#t0001 对拍)" {
 /// #t0001 端到端：仅 @id 的顶层节点 → free-floating → []
 test "t0001 end-to-end: drop free-floating node (#t0001 对拍)" {
   let options = JsonLdOptions::{
+    load_context: None,
     base: None,
     expand_context: None,
     processing_mode: JsonLd11,
@@ -55,6 +56,7 @@ test "t0001 end-to-end: drop free-floating node (#t0001 对拍)" {
 /// 空对象端到端：无 @id 无属性 → free-floating → []
 test "empty object end-to-end: free-floating (#t0001 同族判定)" {
   let options = JsonLdOptions::{
+    load_context: None,
     base: None,
     expand_context: None,
     processing_mode: JsonLd11,
@@ -80,6 +82,7 @@ test "contract smoke: pending hooks refuse politely (red-not-wrong)" {
     default_direction: None,
   }
   let options = JsonLdOptions::{
+    load_context: None,
     base: None,
     expand_context: None,
     processing_mode: JsonLd11,
@@ -166,6 +169,7 @@ test "contract smoke: pending hooks refuse politely (red-not-wrong)" {
 /// #t0045 方法级对拍：@value 词形保留 + @language 键序无关合并 + 顶层值对象丢弃
 test "value object family batch 1 (#t0045 对拍)" {
   let options = JsonLdOptions::{
+    load_context: None,
     base: None,
     expand_context: None,
     processing_mode: JsonLd11,
@@ -307,6 +311,7 @@ test "property key routing via chain (②批)" {
     default_direction: None,
   }
   let options = JsonLdOptions::{
+    load_context: None,
     base: None,
     expand_context: None,
     processing_mode: JsonLd11,
@@ -348,6 +353,7 @@ test "concat_vocab stays unsupported until @context batch" {
 /// ③批对拍：内嵌 @context（simple term 声明）端到端
 test "@context simple term declaration end-to-end (③批对拍)" {
   let options = JsonLdOptions::{
+    load_context: None,
     base: None,
     expand_context: None,
     processing_mode: JsonLd11,
@@ -379,6 +385,7 @@ test "@context simple term declaration end-to-end (③批对拍)" {
 /// 两条 nest 条目交叉给出 {a,b} 与 {b,a} ⟹ 结果 a→[1,4]、b→[2,3]，键序 a,b
 test "@nest indexed merge keeps order semantics (tn006/tn008 同族对拍)" {
   let options = JsonLdOptions::{
+    load_context: None,
     base: None,
     expand_context: None,
     processing_mode: JsonLd11,
@@ -421,6 +428,7 @@ test "@nest indexed merge keeps order semantics (tn006/tn008 同族对拍)" {
 /// ③批对拍：@vocab 声明端到端（无冒号键 → vocab 拼接）
 test "@vocab declaration end-to-end (③批对拍)" {
   let options = JsonLdOptions::{
+    load_context: None,
     base: None,
     expand_context: None,
     processing_mode: JsonLd11,
@@ -491,6 +499,7 @@ test "@version declaration (③批对拍)" {
     default_direction: None,
   }
   let options = JsonLdOptions::{
+    load_context: None,
     base: None,
     expand_context: None,
     processing_mode: JsonLd11,
@@ -520,6 +529,7 @@ test "invalid @version rejected (③批对拍)" {
     default_direction: None,
   }
   let options = JsonLdOptions::{
+    load_context: None,
     base: None,
     expand_context: None,
     processing_mode: JsonLd11,
@@ -579,6 +589,7 @@ test "term value expands against in-progress vocab (t0072 对拍)" {
     default_direction: None,
   }
   let options = JsonLdOptions::{
+    load_context: None,
     base: None,
     expand_context: None,
     processing_mode: JsonLd11,
@@ -610,6 +621,7 @@ test "term value expands against in-progress vocab (t0072 对拍)" {
 /// context 作用于其值——嵌套对象内的 "property" 按 scoped @vocab 展开
 test "property-scoped context on @nest alias term (#tc037 对拍)" {
   let options = JsonLdOptions::{
+    load_context: None,
     base: None,
     expand_context: None,
     processing_mode: JsonLd11,
@@ -640,6 +652,7 @@ test "property-scoped context on @nest alias term (#tc037 对拍)" {
 /// 拼成属性、也非按 @nest 语义上浮（后者对串值会报 invalid @nest value）
 test "scoped context nullifies term: key dropped (#tin06 同族对拍)" {
   let options = JsonLdOptions::{
+    load_context: None,
     base: None,
     expand_context: None,
     processing_mode: JsonLd11,
@@ -681,6 +694,7 @@ test "scoped context nullifies term: key dropped (#tin06 同族对拍)" {
 /// 外层按 invalid scoped context 报错（REC 4.2.2 @context 臂）
 test "unused embedded context still checked (#tc033 对拍)" {
   let options = JsonLdOptions::{
+    load_context: None,
     base: None,
     expand_context: None,
     processing_mode: JsonLd11,
@@ -698,6 +712,7 @@ test "unused embedded context still checked (#tc033 对拍)" {
 /// 文档中排在 @context **之前**的键亦须看到它
 test "element @context applies regardless of position (#t0073 对拍)" {
   let options = JsonLdOptions::{
+    load_context: None,
     base: None,
     expand_context: None,
     processing_mode: JsonLd11,
@@ -727,6 +742,7 @@ test "element @context applies regardless of position (#t0073 对拍)" {
 /// **不跨新节点**（嵌套节点回退 previous——"term-scoped context 不跨新节点"）
 test "type-scoped context does not propagate to nested node (#tc009 对拍)" {
   let options = JsonLdOptions::{
+    load_context: None,
     base: None,
     expand_context: None,
     processing_mode: JsonLd11,
@@ -768,6 +784,7 @@ test "type-scoped context does not propagate to nested node (#tc009 对拍)" {
 /// type-scoped @base 对 {"@id": …} 单键值仍生效；多键嵌套节点回退 outer base
 test "single-@id shaped value keeps type-scoped base (#tc015 同族对拍)" {
   let options = JsonLdOptions::{
+    load_context: None,
     base: Some("http://example/base-base"),
     expand_context: None,
     processing_mode: JsonLd11,
@@ -796,6 +813,7 @@ test "@propagate must be boolean and 1.1-only (#tc029/#tc030 对拍)" {
     default_direction: None,
   }
   let options_11 = JsonLdOptions::{
+    load_context: None,
     base: None,
     expand_context: None,
     processing_mode: JsonLd11,
@@ -814,6 +832,7 @@ test "@propagate must be boolean and 1.1-only (#tc029/#tc030 对拍)" {
     _ => fail("expected invalid @propagate value")
   }
   let options_10 = JsonLdOptions::{
+    load_context: None,
     base: None,
     expand_context: None,
     processing_mode: JsonLd10,
@@ -838,6 +857,7 @@ test "@propagate must be boolean and 1.1-only (#tc029/#tc030 对拍)" {
 /// 不等价重定义 → protected term redefinition（判据看**旧定义**是否受保护）
 test "protected term: equivalent redefinition keeps protection (#pr42 对拍)" {
   let options = JsonLdOptions::{
+    load_context: None,
     base: None,
     expand_context: None,
     processing_mode: JsonLd11,
@@ -858,6 +878,7 @@ test "protected term: equivalent redefinition keeps protection (#pr42 对拍)" {
 /// true ⇒ 同一空化形态允许
 test "override protected faces: type-scoped vs property-scoped (#pr17/#pr06 对拍)" {
   let options = JsonLdOptions::{
+    load_context: None,
     base: None,
     expand_context: None,
     processing_mode: JsonLd11,
@@ -877,6 +898,7 @@ test "override protected faces: type-scoped vs property-scoped (#pr17/#pr06 对�
 /// 未落码键（@index/@direction）→ Unsupported（落码活账，禁静默忽略）
 test "td unknown key vs unimplemented key (#ter56 同族对拍)" {
   let options = JsonLdOptions::{
+    load_context: None,
     base: None,
     expand_context: None,
     processing_mode: JsonLd11,
@@ -910,6 +932,7 @@ test "td unknown key vs unimplemented key (#ter56 同族对拍)" {
 /// @type **前插**；值层字符串经**隐式 @id** type mapping 成节点引用
 test "type map: prepend @type + implicit @id mapping (#tm003/#tm017 对拍)" {
   let options = JsonLdOptions::{
+    load_context: None,
     base: Some("http://example.org/base/"),
     expand_context: None,
     processing_mode: JsonLd11,
@@ -948,6 +971,7 @@ test "type map: prepend @type + implicit @id mapping (#tm003/#tm017 对拍)" {
 /// **原始索引键**；值为对象按常规展开
 test "index map: writes @index from map key (#tc013 同族对拍)" {
   let options = JsonLdOptions::{
+    load_context: None,
     base: None,
     expand_context: None,
     processing_mode: JsonLd11,
@@ -979,6 +1003,7 @@ test "index map: writes @index from map key (#tc013 同族对拍)" {
 /// @id/@vocab（显式其它值 → invalid type mapping）
 test "container @type restricts type mapping to @id/@vocab (#tm020 对拍)" {
   let options = JsonLdOptions::{
+    load_context: None,
     base: None,
     expand_context: None,
     processing_mode: JsonLd11,
@@ -998,6 +1023,7 @@ test "container @type restricts type mapping to @id/@vocab (#tm020 对拍)" {
 /// 条目无 @id ⇒ 写**document-relative**展开的索引；已有 @id 保留
 test "id map: writes document-relative @id, keeps existing (#tm001/#tm005 对拍)" {
   let options = JsonLdOptions::{
+    load_context: None,
     base: Some("http://example.org/"),
     expand_context: None,
     processing_mode: JsonLd11,
@@ -1040,6 +1066,7 @@ test "id map: writes document-relative @id, keeps existing (#tm001/#tm005 对拍
 /// 语言键非 @none（含**别名**）加 @language；条目值与数组内 null 跳过
 test "language map: @none alias and null skip (#tm010/#tl001 对拍)" {
   let options = JsonLdOptions::{
+    load_context: None,
     base: None,
     expand_context: None,
     processing_mode: JsonLd11,
@@ -1082,6 +1109,7 @@ test "language map: @none alias and null skip (#tm010/#tl001 对拍)" {
 /// 项会被误当索引键条目）
 test "map container with array value falls through per element (#t0040 对拍)" {
   let options = JsonLdOptions::{
+    load_context: None,
     base: Some("http://example.com/base/"),
     expand_context: None,
     processing_mode: JsonLd11,
@@ -1116,6 +1144,7 @@ test "map container with array value falls through per element (#t0040 对拍)" 
 /// 索引键写成**一条属性**（值 = 索引，追加在既有值之前）；`@none` 条目不写属性
 test "index mapping: index written as property, appended before existing (#tpi 对拍)" {
   let options = JsonLdOptions::{
+    load_context: None,
     base: Some("http://example.com/"),
     expand_context: None,
     processing_mode: JsonLd11,
@@ -1160,6 +1189,7 @@ test "index mapping: index written as property, appended before existing (#tpi �
 /// invalid value object
 test "index mapping validation + value object rejection (#tpi 负例对拍)" {
   let options = JsonLdOptions::{
+    load_context: None,
     base: None,
     expand_context: None,
     processing_mode: JsonLd11,
@@ -1173,6 +1203,7 @@ test "index mapping validation + value object rejection (#tpi 负例对拍)" {
   let not_a_string = "{\"@context\": {\"@version\": 1.1, \"p\": {\"@id\": \"ex:p\", \"@container\": \"@index\", \"@index\": 7}}}"
   assert_true(expand_document(not_a_string, options) is Err(InvalidContext(_)))
   let options_10 = JsonLdOptions::{
+    load_context: None,
     base: None,
     expand_context: None,
     processing_mode: JsonLd10,
@@ -1192,6 +1223,7 @@ test "index mapping validation + value object rejection (#tpi 负例对拍)" {
 /// 容器（白名单放宽）；**reverse-bearing 节点不是自由浮动**（仅 @reverse 的根节点保留）
 test "reverse term with index container keeps reverse-only node (#t0063/#t0131 对拍)" {
   let options = JsonLdOptions::{
+    load_context: None,
     base: None,
     expand_context: None,
     processing_mode: JsonLd11,
