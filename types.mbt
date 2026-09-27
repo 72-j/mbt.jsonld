@@ -78,6 +78,13 @@ pub(all) enum ExpandedValue {
 } derive(Debug)
 
 ///|
+/// @id 显式 null 哨兵（t0122/t0060 批——REC §5.2 IRI 展开：keyword 形非关键字
+/// `@1*ALPHA` 返回 null「reserved for future use... ignored」）：@id 值命中时
+/// 节点保留、id 位以**字面 null** 序列化（t0122 oracle：{"@id": null}）。
+/// 空串不可能是合法展开 IRI/bnode——哨兵无碰撞面。
+const EXPLICIT_NULL_ID : String = ""
+
+///|
 /// 展开后的字面量
 /// datatype = @type（IRI）；数值/布尔字面量以词形入 value（xsd 词形挂 toRDF 役）
 pub(all) struct ExpandedLiteral {

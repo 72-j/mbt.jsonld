@@ -581,6 +581,45 @@ async test "expand suite harness: manifest-driven buckets, all deferred pre-J2" 
     // harness BFS 预载，键一致性由平铺目录保证）——
     // #t0126：直接自指；#t0127：间接环；#t0128：共享菱形 + 自指
      "#t0126", "#t0127", "#t0128",
+    // —— 庚·引用锚定 + @import 批（2026-09-28；REC 4.1.2 步 5.4 @import =
+    // 条目级合并「replacing common entries」——imported 同名条目被替换不参与
+    // 处理（#tso11 oracle：不受本 context @protected 追溯保护）+ 链式 import
+    // 禁 + imported 须 context 定义 map；引用解析 base 锚定 context 装载位
+    // （resolve_context_reference——flags.base_url 缺省回落 documentUrl，不随
+    // active @base 覆写）+ td 定义期 base URL 快照（TermDefinition::
+    // context_base_url——scoped 应用期锚定源 context 装载位））——
+    // #tc031：数组 context 首项 @base 覆写后次项引用仍锚定文档位置；远程
+    //   context 内 td 的 "../" 引用锚定远程 context 自身 URL（应用期装载）
+    // #tc034：远程 property-scoped context（应用期装载——探针预载假阴性勘正）
+     "#tc031", "#tc034",
+    // #tso05/#tso06：@import × @propagate（type-scoped true / property-scoped false）
+    // #tso08/#tso09/#tso11：imported term/@vocab 被 importing context 覆盖
+    //（so09 oracle：imported td 的相对 @id 用**合并后** vocab 展开——deferred
+    // 二遍天然满足）；so11 = 覆盖 × @protected 边界
+     "#tso05", "#tso06", "#tso08", "#tso09", "#tso11",
+    // —— ttn·@type:@none 批（2026-09-28；REC 1.1 @none = 显式无 coercion——
+    // datatype 位存 None 同路下游；1.0 模式 invalid type mapping）——
+    // #ttn02：串/数/布尔全按无 datatype 值对象、@id 形照旧节点引用
+     "#ttn02",
+    // —— 己三·@id 位放宽批（2026-09-28；REC 节点 @id 步无绝对性校验 + §5.2
+    // IRI 展开 keyword 形非关键字返回 null）——
+    // #t0060：@base 覆写/@context null 重置/@base null 清除——base 无时相对
+    //   @id/@type **原样保留**（此前 II 的 ter48 oracle 实际在 term 名臂）
+    // #t0122：@ignoreMe（@1*ALPHA）→ 节点保留 + 字面 {"@id": null}（哨兵
+    //   EXPLICIT_NULL_ID）；"@"/"@foo.bar" 非 keyword 形 → base 拼接
+     "#t0060", "#t0122",
+    // —— 壬·节点位 @set 别名批（2026-09-28；REC 键归一先于对象形态判定——
+    // expand_list_set_object 键分类升级 key_expands_to_keyword 别名感知，
+    // 裸键 #t0004 oracle 不变）——
+    // #t0014：别名 "set"/"value"/"type" 同族命中 set 对象拦截 → 摊平多值；
+    //   @value:null 内嵌 → 属性保空数组（t0019 预扫描不误伤——其辖域是
+    //   直挂值对象，非数组元素）
+     "#t0014",
+    // —— 甲二·直迁批（2026-09-28；3 例零码——相对 @vocab 属性位已被 @vocab
+    // 动态形态批（t0124/t0125）兼平；判据 = deferred 清点探针 POS-PASS）——
+    // #t0110/#t0111/#t0112：相对 IRI 属性 × 相对 @vocab（含 @vocab 自身相对/
+    // 相对 @vocab 相对 base）
+     "#t0110", "#t0111", "#t0112",
     // —— 值对象语义两修直迁（2026-09-27）——
     // #t0008：language-only 值对象丢弃（saw_value 门）
      "#t0008",
@@ -735,8 +774,8 @@ async test "expand suite harness: manifest-driven buckets, all deferred pre-J2" 
   for d in deferred {
     dbg = dbg + d + " "
   }
-  assert_eq(deferred.length(), 14)
-  assert_eq(plain.length(), 371)
+  assert_eq(deferred.length(), 0)
+  assert_eq(plain.length(), 385)
   // 解析覆盖闭合：每个有 input 的条目都走了解析通道
   assert_eq(parsed_ok + parse_err, 385)
   // 首例钉：#t0001 已迁 plain（manifest 顺序首条；J2 首件验收 = 此例端到端绿）

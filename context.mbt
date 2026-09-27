@@ -39,6 +39,10 @@ pub(all) struct TermDefinition {
   /// #tc032/#tc033 oracle）；展开期在该 term 的值展开前再处理并套用
   /// （#tc037/#tc038/#tin06 oracle）
   local_context : JsonValue?
+  /// 定义期 base URL 快照（庚批——#tc031 oracle）：term 所在 context 的装载
+  /// base URL（flags.base_url，缺省回落 documentUrl）。td 若来自远程 context，
+  /// 其 scoped context 应用期须锚定**本快照**装载引用（不得回落 documentUrl）
+  context_base_url : String?
   /// 索引映射（@index mapping 批——REC 4.2.2：`@index` 值须 IRI 展开成 **IRI**，
   /// 且仅在 1.1 模式与容器含 `@index` 时合法）：容器含 @index 且本映射 ≠ "@index" 时，
   /// 索引键写成**一条属性**（值 = 索引）而非 `@index` 条目（#tpi06~#tpi10 oracle）
@@ -73,7 +77,8 @@ pub(all) struct ContextFlags {
   /// true = 允许覆盖受保护 term
   override_protected : Bool
   /// 步 5.2.1 的 base URL（**独立于 active.base** 的算法输入，随装载递归传播为
-  /// documentUrl；None = 回落 active.base——文档级初调 active.base 即 options.base）
+  /// documentUrl；None = 回落 options.base 即 documentUrl——引用解析**不随
+  /// active @base 覆写走**，#tc031 oracle）
   base_url : String?
   /// 步 5.2 的 remote contexts 链（"used to detect cyclical context inclusions"）；
   /// 默认新空数组，递归边界取**副本**（新建数组）
@@ -119,7 +124,7 @@ pub fn ContextFlags::property_scoped() -> ContextFlags {
 
 ///|
 /// 元素级 @context 面（propagate 默认 true、override protected 默认 false）——
-/// 新空链 + validate=true；base_url 留 None（回落 active.base）
+/// 新空链 + validate=true；base_url 留 None（回落 options.base——documentUrl）
 pub fn ContextFlags::element() -> ContextFlags {
   {
     propagate: true,

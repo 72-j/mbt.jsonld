@@ -709,7 +709,9 @@ fn StandardExpander::apply_type_scoped_contexts(
                   self,
                   current,
                   local_context,
-                  ContextFlags::type_scoped(),
+                  ContextFlags::type_scoped().with_context_base_url(
+                    term_definition.context_base_url,
+                  ),
                   options,
                 ) {
                 Ok(next) => current = next
@@ -927,14 +929,19 @@ fn StandardExpander::expand_object(
         match pair.1 {
           JsonValue::String(iri) =>
             match IriExpander::expand_iri(self, current, iri, true, false) {
-              Ok(expanded) => {
-                // @id 位：节点身份必须为绝对 IRI 或 bnode（#ter48 oracle：
-                // 相对 @id 不可用 → invalid IRI mapping）
-                if !(is_bnode_label(expanded) || is_valid_absolute_iri(expanded)) {
-                  return Err(JsonLdError::InvalidIri("invalid IRI mapping"))
+              Ok(expanded) =>
+                // keyword 形非关键字（@1*ALPHA）= REC §5.2 IRI 展开**返回
+                // null**（"reserved for future use... ignored"）——节点保留、
+                // id 位字面 null（t0122 oracle："@ignoreMe" → {"@id": null}；
+                // "@"/"@foo.bar" 非 keyword 形 → 正常 base 拼接为绝对 IRI）
+                if has_keyword_form(expanded) && !is_keyword(expanded) {
+                  node_id = Some(EXPLICIT_NULL_ID)
+                } else {
+                  // REC @id 步无绝对性校验——@base:null 后相对值**原样保留**
+                  //（t0060 oracle："../document-relative"/"#document-relative"
+                  // 保相对；此前此处 II 的 ter48 oracle 实际落在 term 名臂）
+                  node_id = Some(expanded)
                 }
-                node_id = Some(expanded)
-              }
               Err(e) => return Err(e)
             }
           _ =>
@@ -1737,7 +1744,9 @@ fn StandardExpander::apply_property_scoped_context(
             self,
             active,
             local_context,
-            ContextFlags::property_scoped(),
+            ContextFlags::property_scoped().with_context_base_url(
+              term_definition.context_base_url,
+            ),
             options,
           )
         None => Ok(active)
@@ -1763,8 +1772,8 @@ fn StandardExpander::property_value_context(
 ) -> Result[ActiveContext, JsonLdError] {
   // ① 捕获 property-scoped context（回退**前** context 的 td——#tc012 oracle：
   //    type-scoped 里定义的 bar 自带 scoped context，回退会丢掉该定义，故先取）
-  let property_scoped = match active.terms.get(term) {
-    Some(term_definition) => term_definition.local_context
+  let property_scoped : TermDefinition? = match active.terms.get(term) {
+    Some(term_definition) => Some(term_definition)
     None => None
   }
   // ② 回退门
@@ -1779,14 +1788,20 @@ fn StandardExpander::property_value_context(
   }
   // ③ 在（可能已回退的）context 上**直接应用捕获的** scoped context
   match property_scoped {
-    Some(local_context) =>
-      ContextProcessor::process_context(
-        self,
-        base,
-        local_context,
-        ContextFlags::property_scoped(),
-        options,
-      )
+    Some(term_definition) =>
+      match term_definition.local_context {
+        Some(local_context) =>
+          ContextProcessor::process_context(
+            self,
+            base,
+            local_context,
+            ContextFlags::property_scoped().with_context_base_url(
+              term_definition.context_base_url,
+            ),
+            options,
+          )
+        None => Ok(base)
+      }
     None => Ok(base)
   }
 }
@@ -1965,7 +1980,9 @@ fn StandardExpander::expand_container_map(
                   self,
                   map_context,
                   local_context,
-                  ContextFlags::element(),
+                  ContextFlags::element().with_context_base_url(
+                    term_definition.context_base_url,
+                  ),
                   options,
                 ) {
                 Ok(next) => next
@@ -2688,11 +2705,181 @@ impl Expander for StandardExpander with fn set_index(
 }
 
 ///|
+/// 定义期 base URL 快照（庚批——#tc031 oracle）：term 所在 context 的装载
+/// base URL——flags.base_url（装载链内）优先，缺省回落 documentUrl。
+fn definition_base_url(
+  flags : ContextFlags,
+  options : JsonLdOptions,
+) -> String? {
+  match flags.base_url {
+    Some(url) => Some(url)
+    None => options.base
+  }
+}
+
+///|
+/// 应用面 base URL 覆写（庚批——#tc031 oracle）：td 携带的 scoped context 在
+/// 应用期以其**定义期 base URL** 作 flags.base_url——远程 context 内定义的
+/// scoping 引用锚定源 context 装载位（新建面 base_url=None 会回落 documentUrl，
+/// 即 #tc031 的报错路径）。
+fn ContextFlags::with_context_base_url(
+  self : ContextFlags,
+  context_base_url : String?,
+) -> ContextFlags {
+  { ..self, base_url: context_base_url, }
+}
+
+///|
+/// context 引用解析共用件（REC 4.1.2 步 5.2.1——远程 String 臂与 @import 预处理
+/// 共用）：引用对**context 装载 base URL** 合并。base 取 flags.base_url（装载链
+/// 内 = context 自身 URL），缺省回落 options.base（documentUrl）——**不回落
+/// active.base**：引用解析是算法输入位，不随 active @base 覆写走（#tc031
+/// oracle：数组 context 首项 `@base` 覆写后，次项引用仍锚定文档位置；REC：
+/// base URL "is often not the same as base or the base IRI of the active
+/// context"）。
+fn resolve_context_reference(
+  context_ref : String,
+  flags : ContextFlags,
+  options : JsonLdOptions,
+) -> Result[String, JsonLdError] {
+  match flags.base_url {
+    Some(url) => Ok(merge_base_reference(url, context_ref))
+    None =>
+      match options.base {
+        Some(url) => Ok(merge_base_reference(url, context_ref))
+        None =>
+          Err(
+            JsonLdError::InvalidContext(
+              "loading remote context failed: no base URL to resolve \{context_ref}",
+            ),
+          )
+      }
+  }
+}
+
+///|
+/// 远程 context 装载共用件（REC 4.1.2 步 5.2.5 / 步 5.4 共用）：loader 装载 →
+/// JSON 解析 → 解包顶层 @context 成员。装载失败 → loading remote context
+/// failed；非对象或无该成员 → invalid remote context。返回解包后的内联 context
+/// （调用面不再判 None——共用件已保证形态）。
+fn load_context_document(
+  resolved : String,
+  options : JsonLdOptions,
+) -> Result[JsonValue, JsonLdError] {
+  let loader = match options.load_context {
+    Some(loader) => loader
+    None => return Err(JsonLdError::Unsupported("context loader not provided"))
+  }
+  let text = match loader(resolved) {
+    Ok(text) => text
+    Err(msg) =>
+      return Err(
+        JsonLdError::InvalidContext("loading remote context failed: \{msg}"),
+      )
+  }
+  let loaded = match parse_json(text) {
+    Ok(value) => value
+    Err(_e) =>
+      return Err(
+        JsonLdError::InvalidContext(
+          "loading remote context failed: invalid JSON at \{resolved}",
+        ),
+      )
+  }
+  // 装载结果须含 @context 成员（步 5.2.5）：非对象或无该成员 → invalid remote context
+  let inner : JsonValue? = match loaded {
+    JsonValue::Object(pairs) => {
+      let mut found : JsonValue? = None
+      for pair in pairs {
+        if pair.0 is "@context" {
+          found = if found is None { Some(pair.1) } else { found }
+        }
+      }
+      found
+    }
+    _ => None
+  }
+  match inner {
+    Some(inner_value) => Ok(inner_value)
+    None =>
+      Err(JsonLdError::InvalidContext("invalid remote context: \{resolved}"))
+  }
+}
+
+///|
+/// @import 条目合并件（REC 4.1.2 步 5.4；庚批——#tso05/06/08/09/11 oracle）：
+/// 装载 imported context 并做形态/链式校验，与本 context 条目**条目级合并**：
+/// 「merging context into import context, **replacing common entries**」——
+/// imported 条目在前、同名条目以本 context 侧**替换**（不并存；#tso11 oracle：
+/// imported 的 term 定义不参与处理，故不受本 context `@protected` 追溯保护）、
+/// @import 条目剥离（合并后主循环不再见）。校验：1.0 模式 →
+/// invalid context entry；值非串 → invalid @import value；imported 文档须为
+/// context 定义 **map**（数组/标量 → invalid remote context）；imported 自身含
+/// @import → invalid context entry（链式装载禁——REC 步 5.4）。
+fn merge_import_entries(
+  import_value : JsonValue,
+  local_pairs : Array[(String, JsonValue)],
+  flags : ContextFlags,
+  options : JsonLdOptions,
+) -> Result[Array[(String, JsonValue)], JsonLdError] {
+  if options.processing_mode is JsonLd10 {
+    return Err(JsonLdError::InvalidContext("invalid context entry"))
+  }
+  let import_ref = match import_value {
+    JsonValue::String(context_ref) => context_ref
+    _ => return Err(JsonLdError::InvalidContext("invalid @import value"))
+  }
+  let resolved = match resolve_context_reference(import_ref, flags, options) {
+    Ok(url) => url
+    Err(e) => return Err(e)
+  }
+  let imported = match load_context_document(resolved, options) {
+    Ok(value) => value
+    Err(e) => return Err(e)
+  }
+  let imported_pairs = match imported {
+    JsonValue::Object(pairs) => pairs
+    _ =>
+      return Err(
+        JsonLdError::InvalidContext("invalid remote context: \{resolved}"),
+      )
+  }
+  for imported_pair in imported_pairs {
+    if imported_pair.0 is "@import" {
+      return Err(JsonLdError::InvalidContext("invalid context entry"))
+    }
+  }
+  // 本 context 键集（去 @import 后）——imported 侧同名条目被替换剔除
+  let local_keys : Map[String, Bool] = Map([])
+  for pair in local_pairs {
+    if !(pair.0 is "@import") {
+      local_keys[pair.0] = true
+    }
+  }
+  let merged : Array[(String, JsonValue)] = []
+  for imported_pair in imported_pairs {
+    if !local_keys.contains(imported_pair.0) {
+      merged.push(imported_pair)
+    }
+  }
+  for pair in local_pairs {
+    if !(pair.0 is "@import") {
+      merged.push(pair)
+    }
+  }
+  Ok(merged)
+}
+
+///|
 /// ContextProcessor 落码（③批）：@context 声明 → ActiveContext 构建/继承（简单形态）。
 /// 继承：terms/vocab/base 父副本（ADR-JL-4 不可变语义 = 副本）；数组 context = 逐项合并。
 /// 落码范围：term→IRI 字符串定义、@vocab（相对先经 base）、@base、term=null（移除）。
 /// 未落（红而非错）：term 定义对象形态（@type/@container——⑤批）、@language/@direction
-/// 默认、@import、远程 context。
+/// 默认（后由丙批落）。
+/// **己批**：远程 context String 臂（REC 4.1.2 步 5.2：resolve → skip → overflow
+/// → load → recurse；装载链终止两机制）。
+/// **庚批**：@import 预处理（步 5.4：装载 + 条目级合并 + 链式禁）+ 引用解析
+/// base 锚定 context 装载位（resolve_context_reference——不随 active @base 覆写）。
 /// **type-scoped 批**：`propagate` 参数（调用方默认；local context 的 @propagate
 /// 成员优先）——propagate=false 时置 previous context，供新节点对象回退
 /// （REC 4.1.2 步 3）。
@@ -2733,26 +2920,14 @@ impl ContextProcessor for StandardExpander with fn process_context(
       })
     }
     JsonValue::String(context_ref) => {
-      // 远程 context 臂（己批——REC 4.1.2 步 5.2：resolve → skip → overflow → load → recurse）
-      let loader = match options.load_context {
-        Some(loader) => loader
-        None =>
-          return Err(JsonLdError::Unsupported("context loader not provided"))
+      // 远程 context 臂（己批——REC 4.1.2 步 5.2：resolve → skip → overflow → load → recurse；
+      // resolve/load 与 @import 预处理共用件同源——引用解析 base 口径见
+      // resolve_context_reference）
+      let resolved = match
+        resolve_context_reference(context_ref, flags, options) {
+        Ok(url) => url
+        Err(e) => return Err(e)
       }
-      let resolve_base = match flags.base_url {
-        Some(url) => url
-        None =>
-          match active.base {
-            None =>
-              return Err(
-                JsonLdError::InvalidContext(
-                  "loading remote context failed: no base URL to resolve \{context_ref}",
-                ),
-              )
-            Some(url) => url
-          }
-      }
-      let resolved = merge_base_reference(resolve_base, context_ref)
       // 步 5.2.2：validate=false（td 定义期校验）且链上已有 → 跳过非错误（破环主机制）
       if !flags.validate_scoped && flags.remote_contexts.contains(resolved) {
         return Ok(active)
@@ -2763,40 +2938,11 @@ impl ContextProcessor for StandardExpander with fn process_context(
           JsonLdError::ContextOverflow("context overflow: \{resolved}"),
         )
       }
-      // 步 5.2.5：loader 装载（失败 → loading remote context failed）
-      let text = match loader(resolved) {
-        Ok(text) => text
-        Err(msg) =>
-          return Err(
-            JsonLdError::InvalidContext("loading remote context failed: \{msg}"),
-          )
-      }
-      let loaded = match parse_json(text) {
+      // 步 5.2.5：装载 + 解包 @context 成员（失败 → loading remote context
+      // failed / invalid remote context——文案在共用件内）
+      let inner = match load_context_document(resolved, options) {
         Ok(value) => value
-        Err(_e) =>
-          return Err(
-            JsonLdError::InvalidContext(
-              "loading remote context failed: invalid JSON at \{resolved}",
-            ),
-          )
-      }
-      // 装载结果须含 @context 成员（步 5.2.5）：非对象或无该成员 → invalid remote context
-      let inner : JsonValue? = match loaded {
-        JsonValue::Object(pairs) => {
-          let mut found : JsonValue? = None
-          for pair in pairs {
-            if pair.0 is "@context" {
-              found = if found is None { Some(pair.1) } else { found }
-            }
-          }
-          found
-        }
-        _ => None
-      }
-      if inner is None {
-        return Err(
-          JsonLdError::InvalidContext("invalid remote context: \{resolved}"),
-        )
+        Err(e) => return Err(e)
       }
       // 步 5.2.6：递归——local context = 装载内容、base URL = documentUrl（= resolved，loader 无重定向）、链副本（新建数组）、validate 原样
       let chain : Array[String] = []
@@ -2811,13 +2957,9 @@ impl ContextProcessor for StandardExpander with fn process_context(
         remote_contexts: chain,
         validate_scoped: flags.validate_scoped,
       }
-      match inner {
-        Some(inner_value) =>
-          ContextProcessor::process_context(
-            _self, active, inner_value, inner_flags, options,
-          )
-        None => Ok(active)
-      }
+      ContextProcessor::process_context(
+        _self, active, inner, inner_flags, options,
+      )
     }
     JsonValue::Array(items) => {
       // 数组 context：逐项合并（前项产出为后项输入）
@@ -2834,6 +2976,23 @@ impl ContextProcessor for StandardExpander with fn process_context(
       Ok(current)
     }
     JsonValue::Object(pairs) => {
+      // @import 预处理（REC 4.1.2 步 5.4；庚批）：见 merge_import_entries——
+      // 有 @import 条目时以合并对列（imported 在前、本 context 去 @import）作
+      // 工作对列；无则原对列直通。合并后主循环不再见 @import 键。
+      let mut import_found : JsonValue? = None
+      for pair in pairs {
+        if pair.0 is "@import" && import_found is None {
+          import_found = Some(pair.1)
+        }
+      }
+      let pairs = match import_found {
+        None => pairs
+        Some(import_value) =>
+          match merge_import_entries(import_value, pairs, flags, options) {
+            Ok(merged) => merged
+            Err(e) => return Err(e)
+          }
+      }
       let keyword_owner : Map[String, String] = Map([])
       // 对象形态 term 定义缓冲（两遍处理——第二遍见主循环后）
       let deferred_td : Array[(String, Array[(String, JsonValue)])] = []
@@ -2972,7 +3131,6 @@ impl ContextProcessor for StandardExpander with fn process_context(
                     }
                 }
                 vocab = Some(resolved)
-                vocab = Some(resolved)
               }
               JsonValue::Null => vocab = None
               _ =>
@@ -3060,12 +3218,7 @@ impl ContextProcessor for StandardExpander with fn process_context(
                   JsonLdError::InvalidContext("invalid base direction"),
                 )
             }
-          "@import" =>
-            return Err(
-              JsonLdError::Unsupported(
-                "context keyword pending later batches (\{pair.0})",
-              ),
-            )
+          "@import" => ()
           other => {
             // 关键字别名冲突（#ter26 oracle）：同关键字第二别名 → colliding keywords
             if other is "id" || other is "ID" {
@@ -3153,6 +3306,7 @@ impl ContextProcessor for StandardExpander with fn process_context(
                       container: None,
                       reverse: None,
                       local_context: None,
+                      context_base_url: definition_base_url(flags, options),
                       index_mapping: None,
                       graph_secondary: None,
                       is_protected: protected_default,
@@ -3181,6 +3335,7 @@ impl ContextProcessor for StandardExpander with fn process_context(
                       container: None,
                       reverse: None,
                       local_context: None,
+                      context_base_url: definition_base_url(flags, options),
                       index_mapping: None,
                       graph_secondary: None,
                       is_protected: protected_default,
@@ -3344,31 +3499,42 @@ fn StandardExpander::process_expanded_term_definition(
         }
       "@type" =>
         match td_pair.1 {
-          JsonValue::String(t) => {
-            // 关键字形态原样（"@id"/"@vocab"/"@json"——丁批）；其余 vocab 展开
-            let expanded = if t is ("@id" | "@vocab" | "@json") {
-              t
+          JsonValue::String(t) =>
+            // "@none"（ttn02 批——REC 1.1）：显式**无 coercion**——串/数/布尓
+            // 全按无 datatype 值对象走、@id 形照旧节点引用（tn02-out oracle：
+            // "string"→{@value}、true→{@value:true}、{"@id"}→节点引用）。1.0
+            // 模式无此关键字 → invalid type mapping。下游与 td_datatype=None
+            // 同路——datatype 位存 None
+            if t is "@none" {
+              if options.processing_mode is JsonLd10 {
+                return Err(JsonLdError::InvalidContext("invalid type mapping"))
+              }
+              td_datatype = None
             } else {
-              let building = ActiveContext::{
-                base,
-                vocab,
-                terms: new_terms,
-                previous: None,
-                default_language: None,
-                default_direction: None,
+              // 关键字形态原样（"@id"/"@vocab"/"@json"——丁批）；其余 vocab 展开
+              let expanded = if t is ("@id" | "@vocab" | "@json") {
+                t
+              } else {
+                let building = ActiveContext::{
+                  base,
+                  vocab,
+                  terms: new_terms,
+                  previous: None,
+                  default_language: None,
+                  default_direction: None,
+                }
+                match IriExpander::expand_iri(_self, building, t, false, true) {
+                  Ok(k) => k
+                  Err(e) => return Err(e)
+                }
               }
-              match IriExpander::expand_iri(_self, building, t, false, true) {
-                Ok(k) => k
-                Err(e) => return Err(e)
+              // type mapping 只收关键字形态（@id/@vocab/@json——丁批）或绝对 IRI
+              if !(expanded is ("@id" | "@vocab" | "@json") ||
+                is_valid_absolute_iri(expanded)) {
+                return Err(JsonLdError::InvalidContext("invalid type mapping"))
               }
+              td_datatype = Some(expanded)
             }
-            // type mapping 只收关键字形态（@id/@vocab/@json——丁批）或绝对 IRI
-            if !(expanded is ("@id" | "@vocab" | "@json") ||
-              is_valid_absolute_iri(expanded)) {
-              return Err(JsonLdError::InvalidContext("invalid type mapping"))
-            }
-            td_datatype = Some(expanded)
-          }
           _ => return Err(JsonLdError::InvalidContext("@type must be a string"))
         }
       "@container" =>
@@ -3694,6 +3860,7 @@ fn StandardExpander::process_expanded_term_definition(
           container: keyword_container,
           reverse: None,
           local_context: None,
+          context_base_url: definition_base_url(flags, options),
           index_mapping: None,
           graph_secondary: None,
           is_protected: td_protected,
@@ -3766,6 +3933,7 @@ fn StandardExpander::process_expanded_term_definition(
       container: td_container,
       reverse: td_reverse,
       local_context: td_local_context,
+      context_base_url: definition_base_url(flags, options),
       index_mapping: td_index_mapping,
       graph_secondary: td_graph_secondary,
       language_mapping: td_language,
@@ -4025,10 +4193,20 @@ fn StandardExpander::expand_list_set_object(
   let mut set_value : JsonValue? = None
   let mut impure = false
   for pair in obj_pairs {
-    match pair.0 {
-      "@list" => list_value = Some(pair.1)
-      "@set" => set_value = Some(pair.1)
-      _ => impure = true
+    // 键别名识别（t0014 批——REC 键归一先于对象形态判定）：别名 term（"set" →
+    // "@set"）与裸键（#t0004 oracle 不变）同路命中拦截；普通属性键两查皆否
+    // → impure 走既有路由
+    if StandardExpander::key_expands_to_keyword(self, active, pair.0, "@list") {
+      list_value = Some(pair.1)
+    } else if StandardExpander::key_expands_to_keyword(
+        self,
+        active,
+        pair.0,
+        "@set",
+      ) {
+      set_value = Some(pair.1)
+    } else {
+      impure = true
     }
   }
   if list_value is None && set_value is None {

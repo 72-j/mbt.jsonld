@@ -249,6 +249,8 @@ fn serialize_value(value : ExpandedValue) -> JsonValue {
 fn serialize_node(node : ExpandedNode) -> JsonValue {
   let pairs : Array[(String, JsonValue)] = []
   match node.id {
+    // EXPLICIT_NULL_ID 哨兵 = @id 被忽略的节点（t0122 oracle：字面 "@id": null）
+    Some(EXPLICIT_NULL_ID) => pairs.push(("@id", JsonValue::Null))
     Some(id) => pairs.push(("@id", JsonValue::String(id)))
     None => ()
   }

@@ -78,6 +78,13 @@
   是假绿温床（实证：#pr01/#pr08/#pr11 三枚真缺口 = td 级 `@protected` 被 `_ => ()`
   吞掉 ⇒ 保护语义不存在 ⇒ 负例不报错）；未落码键走 Unsupported（落码活账），真未知键
   按 REC 报 invalid term definition（REC 4.2.2 键白名单）。
+- 禁止把 spec 的**条目级合并**（"merging … into …, replacing common entries"）实现成
+  「先安装后覆盖」（后写胜）——被替换的条目**不参与处理**（定义从未安装，无副作用），
+  与「安装后被覆盖」在**保护/副作用语义**下分叉（实证：@import 首版按并存后写胜实现
+  ⇒ imported term 被本 context `@protected` 追溯保护 ⇒ 合法覆盖误报 protected term
+  redefinition，#tso11 首迁即红；2026-09-28 勘正）。与「判据载体与语义决策同层」同族：
+  **最终 IRI 值相同 ≠ 语义等价**，判定面须含处理过程的语义副作用——REC 措辞逐字对齐
+  不是修辞，是判据。
 - **调用面旗标禁相邻裸 bool**：多个布尔调用参数一律打包成结构体并给**面语义构造器**
   （实证：`ContextFlags::type_scoped/property_scoped/element/scoped_validation`——
   落码时批量改 call site 按字符串匹配，把**元素级 @context 面**误接成
