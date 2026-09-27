@@ -1222,6 +1222,11 @@ fn StandardExpander::expand_object(
                 Ok(k) => k
                 Err(e) => return Err(e)
               }
+              // 未映射/相对键丢弃（#t0065 oracle："Drop unmapped keys in
+              // reverse map"——非绝对 IRI 的键不产出反向条目）
+              if !is_valid_absolute_iri(rev_key) {
+                continue
+              }
               match
                 StandardExpander::expand_term_values_inner(
                   self,
@@ -2300,6 +2305,15 @@ fn StandardExpander::expand_term_values_inner(
       }
     None => ()
   }
+  // property-scoped context（REC 5.1.2 不回退；标量/容器臂共用——丙批/丁批/
+  // 原生 coercion）
+  let scoped = match
+    StandardExpander::apply_property_scoped_context(
+      self, active, term, options,
+    ) {
+    Ok(context) => context
+    Err(e) => return Err(e)
+  }
   match value {
     JsonValue::Object(_) => {
       // list/set 对象拦截（C 组——判据①；#ter41/#tli01 oracle）
@@ -2359,13 +2373,6 @@ fn StandardExpander::expand_term_values_inner(
     JsonValue::String(sv) => {
       // 标量分支（REC 5.1.2）：**不回退**，只套 property-scoped context
       // （#tc007 oracle：节点自身标量属性仍见 type-scoped 的 coercion）
-      let scoped = match
-        StandardExpander::apply_property_scoped_context(
-          self, active, term, options,
-        ) {
-        Ok(context) => context
-        Err(e) => return Err(e)
-      }
       // 默认语言/方向解析（丙批——#t0022/#t0018/#tdi01 oracle）：term 成员
       // 三态优先（Set 覆盖 / Null 压制），未声明继承 context 默认（scoped
       // context 链已继承——property-scoped 应用保留默认值）；仅串值注入
@@ -2474,11 +2481,94 @@ fn StandardExpander::expand_term_values_inner(
         }
       }
     }
-    JsonValue::Number(nv) =>
-      Ok([literal_of("\{nv}", Some(JsonValue::Number(nv)))])
+    JsonValue::Number(nv) => {
+      // 原生值 coercion（#t0031/#t0061 oracle）：datatype 映射（非 @id/@vocab/
+      // @json 形态）⇒ {@value, @type: dt}；@id/@vocab coercion 不转原生值
+      //（#t0088 同族）
+      let dt = match scoped.terms.get(term) {
+        Some(term_definition) => term_definition.datatype
+        None => None
+      }
+      let lit = match dt {
+        Some(coercion) =>
+          if coercion is ("@id" | "@vocab" | "@json") {
+            ExpandedLiteral::{
+              value: "\{nv}",
+              datatype: None,
+              language: None,
+              direction: None,
+              raw: Some(JsonValue::Number(nv)),
+              index: None,
+              included: None,
+            }
+          } else {
+            ExpandedLiteral::{
+              value: "\{nv}",
+              datatype: Some(coercion),
+              language: None,
+              direction: None,
+              raw: Some(JsonValue::Number(nv)),
+              index: None,
+              included: None,
+            }
+          }
+        None =>
+          ExpandedLiteral::{
+            value: "\{nv}",
+            datatype: None,
+            language: None,
+            direction: None,
+            raw: Some(JsonValue::Number(nv)),
+            index: None,
+            included: None,
+          }
+      }
+      Ok([ExpandedValue::Value(lit)])
+    }
     // 属性位布尔 = @value 字面量保形（#t0088 oracle：true/false 保留）；
     // null 丢弃（1.1）
-    JsonValue::Bool(bv) => Ok([literal_of("\{bv}", Some(JsonValue::Bool(bv)))])
+    JsonValue::Bool(bv) => {
+      let dt = match scoped.terms.get(term) {
+        Some(term_definition) => term_definition.datatype
+        None => None
+      }
+      let lit = match dt {
+        Some(coercion) =>
+          if coercion is ("@id" | "@vocab") {
+            // @id/@vocab coercion 不转原生值（#t0088 同族）
+            ExpandedLiteral::{
+              value: "\{bv}",
+              datatype: None,
+              language: None,
+              direction: None,
+              raw: Some(JsonValue::Bool(bv)),
+              index: None,
+              included: None,
+            }
+          } else {
+            ExpandedLiteral::{
+              value: "\{bv}",
+              datatype: Some(coercion),
+              language: None,
+              direction: None,
+              raw: Some(JsonValue::Bool(bv)),
+              index: None,
+              included: None,
+            }
+          }
+        None =>
+          ExpandedLiteral::{
+            value: "\{bv}",
+            datatype: None,
+            language: None,
+            direction: None,
+            raw: Some(JsonValue::Bool(bv)),
+            index: None,
+            included: None,
+          }
+      }
+      Ok([ExpandedValue::Value(lit)])
+    }
     JsonValue::Null => Ok([])
   }
 }

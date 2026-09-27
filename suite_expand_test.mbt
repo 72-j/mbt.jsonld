@@ -543,6 +543,12 @@ async test "expand suite harness: manifest-driven buckets, all deferred pre-J2" 
     // —— 壬子·同 IRI 属性合并批（2026-09-27；多键同展一 IRI → 单键累加，
     // 输入文档顺序——#t0034/#t0114 oracle 一致；#tdi03 = 合并 × direction）——
      "#t0034", "#tdi03",
+    // —— 原生 coercion + reverse-map 丢键小批（2026-09-27）——
+    // #t0031：xsd:integer/double/... datatype 映射 × 原生值
+    // #t0061：任意 datatype coercion × 原生值数组
+    "#t0031", "#t0061",
+    // #t0065：reverse-map 未映射键丢弃（relative-iri 条目不产出）
+    "#t0065",
     // —— @vocab 动态形态批（2026-09-27；@vocab 值形态边界表见 todo §J2）——
     // #t0124/#t0125：@vocab 值 compact/term 动态解析；#tpr29：@prefix:false
     // 抑制 compact；#t0067：prefix:// 非 compact（suffix "//" 排除）
@@ -689,8 +695,8 @@ async test "expand suite harness: manifest-driven buckets, all deferred pre-J2" 
   for d in deferred {
     dbg = dbg + d + " "
   }
-  assert_eq(deferred.length(), 21)
-  assert_eq(plain.length(), 364)
+  assert_eq(deferred.length(), 18)
+  assert_eq(plain.length(), 367)
   // 解析覆盖闭合：每个有 input 的条目都走了解析通道
   assert_eq(parsed_ok + parse_err, 385)
   // 首例钉：#t0001 已迁 plain（manifest 顺序首条；J2 首件验收 = 此例端到端绿）
