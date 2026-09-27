@@ -90,6 +90,8 @@
 | #pr23/#pr24/#pr27/#pr41 vs #pr26/#pr28/#pr42 | 定义面分叉（**保护穿透**） | 新定义与旧定义是否**等价（除 protected 位外）** | 等价 ⇒ 允许重定义**且保留旧定义**（保护位不丢，#pr42）；不等价 ⇒ `protected term redefinition`（判据看**旧定义**是否受保护——#pr04：新定义带 `@protected:false` 也不豁免） |
 | #pr06/#pr14/#pr16 vs #pr17/#pr18/#pr20/#pr21 | 调用面分叉（**同一空化形态**） | override protected 的**传导面** | property-scoped 应用与定义期 scoped 校验传 true ⇒ 空化保护 term 允许；**type-scoped 应用不传（false）**⇒ 同一 `null`/`[null]` 形态报 `invalid context nullification` |
 | #tec02 vs #pr30 | 形态分叉（**关键字 term 的 td 值**） | `{"@container":"@set"}`/`{"@protected":…}` 的有无 | "only either **or both of** following entries" ⇒ 须**至少一条**：`{"@type": {}}` → `keyword redefinition`；`{"@container":"@set","@protected":true}` → 合法（关键字可保护） |
+| #t0003 vs #tjs18/#tjs22 | **@json term 豁免**（形态+成员分叉） | `@value: null`——普通属性整体丢弃；**@json term** 的 null = JSON null 字面量保留（第三组同形异判） |
+| #ter01 vs #t0005/#tpr34~#tpr39 | **@ 前缀 ≠ 关键字**分叉 | "@iri": "@id"（keyword 形态**非真关键字**）定义**忽略不报错**、节点键随之丢弃；"@type": "@id"（**真关键字**映射异关键字）→ keyword redefinition。同族判据：@ 前缀 + 非关键字形态的键 → 忽略不产出属性（#t0119/#tpr34/#tpr36） |
 | #tc013 vs #tm003/#tm006 | 容器种类分叉（**map context 的来源**） | 容器 ∈ {@type}（用 previous）vs {@index}（用 active） | @id/@type 容器的 map context = active 的 **previous**（存在即用）；@index 容器 = **active**——#tc013 因此让内层 map 用 base 的 index 容器定义、而非外层 type-scoped 的 |
 | #tm003/#tm004 vs #tm012 | 键形态分叉（**@none 与索引写入**） | 索引键是否展开为 `@none` | 普通键 ⇒ **前插** @type（已有 @type 时前插，非替换）；`@none` 及其别名 ⇒ **不写索引**（条目仍产出） |
 | #tm017/#tm018/#tm019 vs #tm020 | **定义面分叉**（container @type × type mapping） | 显式 `@type` 是否 ∈ {@id,@vocab} | 容器含 `@type`：未声明 ⇒ **隐式 @id**（#tm017）；显式 `@id`（#tm018）/`@vocab`（#tm019）合法；其它值（如 `"literal"` 经 vocab 展开成 IRI）⇒ **invalid type mapping**（#tm020 负） |
@@ -190,6 +192,23 @@ type-scoped 快照必须以"元素 @context 已生效"的 active context 为底�
 **共享 context 面规则**（map context 来源 / from-map 语境），合并降低机制切换成本；
 仍按**逐例归因**记账（@id map #tm001/#tm002/#tm005/#tm011 + language map #tm009/#tm010，
 开工时按现状复勘"直接相关同族例"再定终稿）。
+
+### keyword 形态与 @ 键面已落实现注记（戊批 + 回归修，2026-09-27）
+- **keyword 形态**（REC 3.1：`"@"` 后接 ≥1 个纯 ALPHA）**≠ 真关键字**（形态 + 关键字表
+  成员）：`"@"`/`"@foo.bar"` 非形态 ⇒ 可作普通 term（#t0119 oracle）；`"@ignoreMe"` 是
+  形态但非表成员。
+- **td 值（@id / @reverse 两臂）为 keyword 形态非真关键字** ⇒ **照录 REC 的 `return`：
+  整个定义放弃**（不安装、不落映射、**不再走无 @id 兜底**）——#t0120（键回落 vocab
+  拼接）/ #tpr38/#tpr39（反向映射不落）。
+- **真关键字互斥**：term 与展开值同为关键字且不同 ⇒ keyword redefinition（#ter01）；
+  **@context 别名禁**（invalid keyword alias，#ter19）；**空 term 名** ⇒ invalid term
+  definition（#ter52）。
+- **节点位 `@` 前缀非关键字键** ⇒ 忽略、不产出属性（#t0119/#tpr34/#tpr36）。
+- **无 @id 兜底门保持严判**（REC 4.2.2 末路：无 vocab 可拼的相对 term 名 ⇒ invalid IRI
+  mapping）⇒ **未被使用的嵌入 context 亦须在定义期报错**（invalid scoped context，
+  #tc032/#tc033 oracle）。**回归修（2026-09-27）**：曾为让 #tpr38 通过而把此门软化为
+  "None 忽略" ⇒ #tc032/#tc033 的拒绝链断掉（2 红）；正解 = 两臂照录 `return`（上游）
+  + 兜底门恢复严判。
 
 ### @index mapping + index map 校验批已落实现注记（2026-09-26）
 - **td `@index` 索引映射**（REC 4.2.2）：仅 1.1 模式且容器含 `@index` 时合法；值须为串
