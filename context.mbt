@@ -47,6 +47,9 @@ pub(all) struct TermDefinition {
   /// 覆盖。受保护定义不可被**不等价**重定义覆盖；等价重定义允许且**保留旧定义**
   /// （保护位不丢——#pr42 oracle）
   is_protected : Bool
+  /// @prefix 标记三态（@vocab 动态形态批——REC 4.2.2）：None 未声明（compact
+  /// 可用）/ Some(false) 显式抑制（#tpr29 oracle）/ Some(true) 显式允许
+  is_prefix : Bool?
   /// 语言映射三态（丙批）：None = 未声明（串值继承 context 默认语言）；
   /// Null = 显式压制（@language: null）；Set = 覆盖（#t0018/#tdi06 oracle）
   language_mapping : LanguageMember?

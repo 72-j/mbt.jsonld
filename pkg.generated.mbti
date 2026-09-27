@@ -177,6 +177,7 @@ pub(all) struct TermDefinition {
   local_context : JsonValue?
   index_mapping : String?
   is_protected : Bool
+  is_prefix : Bool?
   language_mapping : LanguageMember?
   direction_mapping : LanguageMember?
 }

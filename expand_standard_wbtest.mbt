@@ -197,6 +197,7 @@ test "term/IRI chain with constructed context (②批对拍)" {
     graph_secondary: None,
     language_mapping: None,
     direction_mapping: None,
+    is_prefix: None,
   }
   terms["name"] = TermDefinition::{
     iri: Some("http://example.com/name"),
@@ -209,6 +210,7 @@ test "term/IRI chain with constructed context (②批对拍)" {
     graph_secondary: None,
     language_mapping: None,
     direction_mapping: None,
+    is_prefix: None,
   }
   let active = ActiveContext::{
     base: None,
@@ -294,6 +296,7 @@ test "property key routing via chain (②批)" {
     graph_secondary: None,
     language_mapping: None,
     direction_mapping: None,
+    is_prefix: None,
   }
   let active = ActiveContext::{
     base: None,
@@ -460,6 +463,7 @@ test "debug ter48: vocab=false excludes term lookup" {
     graph_secondary: None,
     language_mapping: None,
     direction_mapping: None,
+    is_prefix: None,
   }
   let active = ActiveContext::{
     base: None,

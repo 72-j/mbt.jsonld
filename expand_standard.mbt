@@ -362,17 +362,27 @@ impl IriExpander for StandardExpander with fn expand_iri(
   if is_bnode_label(value) {
     return Ok(value)
   }
-  // 4 compact：prefix ∈ terms → 定义 IRI + suffix
+  // 4 compact：prefix ∈ terms 且未被 @prefix:false 抑制（#tpr29 oracle）→
+  // 定义 IRI + suffix；**suffix 以 "//" 开头 = 非 compact**（protocol-like
+  // authority——#t0067 oracle：http:// 类键不被 term 前缀误吃）
   match colon_index(value) {
     Some(at) => {
       let (prefix, suffix) = split_first_colon(value, at)
-      match active.terms.get(prefix) {
-        Some(td) =>
-          match td.iri {
-            Some(base_iri) => return Ok("\{base_iri}\{suffix}")
-            None => ()
-          }
-        None => ()
+      let double_slash = suffix.get_char(0) is Some('/') &&
+        suffix.get_char(1) is Some('/')
+      if !double_slash {
+        match active.terms.get(prefix) {
+          Some(td) =>
+            if td.is_prefix is Some(false) {
+              ()
+            } else {
+              match td.iri {
+                Some(base_iri) => return Ok("\{base_iri}\{suffix}")
+                None => ()
+              }
+            }
+          None => ()
+        }
       }
     }
     None => ()
@@ -2694,13 +2704,51 @@ impl ContextProcessor for StandardExpander with fn process_context(
                     JsonLdError::InvalidContext("invalid vocab mapping"),
                   )
                 }
-                let resolved = if is_valid_absolute_iri(v) || is_bnode_label(v) {
-                  v
-                } else {
-                  match base {
-                    Some(b) => "\{b}\{v}"
-                    None => v
+                // 动态形态解析（@vocab 动态形态批——#t0124/#t0125 oracle）：
+                // ① term 精确命中 ② compact（prefix ∈ in-progress terms，
+                // suffix 非 "//"）③ 未命中回落既有 absolute/bnode/base-join
+                //（t0092 语义不变：空串 → base 本身）
+                let mut resolved_v : String? = None
+                match new_terms.get(v) {
+                  Some(td) =>
+                    match td.iri {
+                      Some(iri) => resolved_v = Some(iri)
+                      None => ()
+                    }
+                  None => ()
+                }
+                if resolved_v is None {
+                  match colon_index(v) {
+                    Some(at) => {
+                      let (prefix, suffix) = split_first_colon(v, at)
+                      let double_slash = suffix.get_char(0) is Some('/') &&
+                        suffix.get_char(1) is Some('/')
+                      if !double_slash {
+                        match new_terms.get(prefix) {
+                          Some(td) =>
+                            match td.iri {
+                              Some(base_iri) =>
+                                resolved_v = Some("\{base_iri}\{suffix}")
+                              None => ()
+                            }
+                          None => ()
+                        }
+                      }
+                    }
+                    None => ()
                   }
+                }
+                let resolved = match resolved_v {
+                  Some(r) => r
+                  None =>
+                    if is_valid_absolute_iri(v) || is_bnode_label(v) {
+                      v
+                    } else {
+                      match base {
+                        Some(b) => "\{b}\{v}"
+                        None => v
+                      }
+                    }
                 }
                 vocab = Some(resolved)
               }
@@ -2888,6 +2936,7 @@ impl ContextProcessor for StandardExpander with fn process_context(
                       is_protected: protected_default,
                       language_mapping: None,
                       direction_mapping: None,
+                      is_prefix: None,
                     },
                     flags.override_protected,
                   ) {
@@ -2915,6 +2964,7 @@ impl ContextProcessor for StandardExpander with fn process_context(
                       is_protected: protected_default,
                       language_mapping: None,
                       direction_mapping: None,
+                      is_prefix: None,
                     },
                     flags.override_protected,
                   ) {
@@ -2992,6 +3042,7 @@ fn StandardExpander::process_expanded_term_definition(
   let mut td_reverse : String? = None
   let mut td_graph_secondary : ContainerType? = None
   let mut td_prefix = false
+  let mut td_is_prefix : Bool? = None
   let mut td_language : LanguageMember? = None
   let mut td_direction : LanguageMember? = None
   let mut td_local_context : JsonValue? = None
@@ -3185,7 +3236,10 @@ fn StandardExpander::process_expanded_term_definition(
         // 前缀标记验证（⑤后半——#ter53 oracle）：须布尔；true 记录供
         // keyword 别名组合禁（#tpr33）
         match td_pair.1 {
-          JsonValue::Bool(flag) => td_prefix = flag
+          JsonValue::Bool(flag) => {
+            td_prefix = flag
+            td_is_prefix = Some(flag)
+          }
           _ => return Err(JsonLdError::InvalidContext("invalid @prefix value"))
         }
       "@nest" =>
@@ -3406,6 +3460,7 @@ fn StandardExpander::process_expanded_term_definition(
           is_protected: td_protected,
           language_mapping: None,
           direction_mapping: None,
+          is_prefix: None,
         },
         override_protected,
       ) {
@@ -3477,6 +3532,7 @@ fn StandardExpander::process_expanded_term_definition(
       language_mapping: td_language,
       direction_mapping: td_direction,
       is_protected: td_protected,
+      is_prefix: td_is_prefix,
     },
     override_protected,
   )
@@ -3681,12 +3737,16 @@ fn validate_container_value(
 
 ///|
 /// compact 自指环检测（⑤后半——#ter10 oracle）：值含冒号且冒号前 prefix =
-/// 被定义的 term 名自身 → 展开即环
+/// 被定义的 term 名自身 → 展开即环。**豁免**：suffix 以 "//" 开头 =
+/// protocol-like IRI（scheme 形态——#t0067 oracle："http://…" 作 term 值非环）
 fn is_self_prefix_compact(value : String, term_name : String) -> Bool {
   match colon_index(value) {
     Some(at) =>
       if at > 0 {
-        split_first_colon(value, at).0 == term_name
+        let prefix = split_first_colon(value, at).0
+        prefix == term_name &&
+        !(split_first_colon(value, at).1.get_char(0) is Some('/') &&
+        split_first_colon(value, at).1.get_char(1) is Some('/'))
       } else {
         false
       }
