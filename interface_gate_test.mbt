@@ -316,6 +316,8 @@ async test "interface gate smoke: mock surface is callable" {
     vocab: None,
     terms: Map([]),
     previous: None,
+    default_language: None,
+    default_direction: None,
   }
   let options = @jsonld.JsonLdOptions::{
     base: None,

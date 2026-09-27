@@ -203,8 +203,9 @@ async test "expand suite harness: manifest-driven buckets, all deferred pre-J2" 
     "#ten02", "#ten03", "#ten04", "#tep02", "#tep03", "#ter04", "#ter05", "#ter06",
     "#ter07", "#ter12", "#ter13", "#ter23", "#ter24", "#ter25", "#ter27", "#ter29",
     "#ter30", "#ter31", "#ter33", "#ter34", "#ter41", "#ter42", "#ter55", "#ter56",
-    "#tin07", "#tin08", "#tin09", "#tpr42", "#tso01", "#tso02", "#tso03", "#tso07",
-    "#tso10", "#tso12", "#tso13", "#ttn01",
+    //（#tpr42 已由 @protected 批迁入并在其块内记账——此处去重，2026-09-27）
+     "#tin07", "#tin08", "#tin09", "#tso01", "#tso02", "#tso03", "#tso07", "#tso10",
+    "#tso12", "#tso13", "#ttn01",
     // —— ⑤批 A 组（td 对象形态 + coercion——2026-09-26；批边界/判据/对拍点见 todo §J2 ⑤批）——
     // #t0007：形态 D（td @type 显式 datatype）+ 两遍 context 处理（后置 prefix
     // 定义——简单 term——对对象形态 td 可用）
@@ -542,6 +543,20 @@ async test "expand suite harness: manifest-driven buckets, all deferred pre-J2" 
     // —— 壬子·同 IRI 属性合并批（2026-09-27；多键同展一 IRI → 单键累加，
     // 输入文档顺序——#t0034/#t0114 oracle 一致；#tdi03 = 合并 × direction）——
      "#t0034", "#tdi03",
+    // —— 戊·受限 @ 键/关键字别名批（2026-09-27；keyword 形态判定 + 真关键字
+    // 互斥 + 空 term + @context 别名禁 + 未知 @ 键忽略）——
+    // #t0119/#t0120/#t0121：@ 前缀非关键字键/值——@ 后纯 ALPHA = keyword
+    // 形态忽略；含 ./空尾 = 非 keyword 形态可用
+    //（#t0122 non-normative 回桶：@ignoreMe 相对值 base 解析序待勘）
+     "#t0119", "#t0120", "#t0121",
+    // #tpr34~#tpr39：@ 前缀 term 忽略 / term→@ 值忽略（protected 变体同语义）
+     "#tpr34", "#tpr35", "#tpr36", "#tpr37", "#tpr38", "#tpr39",
+    // #ter01（负）：真关键字映射异关键字 → keyword redefinition
+    // #ter19（负）：@id 映射 @context → invalid keyword alias
+    // #ter52（负）：空 term 名 → invalid term definition
+     "#ter01", "#ter19", "#ter52",
+    //（#t0014 回桶：节点位 @set 键语义未定——别名/值对象已通，@set 节点位
+    // 挂 @set 节点语义批）
     // —— 丁·@json literal 批（2026-09-27；@json 拦截：值原样进 @value，
     // datatype=@json；canonical 选项不影响展开对拍——REC 钉见 todo §J2）——
     // #tjs01~#tjs07：标量/对象/数组 JSON 字面量
@@ -646,8 +661,11 @@ async test "expand suite harness: manifest-driven buckets, all deferred pre-J2" 
     }
   }
   // pin 闭合：桶总和 == 普查数；plain = 已迁移数
-  assert_eq(deferred.length(), 42)
-  assert_eq(plain.length(), 343)
+  // pin 按 **harness 桶**计（= manifest 条目落桶数），不是 migrated 列表长度——
+  // 2026-09-27 勘误：列表曾重复一条 #tpr42 ⇒ 列表长度 356 而桶 plain 实为 355、
+  // deferred 实为 30（385 − 355）。去重后二者一致。
+  assert_eq(deferred.length(), 30)
+  assert_eq(plain.length(), 355)
   // 解析覆盖闭合：每个有 input 的条目都走了解析通道
   assert_eq(parsed_ok + parse_err, 385)
   // 首例钉：#t0001 已迁 plain（manifest 顺序首条；J2 首件验收 = 此例端到端绿）

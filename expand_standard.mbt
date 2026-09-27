@@ -47,6 +47,67 @@ fn is_valid_absolute_iri(value : String) -> Bool {
 }
 
 ///|
+/// keyword 形态判定（戊批——REC 3.1："@" 后跟一个或多个纯 ALPHA；REC 关键字
+/// 均为此形态。"@" 空尾 / 含 "." 等非 ALPHA = 非 keyword 形态，可作普通 term
+/// ——#t0119 oracle：@/@foo.bar 可用、@ignoreMe（纯 ALPHA）被忽略）
+
+///|
+/// 真关键字判定（REC 1.7 关键字表——keyword 形态 + 表成员；"@iri" 等
+/// keyword 形态但非表成员者**不是**关键字）
+fn is_keyword(value : String) -> Bool {
+  value
+  is ("@base"
+  | "@container"
+  | "@context"
+  | "@direction"
+  | "@graph"
+  | "@id"
+  | "@import"
+  | "@included"
+  | "@index"
+  | "@json"
+  | "@language"
+  | "@list"
+  | "@nest"
+  | "@none"
+  | "@prefix"
+  | "@propagate"
+  | "@protected"
+  | "@reverse"
+  | "@set"
+  | "@type"
+  | "@value"
+  | "@version"
+  | "@vocab")
+}
+
+///|
+/// keyword 形态判定（戊批——REC 3.1："@" 后跟一个或多个纯 ALPHA；REC 关键字
+/// 均为此形态。"@" 空尾 / 含 "." 等非 ALPHA = 非 keyword 形态，可作普通 term
+/// ——#t0119 oracle：@/@foo.bar 可用、@ignoreMe（纯 ALPHA）被忽略）
+fn has_keyword_form(value : String) -> Bool {
+  match value.get_char(0) {
+    Some('@') => {
+      let mut seen_at = false
+      let mut alpha_count = 0
+      let mut all_alpha = true
+      for ch in value {
+        if !seen_at {
+          seen_at = true
+        } else if ch is ('a'..='z' | 'A'..='Z') {
+          alpha_count += 1
+        } else {
+          all_alpha = false
+          break
+        }
+      }
+      all_alpha && alpha_count >= 1
+    }
+    _ => false
+  }
+}
+
+///|
 /// bnode 判定（_: 前缀）
 fn is_bnode_label(value : String) -> Bool {
   match value.get_char(0) {
@@ -279,8 +340,11 @@ impl IriExpander for StandardExpander with fn expand_iri(
   document_relative : Bool,
   vocab : Bool,
 ) -> Result[String, JsonLdError] {
-  // 1 keyword：@ 前缀原样（未知 @word 不校验集合，挂负例校准）
-  if value.get_char(0) is Some('@') {
+  // 1 keyword：keyword 形态（"@" 后纯 ALPHA ≥1）原样返回——**未知 keyword
+  // 亦原样**（节点位由属性门/忽略语义处理，#t0119/#tpr34/#tpr36 oracle）；
+  // "@" 空尾或含非 ALPHA（"." 等）= 非 keyword 形态，继续分拣（可命中 term
+  // 定义——#t0119 oracle：@/@foo.bar term 可用）
+  if has_keyword_form(value) {
     return Ok(value)
   }
   // 2 term 精确查表：仅 vocab 位
@@ -731,15 +795,12 @@ fn StandardExpander::expand_object(
     if term_iri_is_null {
       continue
     }
-    // 键归一（#ter51 oracle）：字面 @ 键原样；term 键经 IRI 链展开一次——
-    // 别名 term（IRI 即关键字）归一到关键字位，与字面关键字同路分派
-    let expanded_key = match pair.0.get_char(0) {
-      Some('@') => pair.0
-      _ =>
-        match IriExpander::expand_iri(self, current, pair.0, false, true) {
-          Ok(k) => k
-          Err(e) => return Err(e)
-        }
+    // 键归一（#ter51 oracle + #t0119 扩）：一律经 IRI 链展开一次——真关键字
+    // 原样（keyword 形态步 1）、@-term 键命中查表、别名 term 汇流关键字位
+    let expanded_key = match
+      IriExpander::expand_iri(self, current, pair.0, false, true) {
+      Ok(k) => k
+      Err(e) => return Err(e)
     }
     // 关键字位判定按归一键：字面关键字与别名 term 汇流
     let routes_to_keyword = expanded_key.get_char(0) is Some('@')
@@ -1246,12 +1307,9 @@ fn StandardExpander::expand_object(
           JsonValue::Null => () // null = 空（先验，循 @graph/@nest 同款）
           _ => return Err(JsonLdError::InvalidValue("invalid @included value"))
         }
-      other =>
-        return Err(
-          JsonLdError::Unsupported(
-            "keyword expansion pending later batches (\{other})",
-          ),
-        )
+      _ =>
+        // 未知 @ 键忽略（戊批——同前一枚：@ 前缀非关键字键不产出属性）
+        ()
     }
   }
   // @nest 延后处理（nest 纯形批——REC 步骤 14）：逐嵌套值须为节点对象且
@@ -2756,6 +2814,10 @@ impl ContextProcessor for StandardExpander with fn process_context(
             if other.get_char(0) is Some('.') {
               return Err(JsonLdError::InvalidIri("invalid IRI mapping"))
             }
+            // 空 term 名（#ter52 oracle）→ invalid term definition
+            if other is "" {
+              return Err(JsonLdError::InvalidContext("invalid term definition"))
+            }
             // term 定义（简单形态：term → IRI 字符串；null = 移除）。
             // 值 IRI 展开：vocab 位、对 in-progress terms 查表
             // （#t0072 oracle：重定义为自身时用 @vocab，非旧 term 定义）
@@ -2786,6 +2848,21 @@ impl ContextProcessor for StandardExpander with fn process_context(
                   IriExpander::expand_iri(_self, building, iri, false, true) {
                   Ok(k) => k
                   Err(e) => return Err(e)
+                }
+                // keyword 项互斥（#ter01 oracle）：**真关键字** term 映射到
+                // 异关键字 → keyword redefinition（"@iri" 等 keyword 形态
+                // 非真关键字者忽略不报——#t0005 oracle）
+                if is_keyword(other) &&
+                  is_keyword(expanded) &&
+                  expanded != other {
+                  return Err(
+                    JsonLdError::InvalidContext("keyword redefinition"),
+                  )
+                }
+                // 值为 keyword 形态非真关键字（#tpr37/#t0120 oracle 同族）：
+                // 定义忽略——键回落 vocab 拼接（ignoreMe → vocab/ignoreMe）
+                if has_keyword_form(expanded) && !is_keyword(expanded) {
+                  continue
                 }
                 // term 名一致性检查（REC 4.2.2 @id 臂；#ter44 负例 oracle；
                 // simple 臂与 td @id 臂同规则同源）
@@ -2914,6 +2991,7 @@ fn StandardExpander::process_expanded_term_definition(
   let mut td_container : ContainerType? = None
   let mut td_reverse : String? = None
   let mut td_graph_secondary : ContainerType? = None
+  let mut td_prefix = false
   let mut td_language : LanguageMember? = None
   let mut td_direction : LanguageMember? = None
   let mut td_local_context : JsonValue? = None
@@ -2958,6 +3036,22 @@ fn StandardExpander::process_expanded_term_definition(
             }
             match IriExpander::expand_iri(_self, building, iri, false, true) {
               Ok(k) => {
+                // @context 别名禁（#ter19 oracle：@id 映射 @context →
+                // invalid keyword alias）
+                if k is "@context" {
+                  return Err(
+                    JsonLdError::InvalidContext("invalid keyword alias"),
+                  )
+                }
+                // keyword 形态非真关键字 → **整个定义放弃**（REC 4.2.2 @id 臂明文：
+                // "If the value associated with the @id entry is not a keyword, but
+                // has the form of a keyword, **return**; processors SHOULD generate
+                // a warning"——不是"继续走到无 @id 兜底"）。#t0120 oracle：term 无定义
+                // ⇒ 键回落 vocab 拼接（属性 = vocab/ignoreMe）
+                if has_keyword_form(k) && !is_keyword(k) {
+                  return Ok(())
+                }
+                td_iri = Some(k)
                 // term 名一致性检查（REC 4.2.2 @id 臂；#ter43 负例 oracle /
                 // #t0026 正例 oracle——1.0 无此检查）
                 match
@@ -2967,7 +3061,7 @@ fn StandardExpander::process_expanded_term_definition(
                   Ok(_) => ()
                   Err(e) => return Err(e)
                 }
-                td_iri = Some(k)
+                // td_iri 由前述条件写入（keyword 形态非真关键字 → 保持 None）
               }
               Err(e) => return Err(e)
             }
@@ -3088,10 +3182,10 @@ fn StandardExpander::process_expanded_term_definition(
           _ => return Err(JsonLdError::InvalidContext("invalid base direction"))
         }
       "@prefix" =>
-        // 前缀标记验证（⑤后半——#ter53 oracle）：须布尔；IRI 尾段 / 或 #
-        // 条件无 oracle 挂账，勿过严
+        // 前缀标记验证（⑤后半——#ter53 oracle）：须布尔；true 记录供
+        // keyword 别名组合禁（#tpr33）
         match td_pair.1 {
-          JsonValue::Bool(_) => ()
+          JsonValue::Bool(flag) => td_prefix = flag
           _ => return Err(JsonLdError::InvalidContext("invalid @prefix value"))
         }
       "@nest" =>
@@ -3155,7 +3249,15 @@ fn StandardExpander::process_expanded_term_definition(
             }
             match IriExpander::expand_iri(_self, building, rev, false, true) {
               Ok(k) =>
-                if is_valid_absolute_iri(k) {
+                // keyword 形态非真关键字（"@ignoreMe" 形态）→ **整个定义放弃**
+                // （REC 4.2.2 @reverse 臂明文："If the value associated with the
+                // @reverse entry is a string having the form of a keyword, **return**;
+                // processors SHOULD generate a warning"）。#tpr38/#tpr39 oracle：
+                // term 无定义 ⇒ 键回落普通语义（不落反向映射），且**不得**再走到
+                // 无 @id 兜底去报 invalid IRI mapping
+                if has_keyword_form(k) && !is_keyword(k) {
+                  return Ok(())
+                } else if is_valid_absolute_iri(k) {
                   td_reverse = Some(k)
                 } else {
                   return Err(JsonLdError::InvalidIri("invalid IRI mapping"))
@@ -3237,6 +3339,15 @@ fn StandardExpander::process_expanded_term_definition(
       Some(ContainerType::Set) | Some(ContainerType::Index) | None => ()
       _ => return Err(JsonLdError::InvalidContext("invalid reverse property"))
     }
+  }
+  // keyword 别名 × @prefix 组合禁（#tpr33 oracle）：IRI 映射为真关键字的 term
+  // 携带 @prefix → invalid term definition
+  let keyword_aliased = match td_iri {
+    Some(k) => is_keyword(k)
+    None => false
+  }
+  if td_prefix && keyword_aliased {
+    return Err(JsonLdError::InvalidContext("invalid term definition"))
   }
   // 容器含 @type 的隐式 type mapping（REC 4.2.2）：未声明 @type ⇒ 置 @id；
   // 已声明则须为 @id/@vocab，否则 invalid type mapping（#tm017/#tm018/#tm019/
@@ -3335,6 +3446,12 @@ fn StandardExpander::process_expanded_term_definition(
             match
               IriExpander::expand_iri(_self, building, term_name, false, true) {
               Ok(k) =>
+                // 无 vocab 可拼的相对 term 名 ⇒ **invalid IRI mapping**（REC 4.2.2
+                // 末路："If it does not have a vocabulary mapping, an invalid IRI
+                // mapping error has been detected"）。#tc032/#tc033 oracle：**未被
+                // 使用**的嵌入 context 亦须在定义期报错（invalid scoped context）。
+                // 〔曾经的软化（None 忽略）是为 tpr38 让路，属**修错层**——tpr38 的
+                // 正解在 td @reverse 臂的 REC "return"（见该臂注释）〕
                 if is_valid_absolute_iri(k) || is_bnode_label(k) {
                   Some(k)
                 } else {
