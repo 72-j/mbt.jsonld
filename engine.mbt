@@ -37,7 +37,22 @@ pub fn expand_document(
     Err(e) => return Err(e)
   }
   let expander = StandardExpander::{ }
-  let active = initial_context(options)
+  let active = match options.expand_context {
+    // expandContext 选项（#t0077 oracle）：外部 context 先于文档处理
+    Some(context_value) =>
+      match
+        ContextProcessor::process_context(
+          StandardExpander::{ },
+          initial_context(options),
+          context_value,
+          ContextFlags::element(),
+          options,
+        ) {
+        Ok(context) => context
+        Err(e) => return Err(e)
+      }
+    None => initial_context(options)
+  }
   // 顶层形态三分：数组（逐元素展开收集、free-floating/值对象即弃——#t0013）、
   // 对象（单节点路径）、标量（挂后续例）
   match shape_of(element) {

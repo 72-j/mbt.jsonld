@@ -2308,9 +2308,7 @@ fn StandardExpander::expand_term_values_inner(
   // property-scoped context（REC 5.1.2 不回退；标量/容器臂共用——丙批/丁批/
   // 原生 coercion）
   let scoped = match
-    StandardExpander::apply_property_scoped_context(
-      self, active, term, options,
-    ) {
+    StandardExpander::apply_property_scoped_context(self, active, term, options) {
     Ok(context) => context
     Err(e) => return Err(e)
   }
@@ -3257,6 +3255,7 @@ fn StandardExpander::process_expanded_term_definition(
   let mut td_reverse : String? = None
   let mut td_graph_secondary : ContainerType? = None
   let mut td_prefix = false
+  let mut td_nest : String? = None
   let mut td_is_prefix : Bool? = None
   let mut td_language : LanguageMember? = None
   let mut td_direction : LanguageMember? = None
@@ -3465,6 +3464,7 @@ fn StandardExpander::process_expanded_term_definition(
             if keyword_named && nest_term != "@nest" {
               return Err(JsonLdError::InvalidContext("invalid @nest value"))
             }
+            td_nest = Some(nest_term)
           }
           _ => return Err(JsonLdError::InvalidContext("invalid @nest value"))
         }
@@ -3618,6 +3618,7 @@ fn StandardExpander::process_expanded_term_definition(
       _ => return Err(JsonLdError::InvalidContext("invalid reverse property"))
     }
   }
+  // reverse × nest 同 td 互斥（#ten06 oracle：invalid reverse property）
   // keyword 别名 × @prefix 组合禁（#tpr33 oracle）：IRI 映射为真关键字的 term
   // 携带 @prefix → invalid term definition
   let keyword_aliased = match td_iri {
@@ -3626,6 +3627,11 @@ fn StandardExpander::process_expanded_term_definition(
   }
   if td_prefix && keyword_aliased {
     return Err(JsonLdError::InvalidContext("invalid term definition"))
+  }
+  // reverse × nest 组合禁（#ten06 oracle）：@reverse term 携带 @nest →
+  // invalid reverse property
+  if td_reverse is Some(_) && td_nest is Some(_) {
+    return Err(JsonLdError::InvalidContext("invalid reverse property"))
   }
   // 容器含 @type 的隐式 type mapping（REC 4.2.2）：未声明 @type ⇒ 置 @id；
   // 已声明则须为 @id/@vocab，否则 invalid type mapping（#tm017/#tm018/#tm019/

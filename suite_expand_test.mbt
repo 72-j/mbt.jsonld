@@ -71,15 +71,36 @@ fn options_for(
   // t0057/t0029/t0062）
   let base = base_for_entry(entry)
   let loader = loader_from_map(map)
-  {
-    base,
-    expand_context: None,
-    processing_mode: mode,
-    load_context: Some(loader),
+  // expandContext 选项（丁批——#t0077 oracle）：选项引用（tests/ 相对）→
+  // 预载表解析 → 引擎以外部 context 开局
+  // expandContext 选项解析（#t0077 oracle）：引用锚定 tests/ 目录 →
+  // 预载表取词 → 解析为 JsonValue 传入引擎
+  let expand_context : @jsonld.JsonValue? = match
+    json_object_get(entry, "option") {
+    Some(option_value) =>
+      match json_string_get(option_value, "expandContext") {
+        Some(context_ref) => {
+          let url = harness_join(
+            "https://w3c.github.io/json-ld-api/tests/", context_ref,
+          )
+          match map.get(url) {
+            Some(text) =>
+              match @jsonld.parse_json(text) {
+                Ok(parsed) => Some(parsed)
+                Err(_) => None
+              }
+            None => None
+          }
+        }
+        None => None
+      }
+    None => None
   }
+  { base, expand_context, processing_mode: mode, load_context: Some(loader), }
 }
 
 ///|
+
 ///|
 /// JsonValue 手写序列化（mismatch 勘定诊断——JsonValue 无 Show）
 fn diag_json_str(value : @jsonld.JsonValue) -> String {
@@ -111,6 +132,7 @@ fn diag_json_str(value : @jsonld.JsonValue) -> String {
   }
 }
 
+///|
 async test "expand suite harness: manifest-driven buckets, all deferred pre-J2" {
   let manifest_text = @utf8.decode(
     @fs.read_file("./src/jsonld/.rdf-tests/json-ld-api/expand-manifest.jsonld").binary(),
@@ -546,9 +568,9 @@ async test "expand suite harness: manifest-driven buckets, all deferred pre-J2" 
     // —— 原生 coercion + reverse-map 丢键小批（2026-09-27）——
     // #t0031：xsd:integer/double/... datatype 映射 × 原生值
     // #t0061：任意 datatype coercion × 原生值数组
-    "#t0031", "#t0061",
+     "#t0031", "#t0061",
     // #t0065：reverse-map 未映射键丢弃（relative-iri 条目不产出）
-    "#t0065",
+     "#t0065",
     // —— @vocab 动态形态批（2026-09-27；@vocab 值形态边界表见 todo §J2）——
     // #t0124/#t0125：@vocab 值 compact/term 动态解析；#tpr29：@prefix:false
     // 抑制 compact；#t0067：prefix:// 非 compact（suffix "//" 排除）
@@ -558,6 +580,11 @@ async test "expand suite harness: manifest-driven buckets, all deferred pre-J2" 
     // harness BFS 预载，键一致性由平铺目录保证）——
     // #t0126：直接自指；#t0127：间接环；#t0128：共享菱形 + 自指
      "#t0126", "#t0127", "#t0128",
+    // —— 值对象语义两修直迁（2026-09-27）——
+    // #t0008：language-only 值对象丢弃（saw_value 门）
+     "#t0008",
+    // #t0019：@value:null 值对象 → 属性整体丢弃（预扫描，@json 豁免）
+     "#t0019",
     // —— 戊·受限 @ 键/关键字别名批（2026-09-27；keyword 形态判定 + 真关键字
     // 互斥 + 空 term + @context 别名禁 + 未知 @ 键忽略）——
     // #t0119/#t0120/#t0121：@ 前缀非关键字键/值——@ 后纯 ALPHA = keyword
@@ -569,7 +596,7 @@ async test "expand suite harness: manifest-driven buckets, all deferred pre-J2" 
     // #ter01（负）：真关键字映射异关键字 → keyword redefinition
     // #ter19（负）：@id 映射 @context → invalid keyword alias
     // #ter52（负）：空 term 名 → invalid term definition
-     "#ter01", "#ter19", "#ter52",
+     "#ter01", "#ter19", "#ter52", "#ten06",
     //（#t0014 回桶：节点位 @set 键语义未定——别名/值对象已通，@set 节点位
     // 挂 @set 节点语义批）
     // —— 丁·@json literal 批（2026-09-27；@json 拦截：值原样进 @value，
@@ -636,6 +663,18 @@ async test "expand suite harness: manifest-driven buckets, all deferred pre-J2" 
       // 己批：预载 @context/@import 引用链（先解析输入、BFS 预载建表，loader =
       // 同步查表；core 侧解析键 = options.base 合并引用 = 预载 join 键）
       let context_map : Map[String, String] = Map([])
+      // expandContext 选项引用预载（#t0077 oracle：选项 context 锚定 tests/ 目录）
+      match json_object_get(entry, "option") {
+        Some(option_value) =>
+          match json_string_get(option_value, "expandContext") {
+            Some(context_ref) => {
+              let tests_anchor = "https://w3c.github.io/json-ld-api/tests/"
+              load_one_context(tests_anchor, context_ref, context_map)
+            }
+            None => ()
+          }
+        None => ()
+      }
       match @jsonld.parse_json(input_text) {
         Ok(parsed_input) =>
           match base_for_entry(entry) {
@@ -695,8 +734,8 @@ async test "expand suite harness: manifest-driven buckets, all deferred pre-J2" 
   for d in deferred {
     dbg = dbg + d + " "
   }
-  assert_eq(deferred.length(), 18)
-  assert_eq(plain.length(), 367)
+  assert_eq(deferred.length(), 15)
+  assert_eq(plain.length(), 370)
   // 解析覆盖闭合：每个有 input 的条目都走了解析通道
   assert_eq(parsed_ok + parse_err, 385)
   // 首例钉：#t0001 已迁 plain（manifest 顺序首条；J2 首件验收 = 此例端到端绿）
