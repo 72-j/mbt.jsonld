@@ -759,6 +759,7 @@ fn StandardExpander::expand_object(
   let included_nodes : Array[ExpandedNode] = []
   let mut literal : ExpandedLiteral? = None
   let mut is_value_object = false
+  let mut saw_value = false // @value 成员可见（丙批后缀规则：language-only 值对象丢弃）
   let mut has_datatype = false
   let mut has_language = false
   let mut has_direction = false
@@ -815,6 +816,35 @@ fn StandardExpander::expand_object(
     // 关键字位判定按归一键：字面关键字与别名 term 汇流
     let routes_to_keyword = expanded_key.get_char(0) is Some('@')
     if !routes_to_keyword {
+      // 值对象形态的**整体丢弃**预扫描（REC：被丢弃的值对象其属性不产出；
+      // 区别于 t0004 空数组字面值保留）：
+      // - @value: null（#t0019 oracle）
+      // - 仅 @language/@direction 无 @value（#t0008 oracle：drop-lang-only）
+      if pair.1 is JsonValue::Object(value_pairs) {
+        let mut has_value_member = false
+        let mut has_value_null = false
+        let mut only_lang_dir = true
+        for vp in value_pairs {
+          match vp.0 {
+            "@value" => {
+              has_value_member = true
+              if vp.1 is JsonValue::Null {
+                has_value_null = true
+              }
+            }
+            "@language" | "@direction" | "@type" => ()
+            _ => only_lang_dir = false
+          }
+        }
+        // @json 值对象豁免（#tjs22 oracle：@type @json 的 null 字面量保留）
+        let is_json_value = StandardExpander::is_json_value_object(
+          self, current, value_pairs,
+        )
+        if (has_value_null || (only_lang_dir && !has_value_member)) &&
+          !is_json_value {
+          continue
+        }
+      }
       // null 值属性整体丢弃（#t0003 oracle；区别于空数组字面值保留——
       // #t0004 oracle：set3: [] 保留）；**@json term 豁免**——null 即
       // JSON null 字面量（#tjs18 oracle）
@@ -992,6 +1022,7 @@ fn StandardExpander::expand_object(
       "@value" => {
         // @value：值对象核心（string/number/bool 词形保形；null → 值对象丢弃）
         is_value_object = true
+        saw_value = true
         match pair.1 {
           JsonValue::Null =>
             // @json 值对象（#tjs22 oracle）：null = JSON null 字面量保留
@@ -1094,12 +1125,14 @@ fn StandardExpander::expand_object(
         }
       }
       "@language" =>
-        // @language：与 datatype 互斥（#ter38）；键序无关（先记后合）
+        // @language：与 datatype 互斥（#ter38）；键序无关（先记后合）；
+        // language-only 对象 = 值对象形态（t0008：无 @value 成员 → 丢弃）
         match pair.1 {
           JsonValue::String(lang) => {
             if has_datatype {
               return Err(JsonLdError::InvalidValue("invalid value object"))
             }
+            is_value_object = true
             has_language = true
             match literal {
               Some(existing) => existing.language = Some(lang)
@@ -1126,12 +1159,14 @@ fn StandardExpander::expand_object(
             )
         }
       "@direction" =>
-        // @direction：与 datatype 互斥（#tdi09）
+        // @direction：与 datatype 互斥（#tdi09）；direction-only 对象同值对象
+        // 形态（t0008 同族）
         match pair.1 {
           JsonValue::String(dir) => {
             if has_datatype {
               return Err(JsonLdError::InvalidValue("invalid value object"))
             }
+            is_value_object = true
             has_direction = true
             match literal {
               Some(existing) => existing.direction = Some(dir)
@@ -1432,6 +1467,11 @@ fn StandardExpander::expand_object(
   if is_value_object {
     match literal {
       Some(found) => {
+        // language-only 值对象（无 @value 成员）→ 丢弃（#t0008 oracle：
+        // "drop-lang-only" 不产出属性；placeholder literal 不升格）
+        if !saw_value {
+          return Ok(None)
+        }
         // @language 只配字符串 @value（#ter39 oracle）：@value 非串（raw 记录
         // Number/Bool 词形）而带 @language → invalid language-tagged value；
         // @value: null 在臂内已置 literal=None，先于本校验丢弃（规范次序）

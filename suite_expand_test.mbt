@@ -80,9 +80,8 @@ fn options_for(
 }
 
 ///|
-
 ///|
-/// JsonValue 手写序列化（诊断临时件——JsonValue 无 Show）
+/// JsonValue 手写序列化（mismatch 勘定诊断——JsonValue 无 Show）
 fn diag_json_str(value : @jsonld.JsonValue) -> String {
   match value {
     @jsonld.JsonValue::Null => "null"
@@ -112,7 +111,6 @@ fn diag_json_str(value : @jsonld.JsonValue) -> String {
   }
 }
 
-///|
 async test "expand suite harness: manifest-driven buckets, all deferred pre-J2" {
   let manifest_text = @utf8.decode(
     @fs.read_file("./src/jsonld/.rdf-tests/json-ld-api/expand-manifest.jsonld").binary(),
