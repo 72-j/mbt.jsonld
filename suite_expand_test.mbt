@@ -530,10 +530,13 @@ async test "expand suite harness: manifest-driven buckets, all deferred pre-J2" 
     // 补 @language/@direction 两臂 + term 成员三态 + 串值注入）——
     // #t0022/#t0018/#t0041：默认语言注入/term 覆盖/null 压制/嵌套重置
      "#t0022", "#t0018", "#t0041",
-    //（#t0035 回壬批：语言映射默认语言条目的**排序语义**——期望序为直接属性
-    // 值先行、映射条目随后的 REC 深规则，超出默认值注入边界，逐例勘）
+    // #t0035：语言映射 × @vocab/默认语言（壬子合并批后排序顺带对齐——
+    // canonical 数组排序视野下与 oracle 一致，原"回壬"判定升级为可迁）
+     "#t0035",
     // #t0044：index map × language mappings
      "#t0044",
+    // #t0038：bnode 标签展开（_: 形态直通——②批分拣链顺带）
+     "#t0038",
     // #tdi01/#tdi02/#tdi04~#tdi07：默认方向/term 覆盖/null 压制/语言映射 × 方向
     //（#tdi03 回 buckets：真缺口 = 同 IRI 属性**合并**语义（两键同展 foo 需单键
     // 合并 + 顺序由 t0034/t0114 oracle 定）——归「同 IRI 合并批」，非本批边界）
@@ -664,8 +667,12 @@ async test "expand suite harness: manifest-driven buckets, all deferred pre-J2" 
   // pin 按 **harness 桶**计（= manifest 条目落桶数），不是 migrated 列表长度——
   // 2026-09-27 勘误：列表曾重复一条 #tpr42 ⇒ 列表长度 356 而桶 plain 实为 355、
   // deferred 实为 30（385 − 355）。去重后二者一致。
-  assert_eq(deferred.length(), 30)
-  assert_eq(plain.length(), 355)
+  let mut dbg = ""
+  for d in deferred {
+    dbg = dbg + d + " "
+  }
+  assert_eq(deferred.length(), 28)
+  assert_eq(plain.length(), 357)
   // 解析覆盖闭合：每个有 input 的条目都走了解析通道
   assert_eq(parsed_ok + parse_err, 385)
   // 首例钉：#t0001 已迁 plain（manifest 顺序首条；J2 首件验收 = 此例端到端绿）
