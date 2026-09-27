@@ -2957,12 +2957,21 @@ impl ContextProcessor for StandardExpander with fn process_context(
                     if is_valid_absolute_iri(v) || is_bnode_label(v) {
                       v
                     } else {
-                      match base {
-                        Some(b) => "\{b}\{v}"
-                        None => v
+                      match vocab {
+                        // 相对 @vocab 值 → 拼接现有 vocab（#t0111/#t0112
+                        // oracle："./rel2#" 拼在 ctx1 vocab 之后）
+                        Some(prev) => "\{prev}\{v}"
+                        // 无现有 vocab 且有 base → RFC merge（"/x" 前导斜杠 =
+                        // authority 路径替换——#t0110 oracle）
+                        None =>
+                          match base {
+                            Some(b) => merge_base_reference(b, v)
+                            None => v
+                          }
                       }
                     }
                 }
+                vocab = Some(resolved)
                 vocab = Some(resolved)
               }
               JsonValue::Null => vocab = None

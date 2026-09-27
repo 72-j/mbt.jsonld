@@ -493,7 +493,8 @@ async test "expand suite harness: manifest-driven buckets, all deferred pre-J2" 
     // property-valued index → graph（index mapping 已落 + 容器本批）
      "#tpi11",
     // type-scoped / protected 叠加（scoped/protected 批已落 + 容器本批）
-     "#tc025", "#tpr25", "#tpr43",
+    // #t0077：expandContext 选项接线（选项 context 预载 + 引擎应用——远程垫片）
+     "#t0077", "#tc025", "#tpr25", "#tpr43",
     // —— 甲·直接迁移批（2026-09-27；25 例零码——判据 = canonical 对拍一致
     //（deferred 清点探针 POS-PASS）；逐例归因）——
     // #t0002/#t0024：@context 基础/数组多 context（③批 @context 臂顺带）
@@ -734,8 +735,8 @@ async test "expand suite harness: manifest-driven buckets, all deferred pre-J2" 
   for d in deferred {
     dbg = dbg + d + " "
   }
-  assert_eq(deferred.length(), 15)
-  assert_eq(plain.length(), 370)
+  assert_eq(deferred.length(), 14)
+  assert_eq(plain.length(), 371)
   // 解析覆盖闭合：每个有 input 的条目都走了解析通道
   assert_eq(parsed_ok + parse_err, 385)
   // 首例钉：#t0001 已迁 plain（manifest 顺序首条；J2 首件验收 = 此例端到端绿）
