@@ -404,3 +404,71 @@ type-scoped 快照必须以"元素 @context 已生效"的 active context 为底�
 | N3 互操作（@graph↔Formula） | 规格 + ADR 在册 | 不在本子项目范围 | 两面各自收口后另立 |
 | Datalog / GraphDB Sink | 物化层规格在册 | 不做 | 同上 |
 | 性能底线（1μs/token 等） | 宪法量化条款 | 缓打（todo：先测后优化） | 性能优化立案不排期 |
+
+
+## 8 J3 前置勘定（toRdf 467 例；2026-09-28 勘定，开工前钉）
+### 8.1 套件结构（manifest 实测）
+- **构成**：467 = 正例 **345**（全部带 `.nq` expect）+ 负例 **106**（无 expect，
+  must-error）+ 正句法 **16**（无 expect，must-not-error）。输入全为本地 `.jsonld`
+  （467/467），**无网络面**（remote-doc 仅 expand 套件）。
+- **选项面**：specVersion 276（1.1×265 / 1.0×11）；`useJCS` **23**（tjs01~23 全数）；
+  `rdfDirection` 4（tdi09/10 = i18n-datatype、tdi11/12 = compound-literal）；
+  `produceGeneralizedRdf` 2（#t0118/#te075）；`base` 8（#te076 系）；expandContext 1
+  （#te077）；processingMode 8。expand 套件的预载/loader 垫片直接复用。
+- **判定方式（与 expand 本质不同）**：expected = **N-Quads 文本**，README 判据 =
+  **RDF Dataset Isomorphism**（bnode 双射），非 JSON 对拍——`canonical_for_suite`
+  不适用，harness 须开**第二判定通道**。参考实现用 `_:b0` 顺序标签（README 允许
+  同标签法实现走字面对比），但**双射比较更稳**（不追参考实现标签序）。
+
+### 8.2 ExpandedNode → RDF 映射规则（REC §6 对应物；词形已套件实证）
+- **主体**：节点 `@id` 须绝对 IRI 或 `_:bnode`（bnode 标签**保留原样**）；相对/
+  被忽略的 @id ⇒ **三元组弃**（与己三批"相对保留/EXPLICIT_NULL_ID"语义衔接——
+  expand 层合法 ≠ 可序列化）；无 @id 节点 ⇒ 新生 bnode；**同 subject emit-once**
+  （环安全，bnode 引用共享 id）。
+- **谓词**：展开后属性 IRI 即谓词；非绝对 ⇒ 弃（负例面：invalid literal datatype
+  IRI rejected 同族）。
+- **值对象 → 字面量**（词形地雷全录）：
+  - 串无语言 ⇒ 简单字面量（N-Quads 无 `^^`，RDF 1.1 隐含 xsd:string）；有语言 ⇒
+    语言标签字面量；`@direction` 缺省**不进 RDF**（rdfDirection 选项面才进，见下）。
+  - 显式 datatype ⇒ `^^<IRI>`（套件面：xsd:date/custom IRI 等）。
+  - **数值 ⇒ XSD 典范词形转换**（ExpandedLiteral.raw 保形正是为此役铺垫）：
+    integer = `7000000`（无分隔/无前导零）；double = **E 记法典范形**
+    `"1.0E0"`/`"1.2345E2"`/`"1.0E21"`（套件实测 6 枚）；boolean = `true/false`。
+  - **@json ⇒ rdf:JSON 字面量**（套件 23 枚，全挂 useJCS）——词形 = **JCS
+    （RFC 8785）典范化 JSON**。
+- **@list ⇒ rdf:first/rdf:rest 链**，终结 `rdf:nil`；嵌套 list ⇒ 嵌套链；空 list ⇒
+  仅 `rdf:nil`。（@set 展开期已塌缩，toRdf 不可见。）
+- **@graph**：节点位 ⇒ 具名图（图名 = 节点 @id / 新生 bnode——套件四段行实证
+  `<s> <p> <o> <g> .`）；顶层 @graph 数组 ⇒ **默认图**。
+- **rdfDirection 选项**：`i18n-datatype` ⇒ datatype
+  `https://www.w3.org/ns/i18n#{lang}_{dir}`（空语言 = `_rtl`，套件实证两形）；
+  `compound-literal` ⇒ 重化 bnode（rdf:language/rdf:direction 附加三元组）。
+- **produceGeneralizedRdf**：放行广义三元组（仅 #t0118/#te075 两例）。
+
+### 8.3 与现有 trig/nquads 机器的关系（src/ttl 子仓）
+- **方向相反**：gen_trig/gen_nquads = RDF 文本 → 四元组（FSM 生成链）；jsonld
+  toRdf = JSON 树 → 四元组（手写 `ToRdfProcessor::node_to_quads`，J1 契约面 +
+  `JsonLdQuad{subject,predicate,object,graph}` 串模型已立）。共享的只是**四元组
+  概念与 RDF 词形规则**，无代码复用面（架构异源，禁硬套表源——const §5 首条）。
+- **gen_nquads 词法扫描器**（is_numeric_span/is_boolean_word/banned langstring）
+  = RDF 词形规则的**参考实现**，J3 判定器可概念镜像；黄金门 G9（n3gen）正交，
+  提交前必跑口径不变。
+- **expected .nq 的读入**：gen_nquads 解析器可parse，但 jsonld 按独立项目布局
+  设计（整体迁走），**禁主包/测试面对子仓包建依赖**——勘定结论：判定器在
+  jsonld 测试面**自建 N-Quads 迷你解析**（套件 expected 皆为受限子集：行式、
+  四段/三段、`<>`/`""`/`_:`/`^^` 无换行转义面）+ 自建 bnode 双射（小额数据集
+  哈希细化即可）。将来两仓可互为 differential oracle（桥接件挂账不排期）。
+
+### 8.4 范围重估（改变 J3 范围的四点）
+1. **JCS 是新机制子役**：23 例挂它，RFC 8785（ECMAScript 数值词形 + 串转义 +
+   键序）需独立落码——**tjs01~23 单独成桶**，JCS 未落前不入 plain 判定。
+2. **数值典范形转换是新码**：expand 侧 raw 保形（J0 勘定）到 toRdf 侧 XSD 典范
+   词形（double E 记法）是**转换关系**非透传——types.mbt「xsd 词形挂 toRDF 役」
+   兑现面。
+3. **判定器本身是机制面**：迷你 N-Quads 解析 + isomorphism 双射 = harness 新件
+   （J3.0 先行独立批，判定器不绿则正例全不可判）。
+4. **负例 106 + 句法 16 近乎零码**：toRdf 管线 = expand → quads，负例多为 expand
+   期错误穿管复现（错误码共用面），随 J3.1 逐例验证传播即收。
+- **批次切分提案**：J3.0 判定器 → J3.1 核心映射（串/语言/datatype/bnode/list 链/
+  具名图/emit-once，正例主力）→ J3.2 数值典范形 → J3.3 JCS → J3.4
+  rdfDirection+generalized（6 例）；负例/句法随 J3.1 验收。
