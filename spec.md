@@ -105,6 +105,10 @@
 | #t0036 vs #tpi05 | 形态分叉（**index map 条目为字面量**） | 索引映射**有无**（缺省写 @index / 映射写属性） | 缺省：**值对象条目可写 @index**（#t0036）；有索引映射：值对象条目**不得再带属性** ⇒ **invalid value object**（#tpi05 负） |
 | #tpi10 vs #tpi06 | 键形态分叉（**@none 与索引属性**） | 索引（map 键）是否展开为 `@none` | 普通键 ⇒ 索引写成属性；`@none` 及其别名 ⇒ **不写属性**（条目仍产出——#tpi10） |
 | #t0040 vs #tm003 | 形态分叉（**值是否 map**） | 容器为 map 类时值形态 | 值为 map ⇒ 走映射分支（#tm003）；值**非 map** ⇒ 落通用分支逐项按元素语义展开——数组内 `{"@id":…}` 项仍是节点（#t0040；重入容器壳会把它误当索引条目，实测即此红） |
+| #tso08/#tso11 vs 同 context 同名覆盖 | **@import 替换 vs 并存覆盖**（同名 term 条目） | imported 定义是"被替换不处理"还是"安装后覆盖" | @import = "replacing common entries" ⇒ imported 定义**不参与处理**（不受本 context `@protected` 追溯保护——#tso11 合法覆盖）；同 context 两道定义（非 @import）= 安装后覆盖 ⇒ 前者已按当时保护位生效 |
+| #t0122 vs #t0119/#tpr34 | **@ 形同位异判**（`@1*ALPHA` keyword 形非关键字） | 值位 vs 键位 | @id **值**位：REC §5.2 IRI 展开返回 null ⇒ 节点保留、id 位**字面 `{"@id": null}`**（#t0122）；**键**位：忽略不产出属性（#t0119/#tpr34/#tpr36） |
+| #t0060 vs #ter48 | **相对 IRI 位置分叉** | term 名位 vs @id 值位 | term 名相对路径（`.` 开头）⇒ context 处理期 invalid IRI mapping（#ter48）；@id **值**位无绝对性校验——base 无时**原样保留相对**（#t0060 `@base:null` 后 "../document-relative" 保相对） |
+| #t0014 vs #t0019 | **@set × @value:null 辖域分叉**（别名键形态） | null 值对象的挂载层级 | 直挂属性值 ⇒ 属性**整体丢弃**（#t0019 预扫描）；@set（含别名 "set"）数组元素级 ⇒ 属性**保空数组**（#t0014）；别名键归一先于 set/list 对象形态判定（#t0014 vs #t0004 裸键同路） |
 
 ### term 名一致性检查（REC 4.2.2 @id 臂 "must be consistent"；2026-09-26 修正）
 - 判据：term 名含冒号（**非**首位、**非**末位）或含斜杠时，**term 名自身的 IRI
