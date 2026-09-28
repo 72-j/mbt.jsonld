@@ -620,7 +620,7 @@ expand_standard/to_rdf 手写钩子），**不是模型 vs 引擎**——J2/J3 �
 |---|---|---|---|
 | expansion | 385（正 276 / 负 109） | ✅ **385/385 全 plain** | suite_expand_test pin（deferred=0）+ 值级对拍 |
 | toRDF | 467（正 345 / 负 106 / 句法 16） | ✅ **467/467 全 plain** | suite_tordf_test pin + 判定器（迷你 N-Quads 解析 + 集合同构） |
-| compact | 246（正 229 / 负 17） | 🚧 **98/246 plain**（正 83 + 负 15）/ deferred 148 在册 | suite_compact_test pin（deferred=148）+ canonical_for_suite 直比 + bnode 双射兜底 |
+| compact | 246（正 229 / 负 17） | 🚧 **123/246 plain**（正 108 + 负 15）/ deferred 123 在册 | suite_compact_test pin（deferred=123）+ canonical_for_suite 直比 + bnode 双射兜底 |
 | flatten | 58（正 57 / 负 1） | ✅ **56/58 plain**（正 55 + 负 1）/ deferred 2 在册 | suite_flatten_test pin（deferred=2）+ canonical_for_suite 直比 + bnode 双射兜底（isomorphic_for_suite——判定器自检四钉） |
 | fromRdf | 54 | ❌ 未实现 | ——（§8.39） |
 | html | 50 | ❌ 未实现 | ——（§8.39） |
@@ -754,7 +754,7 @@ expand_standard/to_rdf 手写钩子），**不是模型 vs 引擎**——J2/J3 �
   输入原文（expansion 全链）+ context 文本（process_context）→ 压缩序列化。
   顶层形三钉（0 → {} / 1 → 单对象 / n → @graph 包裹）；@context 键 = 原文
   逐字发射（223/223 实证）、context 空不发射（6 例 = ctx {} 族实证）
-- **机制清单**（逐族 oracle）：
+- **compaction 机制**（J6 首波定案——后续批次引用锚；逐族 oracle）：
   1. **值感知 term 分选**（两遍 = bare_fit 吸收形优先、object_fit 值对象形
      次之、残余落前缀/相对词兜底键）——同 IRI 多 term 按值拆键：#t0015 五
      term 归组 / #t0006 datatype 失配 term 弃用 / #t0002 纯 term 容
@@ -793,3 +793,52 @@ expand_standard/to_rdf 手写钩子），**不是模型 vs 引擎**——J2/J3 �
     t0007（@id-term 串塌缩键面——重展开安全判定细研）
   - **依赖外**：0
   - **设计如此**：0
+
+### 8.43 容器逆形四类钉（2026-09-29 役2 开工前置——成批机制，禁逐类修）
+
+**共性**（四类同归一机制 = 分选层的「映射归组出形」扩展）：
+- **路由位**：属性值分选时，候选 term 带**单映射容器**（@container 恰为
+  @index / @id / @type / @language 之一——@set/@list 已在保形/吸收面、
+  @graph 次级容器与复合容器 ["@graph","@index","@set"] 族不在本批）⇒
+  该值不入「数组+塌缩」通道，入**映射归组**通道。
+- **fit 门复用**：值仍须过 bare_fit/object_fit 判定才可归入该 term 的映射；
+  不适值照旧落残余兜底键（分选语义零分叉）。
+- **子键来源 = 值自身**：四类差异仅在「从值取什么作子键 + 剥什么」；
+  归组、出形（Object）、@none 兜底、组内多值数组化（compactArrays 门——
+  #tm012 单语言值裸形）全为共机制。
+- **@none 兜底 = 别名感知**：无键化成员的值落 @none 键；@none 键词形 =
+  别名 term 名（#tm012 oracle："none":"@none" → 键 "none"）、无别名落
+  "@none" 字面（#tm017 oracle）。
+- **子键词形旗**（与 IRI 四步的关系）：@id 键 = @id 值位旗（exact 禁 /
+  vocab 禁 / 前缀+base 可——#tm005 "ex:foo"）；@type 键 = 类型位旗
+  （vocab 可）；@index 键 = 原文位；@language 键 = 原文位。
+
+**差异**（四类还原规则，逐类 oracle）：
+| 容器 | 子键来源 | 值剥离 | oracle |
+|---|---|---|---|
+| @id | 值节点的 @id（压缩词形） | **@id 整剥**（键即身份——tm001/002 值无 @id） | #tm001/#tm002/#tm005 |
+| @type | 值的**首个** @type（压缩词形） | **首 type 剥、残余留**（tm004 值仍带 @type bar） | #tm003/#tm004 |
+| @index | 值的 @index 原文 | **@index 剥**；无 @index → @none | #tm006 族 |
+| @language | 值语言原文 | **语言剥 → 裸串**；无语言 → @none | #tm012/#tla01 |
+
+**与既有机制的关系**：
+- 分选层：映射容器 term 与普通 term **同候选序竞争**（值 fit 映射容器即
+  归组——一个属性可同时出映射组与普通组/兜底组）。
+- 值渲染：映射值内部复用 compact_value_jv / 节点递归，仅追加「键化成员
+  剥离」后处理（@type 残余 = types[1:] 浅拷贝出形）。
+- @set/@list 保形/吸收面不动；复合容器（@graph 次级 + @set 组合——
+  #tm017 虽 @none 形可部分对拍，仍整族 deferred 待 @graph 容器批）。
+- **@index mapping 面（#tpi01-06，td "@index":"prop" 属性化索引）不在本
+  批**——还原 = 按属性值归组且值保 prop 属性（#tpi02 实证），与四类子键
+  来源不同源，单独立批。
+
+#### 8.43.1 容器逆形批落成（2026-09-29 役2；98 → 123/246 plain，+10 正例）
+- **成批机制**（一机制四类——compact_map_entry：fit + 子键 + 键化成员剥离
+  一体；分选层映射归组路由 + 映射出键）：§8.43 钉全数兑现
+- **转正 10 例**：tm001-005（@id/@type map——子键词形旗/剥形/残余留）、
+  tm006-009（@index map——含 @none 兜底与 index 清除副本裸形）、
+  tm012（@language map + @none 别名键）族
+- **维持 deferred**：@graph 次级容器/复合容器族（tm013-023 整族）、
+  @index mapping 面tpi01-06（属性化索引——子键来源不同源，单独立批）、
+  tla01（语言敏感 list 分选——list 值的语言态适配细研）、scoped 压缩面
+  （tc 族）、te002/tpr03（前账）
