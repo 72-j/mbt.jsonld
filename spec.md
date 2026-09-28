@@ -593,11 +593,62 @@ expand_standard/to_rdf 手写钩子），**不是模型 vs 引擎**——J2/J3 �
 照 §6「复核面：JSON-LD 一致性面」六步走。**复现命令钉（第三方可执行口径）**：
 - **套件版本**：W3C json-ld-api @ `ffdb326`（`.rdf-tests/SHA256SUMS` 钉版
   2626 件；自包含于 `src/jsonld/.rdf-tests/json-ld-api/`，路径以本目录为仓根）
-- **命令**：`cd /home/thy/moonttl && moon clean && moon test src/jsonld --deny-warn`
-- **target**：native（moon.mod `preferred_target = "native"`）
+- **前置**：clone 本仓到任意路径（仓根 = 含 moon.mod 的目录）
+- **命令**：`moon clean && moon test src/jsonld --deny-warn`（仓根执行）
+- **target**：**显式 `--target native`**（不跟随 moon.mod preferred_target
+  ——preferred_target 变更不得静默改复核面口径；moon.mod 当前值 = native 仅
+  为注记非依据）
 - **冷缓存**：moon clean 后首跑（含 registry 依赖解析面）
 - **通过口径**：expand 套件 pin `plain 385 / deferred 0` + toRdf 套件 pin
   `plain 467 / deferred 0` + 对账三件套（interface_gate/gen_gate/j4_reconcile）
   + 全目 62 测试绿（2026-09-29 基线实测）
 - **变更敏感性**：套件文件/引脚数/表行任一变更 ⇒ 本钉作废须重钉（版本钉的
   维护义务随 J5 归复核面）。
+- **缺口解释表三分类钉（J5 开工前置）**：复核面的缺口逐条归三类，**禁止
+  无类缺口**——「设计如此」（范围/兼容性裁决，注裁决出处：§1 范围/套件
+  oracle/分叉账）/「未实现」（应终于落码的面，注立案去向）/「依赖外」
+  （超出本仓可达面，注依赖物）。**零 deferred ≠ 零缺口**——deferred 只数
+  套件内未迁例；套件外的面（compact/flatten/frame/remote-doc 等）与本实现
+  的边界缺口全走本表。
+
+
+### 8.38 复核表（JSON-LD 一致性面；2026-09-29 基线 = §8.37 钉版本）
+| 面 | 套件规模 | 状态 | 判定通道 |
+|---|---|---|---|
+| expansion | 385（正 276 / 负 109） | ✅ **385/385 全 plain** | suite_expand_test pin（deferred=0）+ 值级对拍 |
+| toRDF | 467（正 345 / 负 106 / 句法 16） | ✅ **467/467 全 plain** | suite_tordf_test pin + 判定器（迷你 N-Quads 解析 + 集合同构） |
+| compact | 246 | ❌ 未实现 | ——（缺口解释表 §8.39） |
+| flatten | 58 | ❌ 未实现 | ——（§8.39） |
+| fromRdf | 54 | ❌ 未实现 | ——（§8.39） |
+| html | 50 | ❌ 未实现 | ——（§8.39） |
+| remote-doc | 18 | ⭕ 依赖外 | ——（§8.39：HTTP fetch 面） |
+| framing | —— | ⭕ 依赖外 | ffdb326 快照**不含** frame-manifest（快照边界，非本实现缺口） |
+| 对账三件套 | —— | ✅ 62/62 | interface_gate（表 handler↔mock）+ gen_gate（重生成逐字节）+ j4_reconcile（路由/步骤/iri_rules 行为+值级） |
+| 判定器自检 | —— | ✅ 7 件 | tordf_judge_test（转义/解析/同构语义正反例 + 套件文件自同构） |
+| 预载通道 | —— | ✅ | loader_preload_test（BFS 预载 + join 键一致） |
+
+基线复核命令见 §8.37（clone 任意路径 / moon clean / --target native / deny-warn）。
+
+### 8.39 缺口解释表（三分类钉——零 deferred ≠ 零缺口；2026-09-29）
+**「设计如此」**（范围/兼容性裁决，注出处）：
+1. compact 246 例不实现——§1 范围「暂不做（看擂台）」，J5 后评估归口
+2. @reverse 展开保形（非 REC 反转）——t0042 套件 oracle（同形异判表
+   「oracle > 规范字面」族）
+3. JCS 键序码点序（非 RFC 字面 UTF-16 码元序）——#tjs13 套件 oracle（同族）
+4. 语言标签大小写从严——canonical_for_suite 不做大小写归一（现役从严注记）
+5. keyword_dispatch 9 行 handler 指向 pending 桩（真落点 = expand_object
+   内联臂）——J4 分叉账非红判据三条管辖（spec §5.2）
+
+**「未实现」**（应终于落码的面，注立案去向）：
+6. flatten 58 例——expand 面 + 节点字典即可落（不依赖 compact）；**未立案**
+7. fromRdf 54 例——RDF → JSON-LD 反向（可借力 src/ttl 解析面，跨仓复用
+   见 §8.3 边界）；**未立案**
+8. html 50 例——依赖 HTML 解析面（本仓无此依赖）；**未立案**
+
+**「依赖外」**（超出本仓可达面，注依赖物）：
+9. remote-doc 18 例——HTTP fetch 语义/状态码/重定向/Content-Type 协商
+   （套件 README 明示依赖 HTTP 行为；本仓无网络面）
+10. framing 面——ffdb326 快照不含 frame-manifest（快照边界；上游 framing
+    另立 suite，引入即扩 §8.38 复核表）
+11. 复现环境的 registry 依赖版本（moonbitlang/async、thy1016/moonttl@0.2.2
+    等）——moon install 版本漂移（§8.37 变更敏感性条款管辖）
