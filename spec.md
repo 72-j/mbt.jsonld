@@ -431,6 +431,21 @@ expand_standard/to_rdf 手写钩子），**不是模型 vs 引擎**——J2/J3 �
 3. **值级对拍**：同一输入过 gen 调度面与手写链各一次，产物逐值对拍
    （黄金门形态——G9 同款；J4 新增面 = expand/toRdf 两调度路径）。
 
+### 5.2 J4 对账产出（2026-09-29 首轮）
+- **骨架 vs 手写分叉账**：keyword_dispatch 的 9 行 handler_hook
+  （set_language/set_direction/expand_list/expand_set/expand_graph/
+  expand_reverse/expand_nest/expand_included/set_index）指向 **pending 桩**——
+  真落点 = expand_object 内联臂（J2 各批实装处）。表行 = 声明的语义归属
+  （j4_reconcile_test 分叉账钉钉住声明面）；桩由 expand_standard_wbtest 的
+  Unsupported 常驻活账管辖。**非红项**：语义经内联臂全数兑现（件 2 fixture
+  逐行证明）。
+- **两处词形 oracle 勘定**（fixture 首写凭 REC 记忆写错、实跑纠正）：
+  @reverse = t0042 保形（@reverse 映射保留，非反转）；@included = in01 保形
+  （键渲染）。@id 独节点/free-floating 弃、值对象顶层弃、reverse 串值拒
+  ——fixture 编写必须从既有 oracle/实跑取形，禁凭记忆。
+- **载件**：j4_reconcile_test.mbt——14 路由 + 7 步骤 + 7 iri_rules + 分叉账钉
+  + torf 值级件，61 测试全绿。
+
 ## 6 与现有体系的关系
 - 共享库：TOML 读、代码 emit、测试 harness
 - 不共享：schema 语义、生成器框架、FSM 形状
