@@ -36,6 +36,9 @@ const XSD_DOUBLE : String = "http://www.w3.org/2001/XMLSchema#double"
 const XSD_STRING : String = "http://www.w3.org/2001/XMLSchema#string"
 
 ///|
+const RDF_JSON_IRI : String = "http://www.w3.org/1999/02/22-rdf-syntax-ns#JSON"
+
+///|
 /// toRDF 落码状态（J3.1——REC §6 对应物）：bnode 序号 / emit-once 账 / 产物
 priv struct ToRdfState {
   mut counter : Int
@@ -211,7 +214,14 @@ fn nq_node_subject(state : ToRdfState, node : ExpandedNode) -> String? {
 fn nq_literal_term_of(l : ExpandedLiteral) -> String? {
   let esc = nq_emit_escape(l.value)
   match l.datatype {
-    Some("@json") => None // J3.3（JCS→rdf:JSON）——本批不产出
+    Some("@json") =>
+      // J3.3（JCS——RFC 8785）：raw JSON → 规范词形 → rdf:JSON 字面量
+      //（#tjs01~23 oracle；expand 侧 datatype 哨兵 "@json" 在此展开成真 IRI）
+      match l.raw {
+        Some(jv) =>
+          Some("\"" + nq_emit_escape(nq_jcs(jv)) + "\"^^<" + RDF_JSON_IRI + ">")
+        None => None
+      }
     Some(dt) => {
       // raw-Number 子例（J3.2）：coercion 位数值亦典范化——xsd:double 强制
       // double 形（#t0035 oracle：1 → 1.0E0）；自定义 datatype 跟值形态
@@ -434,6 +444,115 @@ fn nq_lowercase(tag : String) -> String {
     }
   }
   out.to_string()
+}
+
+///|
+/// 十六进制位（JCS 转义 <0x20 用——入参受控 0..15）
+fn nq_hex_char(d : Int) -> Char {
+  (if d < 10 { '0'.to_int() + d } else { 'a'.to_int() + d - 10 })
+  .to_char()
+  .unwrap()
+}
+
+///|
+/// JCS 字符串转义（RFC 8785 §3.2.2.2）：短转义 \" \\ \b \t \n \f \r +
+/// 其余 <0x20 用 \u00xx 小写十六进制；余字面 UTF-8 直通。
+fn nq_jcs_escape(text : String) -> String {
+  let out = StringBuilder()
+  for ch in text {
+    match ch {
+      '"' => out.write_string("\\\"")
+      '\\' => out.write_string("\\\\")
+      '\u{8}' => out.write_string("\\b")
+      '\t' => out.write_string("\\t")
+      '\n' => out.write_string("\\n")
+      '\u{c}' => out.write_string("\\f")
+      '\r' => out.write_string("\\r")
+      _ =>
+        if ch.to_int() < 0x20 {
+          let v = ch.to_int()
+          out.write_string("\\u00")
+          out.write_char(nq_hex_char(v / 16))
+          out.write_char(nq_hex_char(v % 16))
+        } else {
+          out.write_char(ch)
+        }
+    }
+  }
+  out.to_string()
+}
+
+///|
+/// JCS 数组（逗号连接，无空格）
+fn nq_jcs_array(items : Array[JsonValue]) -> String {
+  let parts = StringBuilder()
+  parts.write_string("[")
+  for i, item in items {
+    if i > 0 {
+      parts.write_string(",")
+    }
+    parts.write_string(nq_jcs(item))
+  }
+  parts.write_string("]")
+  parts.to_string()
+}
+
+///|
+/// JCS 键序比较器（Unicode 码点序——#tjs13 oracle：U+F8DF < U+1F602；
+/// String::compare 为长度优先假序，不可用——tjs09 实证 sin/peach 逆序）
+fn nq_key_compare(a : String, b : String) -> Int {
+  let ca : Array[Char] = []
+  for ch in a {
+    ca.push(ch)
+  }
+  let cb : Array[Char] = []
+  for ch in b {
+    cb.push(ch)
+  }
+  let n = if ca.length() < cb.length() { ca.length() } else { cb.length() }
+  for i in 0..<n {
+    let va = ca[i].to_int()
+    let vb = cb[i].to_int()
+    if va != vb {
+      return va - vb
+    }
+  }
+  ca.length() - cb.length()
+}
+
+///|
+/// JCS 对象（键序 = nq_key_compare——码点序）
+fn nq_jcs_object(pairs : Array[(String, JsonValue)]) -> String {
+  let sorted = pairs.map(fn(pair) { (pair.0, pair.1) })
+  sorted.sort_by(fn(a, b) { nq_key_compare(a.0, b.0) })
+  let parts = StringBuilder()
+  parts.write_string("{")
+  for i, pair in sorted {
+    if i > 0 {
+      parts.write_string(",")
+    }
+    parts.write_string("\"")
+    parts.write_string(nq_jcs_escape(pair.0))
+    parts.write_string("\":")
+    parts.write_string(nq_jcs(pair.1))
+  }
+  parts.write_string("}")
+  parts.to_string()
+}
+
+///|
+/// JCS 规范序列化（RFC 8785；J3.3——#tjs01~23 oracle）：数值词形 =
+/// ECMAScript Number::toString——MoonBit Double 显示即该形（探针实证：
+/// "1e+30"/"0.002"/"1e-7"/负零 → "0"）。
+fn nq_jcs(value : JsonValue) -> String {
+  match value {
+    JsonValue::Null => "null"
+    JsonValue::Bool(b) => if b { "true" } else { "false" }
+    JsonValue::Number(nv) => "\{nv}"
+    JsonValue::String(sv) => "\"" + nq_jcs_escape(sv) + "\""
+    JsonValue::Array(items) => nq_jcs_array(items)
+    JsonValue::Object(pairs) => nq_jcs_object(pairs)
+  }
 }
 
 ///|

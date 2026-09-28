@@ -504,6 +504,17 @@ type-scoped 快照必须以"元素 @context 已生效"的 active context 为底�
   gen_nquads 对拍全部 expected，结论入账）；② 迷你判定器发现**自同构覆盖
   不到的边界**（受限子集外的词形/需要规范化面）⇒ 当批评估切换或加固。
 
+### 8.35 J3.3 JCS 批已落注记（2026-09-29）
+- **JCS 键序 = Unicode 码点序**（套件 oracle：#tjs13 U+F8DF < U+1F602）——
+  RFC 8785 §3.2.3 字面为「UTF-16 码元序」，两者在**星形面（BMP-PUA × 星形
+  代理对）分叉**；以套件 oracle 为准，`nq_key_compare` 逐码点自实现。
+  **`String::compare` 禁用**——长度优先假序（const §5 同日入册）。
+- **数值词形职责分离（独立实现，不混用）**：
+  `nq_canonical_number`（J3.2，XSD 典范词形——`5.3E0`/整形无分隔，toRdf
+  字面量发射臂）≠ `nq_jcs`（J3.3，ECMAScript Number::toString 词形——
+  `1e+30`/`0.002`，rdf:JSON 词形）。MoonBit Double 显示 = ECMAScript 形
+  （探针实证），JCS 数值零转换直用；两词形服务两 oracle 族，**禁互相借调**。
+
 ### 8.4 范围重估（改变 J3 范围的四点）
 1. **JCS 是新机制子役**：23 例挂它，RFC 8785（ECMAScript 数值词形 + 串转义 +
    键序）需独立落码——**tjs01~23 单独成桶**，JCS 未落前不入 plain 判定。

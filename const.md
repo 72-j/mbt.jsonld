@@ -85,6 +85,13 @@
   redefinition，#tso11 首迁即红；2026-09-28 勘正）。与「判据载体与语义决策同层」同族：
   **最终 IRI 值相同 ≠ 语义等价**，判定面须含处理过程的语义副作用——REC 措辞逐字对齐
   不是修辞，是判据。
+- 禁止用标准库默认序做 spec 的**键序/字典序判定**——`String::compare` 是
+  **长度优先假序**（"sin"(3) < "peach"(5) ⇒ tjs09 全族键序逆序实证；
+  码点不同的同长键偶合正确 ⇒ 假绿更隐蔽）。凡 spec 说「字典序/词元序/码元序」
+  处必须：①对照 oracle 钉定具体序（toRdf #tjs13 = **Unicode 码点序**，与
+  RFC 8785 字面的 UTF-16 码元序不同——套件 oracle 优先）；②自实现比较器
+  （nq_key_compare 逐码点）。与「过宽门是隐性错误」「形态捷径让位于语义查表」
+  同族：**标准库默认行为 ≠ spec 判据**。（2026-09-29 JCS 批）
 - **调用面旗标禁相邻裸 bool**：多个布尔调用参数一律打包成结构体并给**面语义构造器**
   （实证：`ContextFlags::type_scoped/property_scoped/element/scoped_validation`——
   落码时批量改 call site 按字符串匹配，把**元素级 @context 面**误接成

@@ -75,7 +75,10 @@ async test "toRdf suite harness: judge ready, all deferred pre-J3.1" {
     "#tpr43", "#tso01", "#tso02", "#tso03", "#tso05", "#tso06", "#tso07", "#tso08",
     "#tso09", "#tso10", "#tso11", "#tso12", "#tso13", "#ttn01", "#ttn02", "#twf01",
     "#twf02", "#twf03", "#twf04", "#twf05", "#twf07", "#t0022", "#t0035", "#te031",
-    "#te061", "#trt01",
+    "#te061", "#trt01", "#tjs01", "#tjs02", "#tjs03", "#tjs04", "#tjs05", "#tjs06",
+    "#tjs07", "#tjs08", "#tjs09", "#tjs10", "#tjs11", "#tjs12", "#tjs13", "#tjs14",
+    "#tjs15", "#tjs16", "#tjs17", "#tjs18", "#tjs19", "#tjs20", "#tjs21", "#tjs22",
+    "#tjs23",
   ]
   let deferred : Array[String] = []
   let plain : Array[String] = []
@@ -183,8 +186,8 @@ async test "toRdf suite harness: judge ready, all deferred pre-J3.1" {
     }
   }
   // pin 闭合：桶总和 == 普查数（467 = 345 正 + 106 负 + 16 句法——spec §8.1）
-  assert_eq(deferred.length(), 33)
-  assert_eq(plain.length(), 434)
+  assert_eq(deferred.length(), 10)
+  assert_eq(plain.length(), 457)
   assert_eq(parsed_ok + parse_err, 467)
   assert_true(parse_err == 0)
 }
