@@ -27,6 +27,12 @@ pub(all) struct JsonLdOptions {
   rdf_direction : String?
   /// toRdf 面（J3.4）：广义三元组放行——谓词位 bnode（#t0118/#te075 oracle）
   produce_generalized_rdf : Bool
+  /// compaction 面（J6——spec §8.41）：数组塌缩（单值数组解包）——REC 默认
+  /// true；compact suite 的 compactArrays=false 件（×3）保数组形
+  compact_arrays : Bool
+  /// compaction 面（J6）：IRI 相对化（base 前缀剥除）——REC 默认 true；
+  /// compactToRelative=false 件（×1）保绝对词面
+  compact_to_relative : Bool
 }
 
 ///|

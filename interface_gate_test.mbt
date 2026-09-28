@@ -323,6 +323,8 @@ async test "interface gate smoke: mock surface is callable" {
     load_context: None,
     rdf_direction: None,
     produce_generalized_rdf: false,
+    compact_arrays: true,
+    compact_to_relative: true,
     base: None,
     expand_context: None,
     processing_mode: @jsonld.ProcessingMode::JsonLd11,

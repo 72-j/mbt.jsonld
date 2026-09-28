@@ -59,6 +59,13 @@ pub(all) struct TermDefinition {
   language_mapping : LanguageMember?
   /// 方向映射三态（丙批）：同上三态；#tdi01/#tdi04~#tdi07 oracle
   direction_mapping : LanguageMember?
+  /// @nest 归组（J6 compaction——td 定义期 @nest 值承接；展开期嵌套透明，
+  /// 压缩期按此重嵌——#tn001 oracle："p2":{"@nest":"@nest"} → "@nest":{"p2":…}）
+  nest : String?
+  /// 简单形态位（J6 compaction——REC 4.2.2：1.1 下简单 string 形 term 缺省
+  /// @prefix=true、展开 map 形缺省 false——压缩前缀资格判据；#tp001 oracle：
+  /// map 形 "ex":{"@id":…} 不作前缀）
+  simple_form : Bool
 }
 
 ///|

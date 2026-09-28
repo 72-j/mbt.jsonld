@@ -1,0 +1,738 @@
+///|
+/// compaction 序列化器（J6——spec §8.41/§8.42）：expand 逆面，逐值递归、无
+/// 节点字典面（F2 禁复用——§8.41 钉一）。落地面 = 精确 term / 最长前缀
+/// compact IRI / base 相对化（段界对齐）/ datatype+language 吸收 / 裸值缺省
+/// 塌缩 / @id-term 串塌缩 / @list 吸收 + @set 保形 + 数组塌缩 / 值去重 /
+/// @reverse 正向提升（reverse term 匹配）/ @nest 重嵌 / @graph·@index 面 /
+/// 顶层形三钉（0 → {} / 1 → 单对象 / n → @graph 包裹）/ @context 原文发射。
+/// 未实现面（deferred 在册）：scoped context 压缩面（type-scoped/property-
+/// scoped term 选择——#tc001/#tc013 族）、容器逆形分组（@index/@id/@type/
+/// @language/@graph 容器——#tm001/#tla01 族）、@nest 链式/别名细化。
+
+///|
+/// term 名确定性序（同 IRI 多候选——Map 迭代序不定，选取须可复现）：
+/// 容器缺省优先 → 名短优先 → 字典序。`want_reverse` 分选：正向位匹配 td.iri，
+/// 反转位匹配 td.reverse（@reverse 正向提升——#t0033/#t0050 oracle）
+fn compact_term_candidates(
+  pred : String,
+  want_reverse : Bool,
+  active : ActiveContext,
+) -> Array[String] {
+  let names : Array[String] = []
+  for pair in active.terms {
+    let hit = if want_reverse {
+      // 反转位：td.reverse 匹配（@reverse term 的 iri 同载反转 IRI——
+      // 不以 iri 有无分流；#t0033/#t0050 oracle）
+      match pair.1.reverse {
+        Some(riri) => riri == pred
+        None => false
+      }
+    } else {
+      // 正向位：iri 匹配且非 reverse-bearing（反转 term 不作正向键——语义翻转）
+      match pair.1.iri {
+        Some(iri) => iri == pred && pair.1.reverse is None
+        None => false
+      }
+    }
+    if hit {
+      names.push(pair.0)
+    }
+  }
+  names.sort_by(fn(a, b) {
+    let ca = match active.terms.get(a) {
+      Some(td) => if td.container is None { 0 } else { 1 }
+      None => 2
+    }
+    let cb = match active.terms.get(b) {
+      Some(td) => if td.container is None { 0 } else { 1 }
+      None => 2
+    }
+    if ca != cb {
+      return ca - cb
+    }
+    let la = a.length()
+    let lb = b.length()
+    if la != lb {
+      return la - lb
+    }
+    a.compare(b)
+  })
+  names
+}
+
+///|
+/// IRI 压缩（REC §6.3 首波子集）：精确 term → 最长前缀 compact IRI（term 名
+/// 不含 "/"、is_prefix 未显式抑制、@keyword 别名跳过）→ base 相对化
+/// （compactToRelative 门 + 段界对齐）→ 原样
+fn compact_iri_word(
+  iri : String,
+  allow_exact : Bool,
+  allow_vocab : Bool,
+  active : ActiveContext,
+  options : JsonLdOptions,
+) -> String {
+  // 精确 term（容器缺省优先；allow_exact=false = 失配兜底位——term 不可用，
+  // #t0006 oracle：datatype 失配 term 不作键，落前缀词）
+  if allow_exact {
+    let exact = compact_term_candidates(iri, false, active)
+    if exact.length() > 0 {
+      return exact[0]
+    }
+  }
+  // 最长前缀 compact IRI
+  let mut best_prefix : String? = None
+  let mut best_name : String? = None
+  for pair in active.terms {
+    let name = pair.0
+    match pair.1.iri {
+      Some(pfx) =>
+        if pfx.length() < iri.length() &&
+          iri.has_prefix(pfx) &&
+          name.contains("/") is false &&
+          name.contains("@") is false &&
+          // 前缀资格（REC 4.2.2——1.1：@prefix 显式 true，或简单 string 形
+          // 缺省 true；map 形缺省 false——#tp001 oracle）
+          (
+            pair.1.is_prefix is Some(true) ||
+            (pair.1.is_prefix is None && pair.1.simple_form)
+          ) {
+          match best_prefix {
+            Some(bp) =>
+              if pfx.length() > bp.length() {
+                best_prefix = Some(pfx)
+                best_name = Some(name)
+              }
+            None => {
+              best_prefix = Some(pfx)
+              best_name = Some(name)
+            }
+          }
+        }
+      None => ()
+    }
+  }
+  match (best_name, best_prefix) {
+    (Some(name), Some(pfx)) => {
+      let suffix = iri[pfx.length():].to_owned()
+      // compact IRI = 词形原样拼接（REC：suffix 原样）
+      return name + ":" + suffix
+    }
+    _ => ()
+  }
+  // @vocab 相对词形（#t0021 oracle：@vocab "http://example.com/subdir/" +
+  // "…/subdir/vocab/embed" → "vocab/embed"——仅谓词/类型位；@id 值位禁，
+  // allow_vocab=false）
+  if allow_vocab {
+    match active.vocab {
+      Some(vocab) =>
+        if vocab.length() < iri.length() && iri.has_prefix(vocab) {
+          return iri[vocab.length():].to_owned()
+        }
+      None => ()
+    }
+  }
+  // base 相对化（compactToRelative 门——×1 件保绝对词面；段界对齐：base 尾
+  // 无 "/" 补一段再对前缀，防 "http://example.com" vs "…/com/foo" 误剥——
+  // #tr001 oracle：option base "http://example.org/" → "@id":"a"）
+  if options.compact_to_relative {
+    match active.base {
+      Some(base) => {
+        let boundary = match base.get_char(base.length() - 1) {
+          Some('/') => base
+          _ => base + "/"
+        }
+        if boundary.length() < iri.length() && iri.has_prefix(boundary) {
+          return iri[boundary.length():].to_owned()
+        }
+      }
+      None => ()
+    }
+  }
+  iri
+}
+
+///|
+/// 值适配判定（两遍分选核心——同 IRI 多 term 按值拆键：#t0006 datatype 失配
+/// term 弃用落前缀词、#t0015 五 term 按值归组、#t0002 纯 term 容语言值对象）：
+/// bare_fit = 该 term 可把值吸成裸形（datatype/language 吸收、@list 容器吸收、
+/// @id-term 串塌缩、纯 term 语言态对齐）；object_fit = 值对象形在本 term 下
+/// 重展开安全（@type/@language 钉死在对象内——#t0002 term2/term3 oracle）
+fn compact_bare_fit(
+  value : ExpandedValue,
+  td : TermDefinition,
+  active : ActiveContext,
+) -> Bool {
+  match value {
+    ExpandedValue::List(_) => td.container is Some(List)
+    ExpandedValue::Node(child) => {
+      let id_only = child.types.is_empty() &&
+        child.properties.is_empty() &&
+        child.reverse_props.is_empty() &&
+        child.graph is None &&
+        child.included is None &&
+        child.index is None
+      if !id_only {
+        return false
+      }
+      match td.datatype {
+        Some("@id") | Some("@vocab") => true
+        _ => false
+      }
+    }
+    ExpandedValue::Value(lit) =>
+      match td.datatype {
+        Some(dt) => {
+          if dt is ("@id" | "@vocab") {
+            // @id 型 term 对字面量无吸收面（裸串重展开会被强转）——不计 bare
+            return false
+          }
+          match lit.datatype {
+            Some(ldt) => ldt == dt
+            None => false
+          }
+        }
+        None =>
+          // 无 datatype 的 term：language 吸收臂
+          match td.language_mapping {
+            Some(Set(lang)) =>
+              match lit.language {
+                Some(l) => l == lang
+                None => false
+              }
+            Some(Null) => lit.language is None
+            None =>
+              // 纯 term：语言态对齐 = 值语言 == context 缺省语言（裸形重展开
+              // 带回缺省语言——失配即不安全）
+              match lit.language {
+                Some(lang) => lang == active.default_language.unwrap_or("")
+                None => active.default_language is None
+              }
+          }
+      }
+  }
+}
+
+///|
+/// 值适配判定·对象形（值对象形在本 term 下重展开安全）：@type/@language 钉死
+/// 在值对象内不随 term 强转——#t0002 term2/term3 oracle（纯 term 容
+/// datatype/language 值对象）
+fn compact_object_fit(
+  value : ExpandedValue,
+  td : TermDefinition,
+  _active : ActiveContext,
+) -> Bool {
+  match value {
+    // @list 值对象恒安全（重展开保 @list 形）
+    ExpandedValue::List(_) => true
+    // 节点值：@id 型 term（非裸引用亦安全——对象形重展开仍为节点）；无
+    // datatype 的 term 对象形安全；datatype 版 term 冲突不可用
+    // （#t0006 term2 oracle：裸引用对象形落回 term 键）
+    ExpandedValue::Node(_) =>
+      match td.datatype {
+        Some(dt) => dt is ("@id" | "@vocab")
+        None => true
+      }
+    ExpandedValue::Value(lit) =>
+      match td.datatype {
+        // @id 型 term + 字面量：值对象形不被强转（仅裸串强转）——安全
+        Some("@id") | Some("@vocab") => true
+        // datatype 版 term 与值态失配 → 无形可用（#t0006 oracle）
+        Some(_) => false
+        None =>
+          match td.language_mapping {
+            // language 版 term 与值语言态失配 → 无形可用
+            Some(_) => false
+            // 纯 term：对象形可用的残域 = datatype 在场（钉 @type——
+            // #t0002 term2 oracle）或 language 在场（钉 @language——
+            // #t0002 term3 oracle）；纯串无修饰时对象形重展开仍会被注入
+            // 缺省语言 → 不安全（#t0015 plain literal oracle）
+            None => lit.datatype is Some(_) || lit.language is Some(_)
+          }
+      }
+  }
+}
+
+///|
+/// 值压缩（REC §6.4 首波子集）：td datatype 吸收 → 裸 raw；td language 吸收
+/// → 裸串；缺省臂无 datatype（或 xsd:string）、无 language/direction/index
+/// 的纯 @value 值对象 → 裸值（#t0009 oracle）；否则值对象形（@type 压缩
+/// 词形 + @language/@direction/@index 保留）
+fn compact_value_jv(
+  literal : ExpandedLiteral,
+  td_opt : TermDefinition?,
+  active : ActiveContext,
+  options : JsonLdOptions,
+) -> JsonValue {
+  match td_opt {
+    Some(td) => {
+      // datatype 吸收（raw 保形——数值/布尔原样）
+      match (td.datatype, literal.datatype) {
+        (Some(dt), Some(ldt)) =>
+          if dt == ldt {
+            return match literal.raw {
+              Some(raw) => raw
+              None => JsonValue::String(literal.value)
+            }
+          }
+        _ => ()
+      }
+      // language 吸收（串值裸形）
+      match td.language_mapping {
+        Some(Set(lang)) =>
+          match literal.language {
+            Some(l) => if l == lang { return JsonValue::String(literal.value) }
+            None => ()
+          }
+        _ => ()
+      }
+    }
+    None => ()
+  }
+  let bare_datatype = match literal.datatype {
+    Some(dt) => dt == "http://www.w3.org/2001/XMLSchema#string"
+    None => true
+  }
+  // 语言态对齐（#t0015 v1 oracle——de 值在缺省 de 下裸形重展开带回同语言，
+  // 安全；纯串无修饰且缺省在场则对象形也不安全，分选层已拒）
+  let language_aligned = match literal.language {
+    Some(lang) => lang == active.default_language.unwrap_or("")
+    None => active.default_language is None
+  }
+  if bare_datatype &&
+    language_aligned &&
+    literal.direction is None &&
+    literal.index is None {
+    return match literal.raw {
+      Some(raw) => raw
+      None => JsonValue::String(literal.value)
+    }
+  }
+  let pairs : Array[(String, JsonValue)] = [
+    (
+      "@value",
+      match literal.raw {
+        Some(raw) => raw
+        None => JsonValue::String(literal.value)
+      },
+    ),
+  ]
+  match literal.datatype {
+    Some(dt) =>
+      // xsd:string 缺省 @type 不发（REC 值压缩）；其余压缩词形保留
+      if dt != "http://www.w3.org/2001/XMLSchema#string" {
+        pairs.push(
+          (
+            "@type",
+            JsonValue::String(compact_iri_word(dt, true, true, active, options)),
+          ),
+        )
+      }
+    None => ()
+  }
+  match literal.language {
+    Some(lang) => pairs.push(("@language", JsonValue::String(lang)))
+    None => ()
+  }
+  match literal.direction {
+    Some(dir) => pairs.push(("@direction", JsonValue::String(dir)))
+    None => ()
+  }
+  match literal.index {
+    Some(ix) => pairs.push(("@index", JsonValue::String(ix)))
+    None => ()
+  }
+  JsonValue::Object(pairs)
+}
+
+///|
+/// 单值压缩分发（节点引用串塌缩：@id-only 子节点 + td @type @id/@vocab →
+/// 压缩词串；否则子节点递归对象形）
+fn compact_value_item(
+  value : ExpandedValue,
+  td_opt : TermDefinition?,
+  active : ActiveContext,
+  options : JsonLdOptions,
+) -> Result[JsonValue, JsonLdError] {
+  match value {
+    ExpandedValue::Node(child) => {
+      let id_only = child.types.is_empty() &&
+        child.properties.is_empty() &&
+        child.reverse_props.is_empty() &&
+        child.graph is None &&
+        child.included is None &&
+        child.index is None
+      if id_only {
+        match child.id {
+          Some(id) =>
+            match td_opt {
+              // @id/@vocab 型 term（@type 三形态）→ 串塌缩（#t0005 term2 oracle）
+              Some(td) =>
+                match td.datatype {
+                  Some("@id") | Some("@vocab") =>
+                    return Ok(
+                      JsonValue::String(
+                        compact_iri_word(id, false, false, active, options),
+                      ),
+                    )
+                  _ => ()
+                }
+              None => ()
+            }
+          None => ()
+        }
+        // 对象形：{"@id": 压缩词}
+        let word = match child.id {
+          Some(id) => compact_iri_word(id, false, false, active, options)
+          None => ""
+        }
+        return Ok(JsonValue::Object([("@id", JsonValue::String(word))]))
+      }
+      compact_node_jv(child, active, options)
+    }
+    ExpandedValue::Value(literal) =>
+      Ok(compact_value_jv(literal, td_opt, active, options))
+    ExpandedValue::List(items) => {
+      // @list 容器吸收（td @container @list → 裸数组——#t0015 term4 oracle）；
+      // 1.0 嵌套 list = compaction to list of lists 错（#te001 oracle）；
+      // 无容器 → @list 值对象形
+      let is_list_container = match td_opt {
+        Some(td) => td.container is Some(List)
+        None => false
+      }
+      let arr : Array[JsonValue] = []
+      for it in items {
+        if it is ExpandedValue::List(_) && options.processing_mode is JsonLd10 {
+          return Err(JsonLdError::InvalidList("compaction to list of lists"))
+        }
+        match compact_value_item(it, td_opt, active, options) {
+          Ok(jv) => arr.push(jv)
+          Err(e) => return Err(e)
+        }
+      }
+      if is_list_container {
+        return Ok(JsonValue::Array(arr))
+      }
+      Ok(JsonValue::Object([("@list", JsonValue::Array(arr))]))
+    }
+  }
+}
+
+///|
+/// 值数组压缩（容器旗 + 去重 + 塌缩）：@list 容器吸收（单 List 值 → 裸数组，
+/// 1.0 嵌套 list = compaction to list of lists 错）；@set 保形；非容器单值
+/// 塌缩（compactArrays 门）；同形值去重
+fn compact_property_values(
+  vals : Array[ExpandedValue],
+  td_opt : TermDefinition?,
+  active : ActiveContext,
+  options : JsonLdOptions,
+) -> Result[JsonValue, JsonLdError] {
+  // @list 容器吸收（#te001[1.0] oracle：嵌套 list = compaction to list of lists）
+  match td_opt {
+    Some(td) =>
+      if td.container is Some(List) {
+        if vals.length() == 1 {
+          match vals[0] {
+            ExpandedValue::List(items) => {
+              let arr : Array[JsonValue] = []
+              for it in items {
+                if it is ExpandedValue::List(_) &&
+                  options.processing_mode is JsonLd10 {
+                  return Err(
+                    JsonLdError::InvalidList("compaction to list of lists"),
+                  )
+                }
+                match compact_value_item(it, td_opt, active, options) {
+                  Ok(jv) => arr.push(jv)
+                  Err(e) => return Err(e)
+                }
+              }
+              return Ok(JsonValue::Array(arr))
+            }
+            _ => ()
+          }
+        }
+      }
+    None => ()
+  }
+  let mut keep_array = match td_opt {
+    Some(td) => td.container is Some(Set)
+    None => false
+  }
+  if !options.compact_arrays {
+    keep_array = true
+  }
+  let vals_jv : Array[JsonValue] = []
+  let seen : Map[String, Bool] = Map([])
+  for v in vals {
+    match compact_value_item(v, td_opt, active, options) {
+      Ok(jv) => {
+        let key = jv_render(jv)
+        if !seen.contains(key) {
+          seen[key] = true
+          vals_jv.push(jv)
+        }
+      }
+      Err(e) => return Err(e)
+    }
+  }
+  if !keep_array && vals_jv.length() == 1 {
+    return Ok(vals_jv[0])
+  }
+  Ok(JsonValue::Array(vals_jv))
+}
+
+///|
+/// 属性对压缩（term 选择 + 值数组；键 = term 名或压缩 IRI）——正向与反转对
+/// 共用（反转位 term 选择走 td.reverse 匹配）
+fn compact_property_pair(
+  pred : String,
+  want_reverse : Bool,
+  vals : Array[ExpandedValue],
+  active : ActiveContext,
+  options : JsonLdOptions,
+) -> Result[(String, JsonValue), JsonLdError] {
+  let cands = compact_term_candidates(pred, want_reverse, active)
+  let td_opt : TermDefinition? = match cands {
+    cs if cs.length() > 0 => active.terms.get(cs[0])
+    _ => None
+  }
+  let key = match cands {
+    cs if cs.length() > 0 => cs[0]
+    _ => compact_iri_word(pred, true, true, active, options)
+  }
+  match compact_property_values(vals, td_opt, active, options) {
+    Ok(jv) => Ok((key, jv))
+    Err(e) => Err(e)
+  }
+}
+
+///|
+/// 节点压缩：@id（压缩词）/ @type（压缩词 + 塌缩）/ 属性（@nest 重嵌——
+/// td.nest 组账）/ @index / @graph（内容恒数组——#compact-t0039 oracle 单例
+/// 不解包）/ @reverse（正向提升——reverse term 匹配即普通属性；无匹配保
+/// 包裹形）
+fn compact_node_jv(
+  node : ExpandedNode,
+  active : ActiveContext,
+  options : JsonLdOptions,
+) -> Result[JsonValue, JsonLdError] {
+  let pairs : Array[(String, JsonValue)] = []
+  // @id 键走 term 词形（关键字别名 term——#t0008 oracle："uri":"@id" →
+  // "uri" 作键；无别名回落 "@id" 字面）
+  let id_key = compact_iri_word("@id", true, false, active, options)
+  match node.id {
+    Some(id) =>
+      pairs.push(
+        (
+          id_key,
+          JsonValue::String(compact_iri_word(id, true, false, active, options)),
+        ),
+      )
+    None => ()
+  }
+  if node.types.length() > 0 {
+    let types : Array[JsonValue] = []
+    for t in node.types {
+      types.push(
+        JsonValue::String(compact_iri_word(t, true, true, active, options)),
+      )
+    }
+    if options.compact_arrays && types.length() == 1 {
+      pairs.push(("@type", types[0]))
+    } else {
+      pairs.push(("@type", JsonValue::Array(types)))
+    }
+  }
+  // @nest 归组账（td.nest → 组内 pairs——#tn001 oracle："p2":{"@nest":
+  // "@nest"} → "@nest":{"p2":"v2"}；nest 键 = 关键字位原样 / term 名原样）
+  let nest_groups : Map[String, Array[(String, JsonValue)]] = Map([])
+  let nest_order : Array[String] = []
+  // 正向属性：值感知分选（同 IRI 多 term 按值拆键——#t0006/#t0015 oracle；
+  // 两遍 = bare_fit 优先、object_fit 次之、残余落前缀/相对词兜底键）
+  for pair in node.properties {
+    let cands = compact_term_candidates(pair.0, false, active)
+    let cand_tds : Array[(String, TermDefinition)] = []
+    for name in cands {
+      match active.terms.get(name) {
+        Some(td) => cand_tds.push((name, td))
+        None => ()
+      }
+    }
+    // 分组账：键 → 值数组（首现序）
+    let group_keys : Array[String] = []
+    let group_vals : Map[String, Array[JsonValue]] = Map([])
+    let group_array : Map[String, Bool] = Map([])
+    let group_tds : Map[String, TermDefinition] = Map([])
+    let leftovers : Array[JsonValue] = []
+    for v in pair.1 {
+      // 两遍选 term：bare_fit 优先（吸收成裸形），object_fit 次之
+      let mut chosen : (String, TermDefinition, Bool)? = None
+      for pass_bare in [true, false] {
+        for entry in cand_tds {
+          let fits = if pass_bare {
+            compact_bare_fit(v, entry.1, active)
+          } else {
+            compact_object_fit(v, entry.1, active)
+          }
+          if fits {
+            chosen = Some((entry.0, entry.1, pass_bare))
+            break
+          }
+        }
+        if chosen is Some(_) {
+          break
+        }
+      }
+      match chosen {
+        Some((name, td, is_bare)) => {
+          let jv = match compact_value_item(v, Some(td), active, options) {
+            Ok(out) => out
+            Err(e) => return Err(e)
+          }
+          match group_vals.get(name) {
+            Some(arr) => arr.push(jv)
+            None => {
+              group_vals[name] = [jv]
+              group_keys.push(name)
+              group_tds[name] = td
+              let pair_is_list_absorb = match (td.container, v) {
+                (Some(List), ExpandedValue::List(_)) => true
+                _ => false
+              }
+              group_array[name] = if pair_is_list_absorb {
+                false // 吸收形：jv 已是裸数组，emit 直出
+              } else {
+                match td.container {
+                  Some(Set) | Some(List) => true
+                  _ => !options.compact_arrays
+                }
+              }
+            }
+          }
+          let _ = is_bare
+        }
+        None => {
+          let jv = match compact_value_item(v, None, active, options) {
+            Ok(out) => out
+            Err(e) => return Err(e)
+          }
+          leftovers.push(jv)
+        }
+      }
+    }
+    // 各 term 组出键（单值塌缩——容器/@set/compactArrays 门）
+    for name in group_keys {
+      match (group_vals.get(name), group_array.get(name)) {
+        (Some(arr), Some(keep)) => {
+          // @json 值直出（#tjs07 oracle——@json 原值即 JSON，容器/塌缩不包）
+          let td_json = match group_tds.get(name) {
+            Some(td) =>
+              td.datatype
+              is Some("http://www.w3.org/1999/02/22-rdf-syntax-ns#JSON")
+            None => false
+          }
+          let out = if td_json && arr.length() == 1 {
+            arr[0]
+          } else if !keep && arr.length() == 1 {
+            arr[0]
+          } else {
+            JsonValue::Array(arr)
+          }
+          let pair_out = (name, out)
+          let td_nest = match group_tds.get(name) {
+            Some(td) => td.nest
+            None => None
+          }
+          match td_nest {
+            Some(nest_term) =>
+              match nest_groups.get(nest_term) {
+                Some(group) => group.push(pair_out)
+                None => {
+                  nest_groups[nest_term] = [pair_out]
+                  nest_order.push(nest_term)
+                }
+              }
+            None => pairs.push(pair_out)
+          }
+        }
+        _ => ()
+      }
+    }
+    // 残余 → 兜底键（前缀/相对词形——#t0006 "ex:term1" oracle）
+    if leftovers.length() > 0 {
+      let fallback_key = compact_iri_word(pair.0, false, true, active, options)
+      let out = if options.compact_arrays && leftovers.length() == 1 {
+        leftovers[0]
+      } else {
+        JsonValue::Array(leftovers)
+      }
+      pairs.push((fallback_key, out))
+    }
+  }
+  for nest_term in nest_order {
+    match nest_groups.get(nest_term) {
+      Some(group) => pairs.push((nest_term, JsonValue::Object(group)))
+      None => ()
+    }
+  }
+  match node.index {
+    Some(ix) => pairs.push(("@index", JsonValue::String(ix)))
+    None => ()
+  }
+  match node.included {
+    Some(incs) => {
+      // @included 面（#tin01 oracle：alias term "included" 作键、内容恒数组）
+      let arr : Array[JsonValue] = []
+      for inc in incs {
+        match compact_node_jv(inc, active, options) {
+          Ok(jv) => arr.push(jv)
+          Err(e) => return Err(e)
+        }
+      }
+      let included_key = compact_iri_word(
+        "@included", true, false, active, options,
+      )
+      pairs.push((included_key, JsonValue::Array(arr)))
+    }
+    None => ()
+  }
+  match node.graph {
+    Some(items) => {
+      let arr : Array[JsonValue] = []
+      for it in items {
+        match it {
+          ExpandedValue::Node(child) =>
+            match compact_node_jv(child, active, options) {
+              Ok(jv) => arr.push(jv)
+              Err(e) => return Err(e)
+            }
+          _ => ()
+        }
+      }
+      pairs.push(("@graph", JsonValue::Array(arr)))
+    }
+    None => ()
+  }
+  // @reverse 正向提升（#t0033/#t0050 oracle——reverse term 匹配 → 普通属性；
+  // 无匹配 → "@reverse" 包裹形保真）
+  let rev_pairs : Array[(String, JsonValue)] = []
+  for pair in node.reverse_props {
+    let cands = compact_term_candidates(pair.0, true, active)
+    if cands.length() > 0 {
+      match compact_property_pair(pair.0, true, pair.1, active, options) {
+        Ok(pair_out) => pairs.push(pair_out)
+        Err(e) => return Err(e)
+      }
+    } else {
+      match compact_property_pair(pair.0, false, pair.1, active, options) {
+        Ok(pair_out) => rev_pairs.push(pair_out)
+        Err(e) => return Err(e)
+      }
+    }
+  }
+  if rev_pairs.length() > 0 {
+    pairs.push(("@reverse", JsonValue::Object(rev_pairs)))
+  }
+  Ok(JsonValue::Object(pairs))
+}

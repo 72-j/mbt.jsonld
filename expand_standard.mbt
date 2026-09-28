@@ -3393,6 +3393,8 @@ impl ContextProcessor for StandardExpander with fn process_context(
                       language_mapping: None,
                       direction_mapping: None,
                       is_prefix: None,
+                      nest: None,
+                      simple_form: true,
                     },
                     flags.override_protected,
                   ) {
@@ -3422,6 +3424,8 @@ impl ContextProcessor for StandardExpander with fn process_context(
                       language_mapping: None,
                       direction_mapping: None,
                       is_prefix: None,
+                      nest: None,
+                      simple_form: false,
                     },
                     flags.override_protected,
                   ) {
@@ -3501,6 +3505,9 @@ fn StandardExpander::process_expanded_term_definition(
   let mut td_prefix = false
   let mut td_nest : String? = None
   let mut td_is_prefix : Bool? = None
+  // 简单形态位：本函数只接 map 形 td（简单 string 形在调用方单独臂）——
+  // REC 4.2.2 缺省 @prefix=false 只挂 map 形（#tp001 oracle 面）
+  let td_simple = false
   let mut td_language : LanguageMember? = None
   let mut td_direction : LanguageMember? = None
   let mut td_local_context : JsonValue? = None
@@ -3701,28 +3708,61 @@ fn StandardExpander::process_expanded_term_definition(
           JsonValue::Null => td_direction = Some(LanguageMember::Null)
           _ => return Err(JsonLdError::InvalidContext("invalid base direction"))
         }
-      "@prefix" =>
+      "@prefix" => {
         // 前缀标记验证（⑤后半——#ter53 oracle）：须布尔；true 记录供
-        // keyword 别名组合禁（#tpr33）
+        // keyword 别名组合禁（#tpr33）。1.0 门 + 冒号名禁（#tep07/#tep09
+        // oracle——@prefix 系 1.1 特性；带 ":" 的 term 名 + @prefix:true =
+        // invalid term definition）
+        if options.processing_mode is JsonLd10 {
+          return Err(JsonLdError::InvalidContext("invalid term definition"))
+        }
         match td_pair.1 {
           JsonValue::Bool(flag) => {
+            if flag && term_name.contains(":") {
+              return Err(JsonLdError::InvalidContext("invalid term definition"))
+            }
             td_prefix = flag
             td_is_prefix = Some(flag)
           }
           _ => return Err(JsonLdError::InvalidContext("invalid @prefix value"))
         }
-      "@nest" =>
-        // nest 验证（⑤后半——#ten05 oracle）：须串且关键字位仅 "@nest"
+      }
+      "@nest" => {
+        // nest 验证（⑤后半——#ten05 oracle）：须串且关键字位仅 "@nest"。
+        // 1.0 门（#tep10 oracle——@nest 系 1.1 特性，invalid term definition）；
+        // 非关键字值须为已定义 term 且展开 = @nest（#ten01 oracle——"unknown"
+        // 未定义 = invalid @nest value）
+        if options.processing_mode is JsonLd10 {
+          return Err(JsonLdError::InvalidContext("invalid term definition"))
+        }
         match td_pair.1 {
           JsonValue::String(nest_term) => {
             let keyword_named = nest_term.get_char(0) is Some('@')
-            if keyword_named && nest_term != "@nest" {
-              return Err(JsonLdError::InvalidContext("invalid @nest value"))
+            if keyword_named {
+              if nest_term != "@nest" {
+                return Err(JsonLdError::InvalidContext("invalid @nest value"))
+              }
+            } else {
+              // 非关键字别名：须为在册 term 且 iri = @nest（本 context 已处理
+              // 面——#ten01 负例无此 term 即红；跨 context 别名挂 deferred 细研）
+              let mut alias_ok = false
+              match new_terms.get(nest_term) {
+                Some(alias_td) =>
+                  match alias_td.iri {
+                    Some("@nest") => alias_ok = true
+                    _ => ()
+                  }
+                None => ()
+              }
+              if !alias_ok {
+                return Err(JsonLdError::InvalidContext("invalid @nest value"))
+              }
             }
             td_nest = Some(nest_term)
           }
           _ => return Err(JsonLdError::InvalidContext("invalid @nest value"))
         }
+      }
       "@context" => {
         // 属性作用域 context（scoped-context 批——REC 4.2.2 @context 臂）：
         // 1.0 模式禁（invalid term definition）；1.1 模式在**定义期**调用
@@ -3947,6 +3987,8 @@ fn StandardExpander::process_expanded_term_definition(
           language_mapping: None,
           direction_mapping: None,
           is_prefix: None,
+          nest: td_nest,
+          simple_form: false,
         },
         flags.override_protected,
       ) {
@@ -4020,6 +4062,8 @@ fn StandardExpander::process_expanded_term_definition(
       direction_mapping: td_direction,
       is_protected: td_protected,
       is_prefix: td_is_prefix,
+      nest: td_nest,
+      simple_form: td_simple,
     },
     flags.override_protected,
   )

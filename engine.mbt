@@ -1009,3 +1009,93 @@ pub fn flatten_document(
   }
   Ok(JsonValue::Array(out))
 }
+
+///|
+/// compaction 文档入口（J6——spec §8.41 钉一）：JSON 文本 + 主动 context
+/// 文本 → 展开全链 → context 处理 → 压缩序列化（compact_standard.mbt）。
+/// 负例 = 任一段 Err。输出形三钉：展开空 → {}；单节点 → 对象；n 节点 →
+/// @graph 包裹。@context 键 = **原文逐字**发射（223/223 实证），context 空
+/// 不发射（6 例实证——ctx {} 族）。
+pub fn compact_document(
+  input_text : String,
+  context_text : String,
+  options : JsonLdOptions,
+) -> Result[JsonValue, JsonLdError] {
+  let values = match expand_top_values(input_text, options) {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  let ctx_doc = match parse_json(context_text) {
+    Ok(doc) => doc
+    Err(e) => return Err(e)
+  }
+  // context 文档形：{"@context": inner} 包装解包，裸形直用
+  let inner : JsonValue = match ctx_doc {
+    JsonValue::Object(pairs) => {
+      let mut found : JsonValue? = None
+      for pair in pairs {
+        if pair.0 is "@context" {
+          found = Some(pair.1)
+        }
+      }
+      match found {
+        Some(v) => v
+        None => ctx_doc
+      }
+    }
+    _ => ctx_doc
+  }
+  let active = match
+    ContextProcessor::process_context(
+      StandardExpander::{ },
+      initial_context(options),
+      inner,
+      ContextFlags::element(),
+      options,
+    ) {
+    Ok(context) => context
+    Err(e) => return Err(e)
+  }
+  // 压缩主体（顶层形三钉）
+  let body_pairs : Array[(String, JsonValue)] = []
+  if values.length() == 1 {
+    match values[0] {
+      ExpandedValue::Node(node) =>
+        match compact_node_jv(node, active, options) {
+          Ok(JsonValue::Object(pairs)) =>
+            for pair in pairs {
+              body_pairs.push(pair)
+            }
+          Ok(_) => ()
+          Err(e) => return Err(e)
+        }
+      _ => ()
+    }
+  } else if values.length() > 1 {
+    let arr : Array[JsonValue] = []
+    for value in values {
+      match value {
+        ExpandedValue::Node(node) =>
+          match compact_node_jv(node, active, options) {
+            Ok(jv) => arr.push(jv)
+            Err(e) => return Err(e)
+          }
+        _ => ()
+      }
+    }
+    // @graph 包裹键走 term 词形（关键字别名——#t0014/#t0052 oracle：
+    // "data":"@graph"/"graph":"@graph" → 别名作键；无别名回落 "@graph"）
+    let graph_key = compact_iri_word("@graph", true, false, active, options)
+    body_pairs.push((graph_key, JsonValue::Array(arr)))
+  }
+  // @context 原文发射（context 空 / 主体空均不发射）
+  let context_empty = match inner {
+    JsonValue::Object(pairs) => pairs.is_empty()
+    JsonValue::Null => true
+    _ => false
+  }
+  if !context_empty && body_pairs.length() > 0 {
+    body_pairs.insert(0, ("@context", inner))
+  }
+  Ok(JsonValue::Object(body_pairs))
+}

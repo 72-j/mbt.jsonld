@@ -8,6 +8,8 @@ import {
 // Values
 pub fn canonical_for_suite(JsonValue) -> JsonValue
 
+pub fn compact_document(String, String, JsonLdOptions) -> Result[JsonValue, JsonLdError]
+
 pub fn expand_document(String, JsonLdOptions) -> Result[JsonValue, JsonLdError]
 
 pub fn flatten_document(String, JsonLdOptions) -> Result[JsonValue, JsonLdError]
@@ -123,6 +125,8 @@ pub(all) struct JsonLdOptions {
   load_context : ((String) -> Result[String, String])?
   rdf_direction : String?
   produce_generalized_rdf : Bool
+  compact_arrays : Bool
+  compact_to_relative : Bool
 }
 
 pub(all) struct JsonLdQuad {
@@ -192,6 +196,8 @@ pub(all) struct TermDefinition {
   is_prefix : Bool?
   language_mapping : LanguageMember?
   direction_mapping : LanguageMember?
+  nest : String?
+  simple_form : Bool
 }
 
 // Type aliases

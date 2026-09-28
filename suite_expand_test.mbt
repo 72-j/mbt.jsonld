@@ -96,6 +96,23 @@ fn options_for(
       }
     None => None
   }
+  // compaction 面（J6——spec §8.41）：compactArrays / compactToRelative，
+  // REC 缺省均 true
+  let mut compact_arrays = true
+  let mut compact_to_relative = true
+  match json_object_get(entry, "option") {
+    Some(option_value) => {
+      match json_object_get(option_value, "compactArrays") {
+        Some(@jsonld.JsonValue::Bool(flag)) => compact_arrays = flag
+        _ => ()
+      }
+      match json_object_get(option_value, "compactToRelative") {
+        Some(@jsonld.JsonValue::Bool(flag)) => compact_to_relative = flag
+        _ => ()
+      }
+    }
+    None => ()
+  }
   {
     base,
     expand_context,
@@ -103,6 +120,8 @@ fn options_for(
     load_context: Some(loader),
     rdf_direction: json_string_option(entry, "rdfDirection"),
     produce_generalized_rdf: json_bool_option(entry, "produceGeneralizedRdf"),
+    compact_arrays,
+    compact_to_relative,
   }
 }
 
