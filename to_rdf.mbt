@@ -212,14 +212,23 @@ fn nq_literal_term_of(l : ExpandedLiteral) -> String? {
   let esc = nq_emit_escape(l.value)
   match l.datatype {
     Some("@json") => None // J3.3（JCS→rdf:JSON）——本批不产出
-    Some(dt) =>
+    Some(dt) => {
+      // raw-Number 子例（J3.2）：coercion 位数值亦典范化——xsd:double 强制
+      // double 形（#t0035 oracle：1 → 1.0E0）；自定义 datatype 跟值形态
+      //（#te061 oracle：1→"1"、5.1→5.1E0）
+      let value_form = match l.raw {
+        Some(JsonValue::Number(_)) =>
+          nq_canonical_number(l.value, dt == XSD_DOUBLE).0
+        _ => esc
+      }
       if dt == XSD_STRING && l.language is None {
-        Some("\"" + esc + "\"")
+        Some("\"" + value_form + "\"")
       } else if is_valid_absolute_iri(dt) && nq_iri_chars_legal(dt) {
-        Some("\"" + esc + "\"^^<" + dt + ">")
+        Some("\"" + value_form + "\"^^<" + dt + ">")
       } else {
         None
       }
+    }
     None =>
       match l.language {
         Some(lang) =>
@@ -233,21 +242,147 @@ fn nq_literal_term_of(l : ExpandedLiteral) -> String? {
             Some(JsonValue::Bool(b)) =>
               Some("\"" + "\{b}" + "\"^^<" + XSD_BOOLEAN + ">")
             Some(JsonValue::Number(_)) => {
-              // 数判形（J3.2 典范化前——词形直出；小数/指数形 → double）
-              let v = l.value
-              let is_double = v.contains(".") ||
-                v.contains("e") ||
-                v.contains("E")
-              if is_double {
-                Some("\"" + v + "\"^^<" + XSD_DOUBLE + ">")
-              } else {
-                Some("\"" + v + "\"^^<" + XSD_INTEGER + ">")
-              }
+              // 数词典范形（J3.2——REC §6.4）：值整 + |v|<1e21 ⇒ integer，
+              // 否则 double；词形十进制串算术典范化（词形直出退役——
+              // #t0022/#trt01 oracle：5.3→5.3E0、-0e0→0、1e21→1.0E21）
+              let (form, is_double) = nq_canonical_number(l.value, false)
+              let dt = if is_double { XSD_DOUBLE } else { XSD_INTEGER }
+              Some("\"" + form + "\"^^<" + dt + ">")
             }
             _ => Some("\"" + esc + "\"")
           }
       }
   }
+}
+
+///|
+/// JSON 数词典范形（J3.2——REC §6.4；十进制串算术，不涉浮点打印）：值整 +
+/// |v| < 1e21 ⇒ integer 典范形，否则 double 典范形。forced = xsd:double
+/// datatype 强制 double 形。返回（词形，double 形?）。（#t0022/#t0035/
+/// #te031/#te061/#trt01 oracle：5.3→5.3E0、1→1.0E0〔forced〕、123.45→
+/// 1.2345E2、-0e0→0、1e21→1.0E21、8→8）
+fn nq_canonical_number(lexeme : String, forced_double : Bool) -> (String, Bool) {
+  let len = lexeme.length()
+  let mut i = 0
+  let mut neg = false
+  if i < len && lexeme.get_char(i) == Some('-') {
+    neg = true
+    i += 1
+  }
+  let digits = StringBuilder()
+  let mut frac_len = 0
+  let mut seen_point = false
+  while i < len {
+    let ch = lexeme.get_char(i)
+    if ch == Some('.') {
+      seen_point = true
+      i += 1
+    } else if ch is Some(c) && c >= '0' && c <= '9' {
+      digits.write_char(c)
+      if seen_point {
+        frac_len += 1
+      }
+      i += 1
+    } else {
+      break
+    }
+  }
+  let mut exp = 0
+  if i < len &&
+    (lexeme.get_char(i) == Some('e') || lexeme.get_char(i) == Some('E')) {
+    i += 1
+    let mut eneg = false
+    if i < len &&
+      (lexeme.get_char(i) == Some('+') || lexeme.get_char(i) == Some('-')) {
+      eneg = lexeme.get_char(i) == Some('-')
+      i += 1
+    }
+    let mut ev = 0
+    while i < len {
+      match lexeme.get_char(i) {
+        Some(c) =>
+          if c >= '0' && c <= '9' {
+            ev = ev * 10 + (c.to_int() - '0'.to_int())
+            i += 1
+          } else {
+            break
+          }
+        None => break
+      }
+    }
+    exp = if eneg { -ev } else { ev }
+  }
+  // 有效位（去前导零；全零 ⇒ 零值）
+  let mut sig = digits.to_string()
+  if sig is "" {
+    sig = "0"
+  }
+  let mut head = 0
+  while head < sig.length() - 1 && sig.get_char(head) == Some('0') {
+    head += 1
+  }
+  let sig = sig[head:].to_owned()
+  let all_zero = sig.get_char(0) == Some('0') && sig.length() == 1
+  let shift = exp - frac_len // 值 = sig × 10^shift
+  // 整形臂：值整（shift ≥ 0 或 sig 尾零足够）且 |v| < 1e21（典范整数 ≤ 21 位）
+  if !forced_double && !all_zero {
+    let mut int_digits = ""
+    let integral = if shift >= 21 {
+      false // sig.length() ≥ 1 ⇒ |v| ≥ 1e21
+    } else if shift >= 0 {
+      let buf = StringBuilder()
+      buf.write_string(sig)
+      for _ in 0..<shift {
+        buf.write_char('0')
+      }
+      int_digits = buf.to_string()
+      true
+    } else if sig.length() > -shift {
+      let mut tail_zero = true
+      for j in (sig.length() + shift)..<sig.length() {
+        if sig.get_char(j) != Some('0') {
+          tail_zero = false
+          break
+        }
+      }
+      if tail_zero {
+        int_digits = sig[:sig.length() + shift].to_owned()
+      }
+      tail_zero
+    } else {
+      false
+    }
+    if integral {
+      let mut h = 0
+      while h < int_digits.length() - 1 && int_digits.get_char(h) == Some('0') {
+        h += 1
+      }
+      let canonical = int_digits[h:].to_owned()
+      if canonical.length() <= 21 {
+        let signed = if neg && !(canonical is "0") {
+          "-" + canonical
+        } else {
+          canonical
+        }
+        return (signed, false)
+      }
+    }
+  }
+  // 零值：forced ⇒ 0.0E0（double 形），否则 ⇒ "0"（integer 形——trt01 -0e0
+  // oracle 同路）
+  if all_zero {
+    let form = if forced_double { "0.0E0" } else { "0" }
+    return (form, forced_double)
+  }
+  let mut mant = sig
+  while mant.length() > 1 && mant.get_char(mant.length() - 1) == Some('0') {
+    mant = mant[:mant.length() - 1].to_owned()
+  }
+  let k = shift + sig.length() - 1
+  let mant_head = mant[0:1].to_owned()
+  let mant_tail = if mant.length() > 1 { mant[1:].to_owned() } else { "0" }
+  let sign_str = if neg { "-" } else { "" }
+  ("\{sign_str}\{mant_head}.\{mant_tail}E\{k}", true)
 }
 
 ///|

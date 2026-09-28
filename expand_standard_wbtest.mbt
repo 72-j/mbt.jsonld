@@ -1307,3 +1307,24 @@ test "nq_iri_chars_legal fragment component gate" {
   // 平面门：文法外字符弃（tli12）
   assert_true(!nq_iri_chars_legal("http://invalid/<>/test"))
 }
+
+///|
+/// J3.2 数值典范形判定钉（REC §6.4）：整形判据=值整+|v|<1e21，非词面 e 有无；
+/// 整数形无前导零/-0 归 "0"；double 形首位+.尾（个位保 .0）、E 后无 +/前导零。
+test "nq_canonical_number canonical form pinning" {
+  // 整数形（lexical 无 e 且值整）
+  assert_eq(nq_canonical_number("42", false).0, "42")
+  assert_true(!nq_canonical_number("42", false).1)
+  assert_eq(nq_canonical_number("007", false).0, "7") // 前导零剥除
+  assert_eq(nq_canonical_number("1.0", false).0, "1") // 值整→整数形
+  assert_eq(nq_canonical_number("-0e0", false).0, "0") // trt01 oracle：-0 归 "0"
+  // 1e21 边界：shift ≥ 21 → double 形（t0022 oracle）
+  assert_eq(nq_canonical_number("1e21", false), ("1.0E21", true))
+  // double 形：首位+.尾，个位保 .0；E 后无 +/前导零
+  assert_eq(nq_canonical_number("1.5", false), ("1.5E0", true))
+  assert_eq(nq_canonical_number("123.45", false), ("1.2345E2", true))
+  assert_eq(nq_canonical_number("0.5", false), ("5.0E-1", true))
+  // datatype 强制：xsd:double 面上整值也走 double 形（te061）
+  assert_eq(nq_canonical_number("1", true), ("1.0E0", true))
+  assert_eq(nq_canonical_number("0", true), ("0.0E0", true))
+}
