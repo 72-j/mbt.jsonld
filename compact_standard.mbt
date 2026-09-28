@@ -353,6 +353,27 @@ fn compact_value_item(
   active : ActiveContext,
   options : JsonLdOptions,
 ) -> Result[JsonValue, JsonLdError] {
+  // property-scoped context 套用（压缩面——tc001/tc013 族：td @context 在
+  // 节点有效链之上套用，值渲染全走此链；套用失败回退——定义期已校验）
+  let active : ActiveContext = match td_opt {
+    Some(td) =>
+      match td.local_context {
+        Some(lc) =>
+          match
+            ContextProcessor::process_context(
+              StandardExpander::{ },
+              active,
+              lc,
+              ContextFlags::property_scoped(),
+              options,
+            ) {
+            Ok(c) => c
+            Err(_) => active
+          }
+        None => active
+      }
+    None => active
+  }
   match value {
     ExpandedValue::Node(child) => {
       let id_only = child.types.is_empty() &&
@@ -368,10 +389,18 @@ fn compact_value_item(
               // @id/@vocab 型 term（@type 三形态）→ 串塌缩（#t0005 term2 oracle）
               Some(td) =>
                 match td.datatype {
-                  Some("@id") | Some("@vocab") =>
+                  Some("@id") =>
                     return Ok(
                       JsonValue::String(
                         compact_iri_word(id, false, false, active, options),
+                      ),
+                    )
+                  // @vocab 型塌缩走 vocab 相对词（#tc013 oracle："buzz"；
+                  // 重展开 vocab 拼回同形）
+                  Some("@vocab") =>
+                    return Ok(
+                      JsonValue::String(
+                        compact_iri_word(id, false, true, active, options),
                       ),
                     )
                   _ => ()
@@ -517,10 +546,15 @@ fn compact_node_jv(
   active : ActiveContext,
   options : JsonLdOptions,
 ) -> Result[JsonValue, JsonLdError] {
+  // type-scoped 套用（压缩面——双链分立，#tc009 vs #tc013 同形异判对 oracle：
+  // type-scoped 定义的 term **只作键名**、 datatype/container/language 不参与
+  // 值成形；property-scoped 全参与。scoped = 键选择链；active（outer）=
+  // 值成形链）
+  let scoped = compact_apply_type_scoped(node.types, active, options)
   let pairs : Array[(String, JsonValue)] = []
   // @id 键走 term 词形（关键字别名 term——#t0008 oracle："uri":"@id" →
   // "uri" 作键；无别名回落 "@id" 字面）
-  let id_key = compact_iri_word("@id", true, false, active, options)
+  let id_key = compact_iri_word("@id", true, false, scoped, options)
   match node.id {
     Some(id) =>
       pairs.push(
@@ -552,10 +586,10 @@ fn compact_node_jv(
   // 两遍 = bare_fit 优先、object_fit 次之、残余落前缀/相对词兜底键）+
   // 容器逆形映射归组路由（§8.43——单映射容器 term 成批机制）
   for pair in node.properties {
-    let cands = compact_term_candidates(pair.0, false, active)
+    let cands = compact_term_candidates(pair.0, false, scoped)
     let cand_tds : Array[(String, TermDefinition)] = []
     for name in cands {
-      match active.terms.get(name) {
+      match scoped.terms.get(name) {
         Some(td) => cand_tds.push((name, td))
         None => ()
       }
@@ -622,7 +656,29 @@ fn compact_node_jv(
         }
       }
       match chosen {
-        Some((name, td, is_bare)) => {
+        Some((name, td_scoped, is_bare)) => {
+          // shaping td（#tc009/#tc013 同形异判对）：outer 同名 term 全权；
+          // scoped-only term 剥 datatype/container/language（不作值成形）、
+          // 保 local_context（property-scoped 链照走——#tc013 bar）
+          let td : TermDefinition = match active.terms.get(name) {
+            Some(outer_td) => outer_td
+            None => {
+              datatype: None,
+              container: td_scoped.container,
+              reverse: td_scoped.reverse,
+              local_context: td_scoped.local_context,
+              context_base_url: td_scoped.context_base_url,
+              index_mapping: td_scoped.index_mapping,
+              graph_secondary: td_scoped.graph_secondary,
+              is_protected: td_scoped.is_protected,
+              language_mapping: None,
+              direction_mapping: None,
+              is_prefix: td_scoped.is_prefix,
+              nest: td_scoped.nest,
+              simple_form: td_scoped.simple_form,
+              iri: td_scoped.iri,
+            }
+          }
           let jv = match compact_value_item(v, Some(td), active, options) {
             Ok(out) => out
             Err(e) => return Err(e)
@@ -970,4 +1026,42 @@ fn compact_map_entry(
 /// 不入册，此处词形兜底）
 fn literal_value_of(lit : ExpandedLiteral) -> String {
   lit.value
+}
+
+
+///|
+/// type-scoped context 套用（压缩面——tc013/tc006/tc014 族）：节点 types 依次
+/// 命中带 local_context 的 term（词表候选序）即套用（type_scoped 旗 =
+/// propagate false + override protected false）；套用失败回退当前链
+/// （定义期已校验，运行期失败罕见——回退不吞数据）
+fn compact_apply_type_scoped(
+  types : Array[String],
+  active : ActiveContext,
+  options : JsonLdOptions,
+) -> ActiveContext {
+  let mut current = active
+  for t in types {
+    for name in compact_term_candidates(t, false, active) {
+      match active.terms.get(name) {
+        Some(td) =>
+          match td.local_context {
+            Some(lc) =>
+              match
+                ContextProcessor::process_context(
+                  StandardExpander::{ },
+                  current,
+                  lc,
+                  ContextFlags::type_scoped(),
+                  options,
+                ) {
+                Ok(c) => current = c
+                Err(_) => ()
+              }
+            None => ()
+          }
+        None => ()
+      }
+    }
+  }
+  current
 }
