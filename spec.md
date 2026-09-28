@@ -147,6 +147,10 @@ expand_top_values 全链，修正单点落共享函数，385+416 两面同批受
 | #t0122 vs #t0119/#tpr34 | **@ 形同位异判**（`@1*ALPHA` keyword 形非关键字） | 值位 vs 键位 | @id **值**位：REC §5.2 IRI 展开返回 null ⇒ 节点保留、id 位**字面 `{"@id": null}`**（#t0122）；**键**位：忽略不产出属性（#t0119/#tpr34/#tpr36） |
 | #t0060 vs #ter48 | **相对 IRI 位置分叉** | term 名位 vs @id 值位 | term 名相对路径（`.` 开头）⇒ context 处理期 invalid IRI mapping（#ter48）；@id **值**位无绝对性校验——base 无时**原样保留相对**（#t0060 `@base:null` 后 "../document-relative" 保相对） |
 | #t0014 vs #t0019 | 辖域分叉（**@set 数组元素级**，别名键形态） | null 值对象的挂载层级 | 直挂属性值 ⇒ 属性**整体丢弃**（#t0019 预扫描辖域）；@set（含别名 "set"）数组元素级 ⇒ 属性**保空数组**（预扫描不误伤——#t0014）；副产品：别名键归一先于 set/list 对象形态判定（vs #t0004 裸键同路） |
+| **oracle > 规范字面 分叉族**（两例归组；2026-09-29 收录） | | |
+| #tjs13 vs RFC 8785 §3.2.3 字面 | 键序定义分叉 | JCS 键序：套件 oracle = **Unicode 码点序**（U+F8DF < U+1F602）vs RFC 字面「UTF-16 码元序」（D83D < F8DF） | 码点序胜出——nq_key_compare 逐码点自实现（const §5 String::compare 假序同日禁用） |
+| toRdf @reverse vs REC §6.3 反转形 | 展开词形分叉 | 引擎 = **t0042 保形**（@reverse 映射保留）vs REC 字面反转形（node 获反向属性） | 保形胜出——reverse 批 oracle 沿袭；J4 fixture 首写按 REC 记忆错一处实证 |
+| **族判据** | | | **规范字面与套件 oracle 冲突时，套件 oracle 为权威**——规范是解释起点，套件是判定终点；分叉必须在账（两例皆入册），禁静默择一 |
 
 ### term 名一致性检查（REC 4.2.2 @id 臂 "must be consistent"；2026-09-26 修正）
 - 判据：term 名含冒号（**非**首位、**非**末位）或含斜杠时，**term 名自身的 IRI
@@ -437,8 +441,10 @@ expand_standard/to_rdf 手写钩子），**不是模型 vs 引擎**——J2/J3 �
   expand_reverse/expand_nest/expand_included/set_index）指向 **pending 桩**——
   真落点 = expand_object 内联臂（J2 各批实装处）。表行 = 声明的语义归属
   （j4_reconcile_test 分叉账钉钉住声明面）；桩由 expand_standard_wbtest 的
-  Unsupported 常驻活账管辖。**非红项**：语义经内联臂全数兑现（件 2 fixture
-  逐行证明）。
+  Unsupported 常驻活账管辖。**非红判据三条（全满足方可判非红，任一破即红）**：
+  ① 语义经内联臂**全数兑现**（件 2 fixture 逐行值级证明——断链即红）；
+  ② 表行 = 声明的语义归属（分叉账钉钉住声明面，**漂移即红**）；
+  ③ 桩由 Unsupported **常驻活账管辖**（误调即红——桩被实调说明路由错位）。
 - **两处词形 oracle 勘定**（fixture 首写凭 REC 记忆写错、实跑纠正）：
   @reverse = t0042 保形（@reverse 映射保留，非反转）；@included = in01 保形
   （键渲染）。@id 独节点/free-floating 弃、值对象顶层弃、reverse 串值拒
@@ -581,3 +587,17 @@ expand_standard/to_rdf 手写钩子），**不是模型 vs 引擎**——J2/J3 �
 - **批次切分提案**：J3.0 判定器 → J3.1 核心映射（串/语言/datatype/bnode/list 链/
   具名图/emit-once，正例主力）→ J3.2 数值典范形 → J3.3 JCS → J3.4
   rdfDirection+generalized（6 例）；负例/句法随 J3.1 验收。
+
+
+### 8.37 J5 立案（复核面/一致性面——立案不排期，2026-09-29）
+照 §6「复核面：JSON-LD 一致性面」六步走。**复现命令钉（第三方可执行口径）**：
+- **套件版本**：W3C json-ld-api @ `ffdb326`（`.rdf-tests/SHA256SUMS` 钉版
+  2626 件；自包含于 `src/jsonld/.rdf-tests/json-ld-api/`，路径以本目录为仓根）
+- **命令**：`cd /home/thy/moonttl && moon clean && moon test src/jsonld --deny-warn`
+- **target**：native（moon.mod `preferred_target = "native"`）
+- **冷缓存**：moon clean 后首跑（含 registry 依赖解析面）
+- **通过口径**：expand 套件 pin `plain 385 / deferred 0` + toRdf 套件 pin
+  `plain 467 / deferred 0` + 对账三件套（interface_gate/gen_gate/j4_reconcile）
+  + 全目 62 测试绿（2026-09-29 基线实测）
+- **变更敏感性**：套件文件/引脚数/表行任一变更 ⇒ 本钉作废须重钉（版本钉的
+  维护义务随 J5 归复核面）。
