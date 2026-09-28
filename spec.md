@@ -80,6 +80,25 @@ expand_top_values 全链，修正单点落共享函数，385+416 两面同批受
   oracle）；尾巴（query/fragment）渲染尾接挂（s296 族 `.?a=b` →
   `http://abc/def/?a=b`）。value 绝对 → 原样返回不做归一（#t0092 oracle：
   raw 拼接即预期）。
+- **nq_iri_chars_legal（发射面字符门，B组② 2026-09-28）**：RFC 3986/3987
+  文法外字符（`<`/`>`/空格/`"`/`{}`/`\`/`^`/`` ` ``/`|`）⇒ nq 层弃发
+  （#tli12 oracle：`http://invalid/<>/test` 三元组不产出）。接线三发射位
+  （nq_iri_term / nq_node_subject 绝对臂 / datatype 臂）。**expand 面不受扰**
+  （分层归因——expand 保留原样是正解；与 is_valid_absolute_iri 的 scheme
+  文法正交，仅 nq 发射层合用）。
+- **merge_base_reference 三形臂位边界（B组核 2026-09-28；authority 感知，
+  取代 idx>6 魔数）**：相对合并 rev_find("/") 的 idx 判位——
+  ① **全串无 `/`**（`tag:example`/`ex:`）→ colon_index 截 scheme、引用替换
+  整段路径（#t0130/#tli11 oracle：`tag:a`/`ex:test`）；
+  ② **有 `/` 无 `//`**（scheme-only 带 path：`tag:example/foo`）→ 截最后
+  `/`（含）+ 引用 = 目录替换（#t0131/#t0132 oracle：`tag:example/a`/
+  `tag:example/foo/a`）；
+  ③ **有 `//`**（authority 形）→ idx 落在 `//` 尾内（`http://a` idx=6）⇒
+  path 空 ⇒ 补根 `/`（#t0129 oracle）；idx 越过 `//` 尾 ⇒ 目录截段
+  （#t0128 family：`http://ab//de//ghi`）。
+  短 scheme 角（`a://b/c` idx=5 曾 ≤6 误走补根臂）套件不可达，wbtest
+  oracle 钉（B组边界钉）。契约外退化形（无 scheme base）输出形状随边界
+  更新（`a/b` + `/c` → `a//c`，wbtest 注明 contract-外）。
 - **is_valid_absolute_iri（scheme 文法）**：scheme 冒号须在非首位（":fish" 空方案
   非绝对 → 走 vocab 拼接，#t0118 oracle）+ **scheme 首字符须 ALPHA**（RFC 3986
   `scheme = ALPHA *( ALPHA / DIGIT / "+" / "-" / "." )`，JSON-LD 规范 IRI 正则
