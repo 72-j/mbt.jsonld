@@ -620,7 +620,7 @@ expand_standard/to_rdf 手写钩子），**不是模型 vs 引擎**——J2/J3 �
 |---|---|---|---|
 | expansion | 385（正 276 / 负 109） | ✅ **385/385 全 plain** | suite_expand_test pin（deferred=0）+ 值级对拍 |
 | toRDF | 467（正 345 / 负 106 / 句法 16） | ✅ **467/467 全 plain** | suite_tordf_test pin + 判定器（迷你 N-Quads 解析 + 集合同构） |
-| compact | 246（正 229 / 负 17） | 🚧 **123/246 plain**（正 108 + 负 15）/ deferred 123 在册 | suite_compact_test pin（deferred=123）+ canonical_for_suite 直比 + bnode 双射兜底 |
+| compact | 246（正 229 / 负 17） | 🚧 **132/246 plain**（正 117 + 负 15）/ deferred 114 在册 | suite_compact_test pin（deferred=114）+ canonical_for_suite 直比 + bnode 双射兜底 |
 | flatten | 58（正 57 / 负 1） | ✅ **56/58 plain**（正 55 + 负 1）/ deferred 2 在册 | suite_flatten_test pin（deferred=2）+ canonical_for_suite 直比 + bnode 双射兜底（isomorphic_for_suite——判定器自检四钉） |
 | fromRdf | 54 | ❌ 未实现 | ——（§8.39） |
 | html | 50 | ❌ 未实现 | ——（§8.39） |
@@ -842,3 +842,25 @@ expand_standard/to_rdf 手写钩子），**不是模型 vs 引擎**——J2/J3 �
   @index mapping 面tpi01-06（属性化索引——子键来源不同源，单独立批）、
   tla01（语言敏感 list 分选——list 值的语言态适配细研）、scoped 压缩面
   （tc 族）、te002/tpr03（前账）
+
+### 8.44 scoped context 压缩面（2026-09-29 役3；123 → 132/246 plain，+9 零回退）
+- **机制**（双链分立——#tc009 vs #tc013 同形异判对定案）：
+  1. **type-scoped 链**（`compact_apply_type_scoped`）：节点 types 依次命中
+     带 local_context 的 term（词表候选序）套用（type_scoped 旗）——产出的
+     term **只作键名选择**；datatype/container/language **不参与值成形**
+     （#tc009 oracle：type-scoped @vocab term 的值保持 {@id} 对象形）
+  2. **property-scoped 链**（compact_value_item 头部）：选中 term 的
+     local_context 在**节点有效链之上**套用（property_scoped 旗）——值渲染
+     全走此链（#tc001 oracle：foo 子节点 bar term 可选；#tc013 oracle：
+     bar 内 baz @vocab 型塌缩）
+  3. **shaping td 裁量**（分选层）：outer 同名 term 全权；scoped-only term
+     剥 datatype/container/language（不作值成形）、保 local_context
+     （property-scoped 链照走——#tc013 bar 即 scoped-only + 链）
+  4. **@vocab 型塌缩词形旗**：@id 型 = vocab 禁、@vocab 型 = vocab 可
+     （#tc013 oracle："buzz"——vocab 拼回重展开同形）
+- **转正 9 例**：tc001/002/003/005/006/010/013/019 + **tpr04**（property-
+  scoped 保护重定义——套用面落地后自然闭合）
+- **维持 deferred（114 在册）**：nullification 族 tc009 姊妹件 tc014/tc018
+  （[null] 空化后引用实现 vocab/term 存续面——REC 字面待核，涉共享
+  process_context 行为须谨慎）、@graph 次级容器/复合容器族、@index
+  mapping（tpi）、tla01（语言敏感 list 分选）、te002/tpr03
