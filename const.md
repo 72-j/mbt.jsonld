@@ -92,6 +92,11 @@
   RFC 8785 字面的 UTF-16 码元序不同——套件 oracle 优先）；②自实现比较器
   （nq_key_compare 逐码点）。与「过宽门是隐性错误」「形态捷径让位于语义查表」
   同族：**标准库默认行为 ≠ spec 判据**。（2026-09-29 JCS 批）
+  **禁用范围补强（2026-09-29 个案批）**：不止 JCS 键序——**所有需要码点序
+  的地方**一律禁用：判定器差集排序、多集比对排序、任何以「序」为准的位置
+  （实证：datasets_isomorphic 的 ground 多集排序用 String::compare ⇒
+  长度分组错位 ⇒ 差集工具自身输出假 ±（#te036 勘定三度误导的根源之一））。
+  判据凡涉「序」：比较器必须显式自实现并注明序的定义。
 - **调用面旗标禁相邻裸 bool**：多个布尔调用参数一律打包成结构体并给**面语义构造器**
   （实证：`ContextFlags::type_scoped/property_scoped/element/scoped_validation`——
   落码时批量改 call site 按字符串匹配，把**元素级 @context 面**误接成

@@ -39,12 +39,28 @@ const XSD_STRING : String = "http://www.w3.org/2001/XMLSchema#string"
 const RDF_JSON_IRI : String = "http://www.w3.org/1999/02/22-rdf-syntax-ns#JSON"
 
 ///|
+const I18N_PREFIX : String = "https://www.w3.org/ns/i18n#"
+
+///|
+const RDF_VALUE_IRI : String = "<http://www.w3.org/1999/02/22-rdf-syntax-ns#value>"
+
+///|
+const RDF_LANGUAGE_IRI : String = "<http://www.w3.org/1999/02/22-rdf-syntax-ns#language>"
+
+///|
+const RDF_DIRECTION_IRI : String = "<http://www.w3.org/1999/02/22-rdf-syntax-ns#direction>"
+
+///|
 /// toRDF 落码状态（J3.1——REC §6 对应物）：bnode 序号 / emit-once 账 / 产物
 priv struct ToRdfState {
   mut counter : Int
   emitted : Map[String, Bool]
   quads : Array[JsonLdQuad]
   mut reserved : Map[String, Bool]
+  /// J3.4：rdfDirection 模式（None/"i18n-datatype"/"compound-literal"）
+  direction_mode : String?
+  /// J3.4：广义三元组放行（谓词位 bnode）
+  generalized : Bool
 }
 
 ///|
@@ -181,6 +197,120 @@ fn nq_reserve_labels(value : ExpandedValue, into : Map[String, Bool]) -> Unit {
 }
 
 ///|
+/// 同 id 节点预合并（REC §6.3 同 id 节点属性并集——#tin06/#te014/#te108
+/// oracle）：**图作用域键**（graph_key|id）——默认图/各具名图分别合并（跨图
+/// 不并，#t0027 oracle：Paris#this 两图各发其属性）。首见对象**原地并集**
+/// （types/properties/reverse 拼接、graph/included 拼接）；重复对象留树中由
+/// emit-once 跳过（其贡献已并入首见）。匿名图节点（无 id 的图载体）按出现
+/// 序唯一化，互不合并。
+priv struct MergeCtx {
+  mut anon : Int
+  seen : Map[String, ExpandedNode]
+}
+
+///|
+fn nq_merge_same_id(
+  value : ExpandedValue,
+  ctx : MergeCtx,
+  graph_key : String,
+) -> Unit {
+  match value {
+    ExpandedValue::Node(node) => {
+      let self_key : String? = match node.id {
+        Some(id) =>
+          if id == EXPLICIT_NULL_ID {
+            None
+          } else if nq_term_is_bnode(id) || is_valid_absolute_iri(id) {
+            Some(graph_key + "|" + id)
+          } else {
+            None
+          }
+        None => None
+      }
+      match self_key {
+        Some(key) =>
+          match ctx.seen.get(key) {
+            Some(first) => {
+              // 原地并集进首见对象
+              for t in node.types {
+                first.types.push(t)
+              }
+              for p in node.properties {
+                first.properties.push(p)
+              }
+              for p in node.reverse_props {
+                first.reverse_props.push(p)
+              }
+              match node.graph {
+                Some(items) =>
+                  match first.graph {
+                    Some(first_items) =>
+                      for it in items {
+                        first_items.push(it)
+                      }
+                    None => first.graph = Some(items)
+                  }
+                None => ()
+              }
+              match node.included {
+                Some(incs) =>
+                  match first.included {
+                    Some(first_incs) =>
+                      for inc in incs {
+                        first_incs.push(inc)
+                      }
+                    None => first.included = Some(incs)
+                  }
+                None => ()
+              }
+            }
+            None => ctx.seen[key] = node
+          }
+        None => ()
+      }
+      // 子树续走：图内容子树键 = 本节点词面（具名图作用域）；其余继承
+      for pair in node.properties {
+        for v in pair.1 {
+          nq_merge_same_id(v, ctx, graph_key)
+        }
+      }
+      for pair in node.reverse_props {
+        for v in pair.1 {
+          nq_merge_same_id(v, ctx, graph_key)
+        }
+      }
+      match node.graph {
+        Some(items) => {
+          let inner_key = match self_key {
+            Some(k) => k
+            None => graph_key + "|anon\{ctx.anon}"
+          }
+          if self_key is None {
+            ctx.anon += 1
+          }
+          for it in items {
+            nq_merge_same_id(it, ctx, inner_key)
+          }
+        }
+        None => ()
+      }
+      match node.included {
+        Some(incs) =>
+          for inc in incs {
+            nq_merge_same_id(ExpandedValue::Node(inc), ctx, graph_key)
+          }
+        None => ()
+      }
+    }
+    ExpandedValue::List(items) =>
+      for it in items {
+        nq_merge_same_id(it, ctx, graph_key)
+      }
+    ExpandedValue::Value(_) => ()
+  }
+}
+
+///|
 /// 节点主体词面（REC §6.3）：无 id / @id 被忽略哨兵（EXPLICIT_NULL_ID）⇒
 /// 新生 bnode 并**回写 node.id**（emit-once 键 = 主体词面）；`_:` bnode 保留；
 /// 相对 id ⇒ None（该节点整体不产出）。
@@ -211,8 +341,24 @@ fn nq_node_subject(state : ToRdfState, node : ExpandedNode) -> String? {
 /// 三元组弃；xsd:string 无语言 ⇒ 简单字面量——RDF 1.1 同一性）；数值/布尔 ⇒
 /// 由 raw 判形（boolean/integer/double——**典范词形 J3.2**，本批词形直出）；
 /// 语言 ⇒ `@lang`（小写归一）；direction 无选项面 ⇒ 弃（J3.4 rdfDirection）。
-fn nq_literal_term_of(l : ExpandedLiteral) -> String? {
+fn nq_literal_term_of(state : ToRdfState, l : ExpandedLiteral) -> String? {
   let esc = nq_emit_escape(l.value)
+  // J3.4 i18n 面（REC §6.4——spec §8.36）：值对象带方向 + rdfDirection=
+  // i18n-datatype ⇒ datatype = i18n#{lang}_{dir}（语言小写化；无语言 = "_"
+  // 空段——tdi09/tdi10 oracle）；值原样、无 langtag
+  if l.direction is Some(_) && state.direction_mode is Some("i18n-datatype") {
+    let lang_part = match l.language {
+      Some(lang) => nq_lowercase(lang)
+      None => ""
+    }
+    let dir_part = match l.direction {
+      Some(d) => d
+      None => ""
+    }
+    return Some(
+      "\"" + esc + "\"^^<" + I18N_PREFIX + lang_part + "_" + dir_part + ">",
+    )
+  }
   match l.datatype {
     Some("@json") =>
       // J3.3（JCS——RFC 8785）：raw JSON → 规范词形 → rdf:JSON 字面量
@@ -556,6 +702,53 @@ fn nq_jcs(value : JsonValue) -> String {
 }
 
 ///|
+/// 带方向值对象的 compound-literal 面（REC §6.4——spec §8.36）：对象换新
+/// bnode + rdf:value（**恒简单字面量**，语言不进 value——tdi12 oracle）+
+/// rdf:language（小写）/ rdf:direction；无方向或非 compound 模式 ⇒ 常规
+/// 字面量词面。
+fn nq_directional_literal_term(
+  state : ToRdfState,
+  l : ExpandedLiteral,
+  graph : String?,
+) -> String? {
+  if l.direction is Some(_) && state.direction_mode is Some("compound-literal") {
+    let b = nq_fresh_bnode(state)
+    nq_emit(
+      state,
+      b,
+      RDF_VALUE_IRI,
+      "\"" + nq_emit_escape(l.value) + "\"",
+      graph,
+    )
+    match l.language {
+      Some(lang) =>
+        nq_emit(
+          state,
+          b,
+          RDF_LANGUAGE_IRI,
+          "\"" + nq_lowercase(lang) + "\"",
+          graph,
+        )
+      None => ()
+    }
+    match l.direction {
+      Some(d) =>
+        nq_emit(
+          state,
+          b,
+          RDF_DIRECTION_IRI,
+          "\"" + nq_emit_escape(d) + "\"",
+          graph,
+        )
+      None => ()
+    }
+    Some(b)
+  } else {
+    nq_literal_term_of(state, l)
+  }
+}
+
+///|
 /// 值 → 对象词面（节点 = 主体词面 + 递归；字面量；@list = 链头）
 fn nq_value_term(
   state : ToRdfState,
@@ -571,7 +764,7 @@ fn nq_value_term(
         }
         None => None
       }
-    ExpandedValue::Value(l) => nq_literal_term_of(l)
+    ExpandedValue::Value(l) => nq_directional_literal_term(state, l, graph)
     ExpandedValue::List(items) => Some(nq_list_to_rdf(state, items, graph))
   }
 }
@@ -653,7 +846,13 @@ fn nq_node_to_rdf(
   for pair in node.properties {
     let p = match nq_iri_term(pair.0) {
       Some(p) => p
-      None => continue
+      None =>
+        // J3.4 generalized 面：谓词位 bnode 放行（#t0118/#te075 oracle）
+        if state.generalized && nq_term_is_bnode(pair.0) {
+          pair.0
+        } else {
+          continue
+        }
     }
     for v in pair.1 {
       match nq_value_term(state, v, graph) {
@@ -666,7 +865,13 @@ fn nq_node_to_rdf(
   for pair in node.reverse_props {
     let p = match nq_iri_term(pair.0) {
       Some(p) => p
-      None => continue
+      None =>
+        // J3.4 generalized 面：谓词位 bnode（reverse 同权）
+        if state.generalized && nq_term_is_bnode(pair.0) {
+          pair.0
+        } else {
+          continue
+        }
     }
     for v in pair.1 {
       match v {
@@ -712,7 +917,7 @@ fn nq_node_to_rdf(
 impl ToRdfProcessor for StandardExpander with fn node_to_quads(
   _self,
   expanded : Array[ExpandedValue],
-  _options : JsonLdOptions,
+  options : JsonLdOptions,
 ) -> Result[Array[JsonLdQuad], JsonLdError] {
   let reserved : Map[String, Bool] = Map([])
   let state : ToRdfState = {
@@ -720,6 +925,8 @@ impl ToRdfProcessor for StandardExpander with fn node_to_quads(
     emitted: Map([]),
     quads: [],
     reserved,
+    direction_mode: options.rdf_direction,
+    generalized: options.produce_generalized_rdf,
   }
   // bnode 标签预扫保留（#t0119 oracle：输入明写 "_:b0" 与新生 "_:b0" 撞号
   // ⇒ 同体合并假自指；新生序号跳过全部在册标签）
@@ -728,6 +935,11 @@ impl ToRdfProcessor for StandardExpander with fn node_to_quads(
     nq_reserve_labels(value, reserved)
   }
   state.reserved = reserved
+  // 同 id 节点预合并（图作用域——F2）
+  let merge_ctx : MergeCtx = { anon: 0, seen: Map([]), }
+  for value in expanded {
+    nq_merge_same_id(value, merge_ctx, "")
+  }
   for value in expanded {
     match value {
       ExpandedValue::Node(node) => nq_node_to_rdf(state, node, None)

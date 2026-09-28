@@ -96,7 +96,36 @@ fn options_for(
       }
     None => None
   }
-  { base, expand_context, processing_mode: mode, load_context: Some(loader), }
+  {
+    base,
+    expand_context,
+    processing_mode: mode,
+    load_context: Some(loader),
+    rdf_direction: json_string_option(entry, "rdfDirection"),
+    produce_generalized_rdf: json_bool_option(entry, "produceGeneralizedRdf"),
+  }
+}
+
+///|
+/// manifest 布尔选项取件（J3.4——produceGeneralizedRdf）
+fn json_bool_option(entry : @jsonld.JsonValue, key : String) -> Bool {
+  match json_object_get(entry, "option") {
+    Some(option_value) =>
+      match json_object_get(option_value, key) {
+        Some(@jsonld.JsonValue::Bool(b)) => b
+        _ => false
+      }
+    None => false
+  }
+}
+
+///|
+/// manifest 串选项取件（J3.4——rdfDirection）
+fn json_string_option(entry : @jsonld.JsonValue, key : String) -> String? {
+  match json_object_get(entry, "option") {
+    Some(option_value) => json_string_get(option_value, key)
+    None => None
+  }
 }
 
 ///|

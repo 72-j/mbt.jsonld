@@ -42,6 +42,8 @@ test "expand_iri bnode passthrough (#t0001 对拍)" {
 test "t0001 end-to-end: drop free-floating node (#t0001 对拍)" {
   let options = JsonLdOptions::{
     load_context: None,
+    rdf_direction: None,
+    produce_generalized_rdf: false,
     base: None,
     expand_context: None,
     processing_mode: JsonLd11,
@@ -57,6 +59,8 @@ test "t0001 end-to-end: drop free-floating node (#t0001 对拍)" {
 test "empty object end-to-end: free-floating (#t0001 同族判定)" {
   let options = JsonLdOptions::{
     load_context: None,
+    rdf_direction: None,
+    produce_generalized_rdf: false,
     base: None,
     expand_context: None,
     processing_mode: JsonLd11,
@@ -83,6 +87,8 @@ test "contract smoke: pending hooks refuse politely (red-not-wrong)" {
   }
   let options = JsonLdOptions::{
     load_context: None,
+    rdf_direction: None,
+    produce_generalized_rdf: false,
     base: None,
     expand_context: None,
     processing_mode: JsonLd11,
@@ -170,6 +176,8 @@ test "contract smoke: pending hooks refuse politely (red-not-wrong)" {
 test "value object family batch 1 (#t0045 对拍)" {
   let options = JsonLdOptions::{
     load_context: None,
+    rdf_direction: None,
+    produce_generalized_rdf: false,
     base: None,
     expand_context: None,
     processing_mode: JsonLd11,
@@ -315,6 +323,8 @@ test "property key routing via chain (②批)" {
   }
   let options = JsonLdOptions::{
     load_context: None,
+    rdf_direction: None,
+    produce_generalized_rdf: false,
     base: None,
     expand_context: None,
     processing_mode: JsonLd11,
@@ -357,6 +367,8 @@ test "concat_vocab stays unsupported until @context batch" {
 test "@context simple term declaration end-to-end (③批对拍)" {
   let options = JsonLdOptions::{
     load_context: None,
+    rdf_direction: None,
+    produce_generalized_rdf: false,
     base: None,
     expand_context: None,
     processing_mode: JsonLd11,
@@ -389,6 +401,8 @@ test "@context simple term declaration end-to-end (③批对拍)" {
 test "@nest indexed merge keeps order semantics (tn006/tn008 同族对拍)" {
   let options = JsonLdOptions::{
     load_context: None,
+    rdf_direction: None,
+    produce_generalized_rdf: false,
     base: None,
     expand_context: None,
     processing_mode: JsonLd11,
@@ -432,6 +446,8 @@ test "@nest indexed merge keeps order semantics (tn006/tn008 同族对拍)" {
 test "@vocab declaration end-to-end (③批对拍)" {
   let options = JsonLdOptions::{
     load_context: None,
+    rdf_direction: None,
+    produce_generalized_rdf: false,
     base: None,
     expand_context: None,
     processing_mode: JsonLd11,
@@ -504,6 +520,8 @@ test "@version declaration (③批对拍)" {
   }
   let options = JsonLdOptions::{
     load_context: None,
+    rdf_direction: None,
+    produce_generalized_rdf: false,
     base: None,
     expand_context: None,
     processing_mode: JsonLd11,
@@ -534,6 +552,8 @@ test "invalid @version rejected (③批对拍)" {
   }
   let options = JsonLdOptions::{
     load_context: None,
+    rdf_direction: None,
+    produce_generalized_rdf: false,
     base: None,
     expand_context: None,
     processing_mode: JsonLd11,
@@ -595,6 +615,8 @@ test "term value expands against in-progress vocab (t0072 对拍)" {
   }
   let options = JsonLdOptions::{
     load_context: None,
+    rdf_direction: None,
+    produce_generalized_rdf: false,
     base: None,
     expand_context: None,
     processing_mode: JsonLd11,
@@ -627,6 +649,8 @@ test "term value expands against in-progress vocab (t0072 对拍)" {
 test "property-scoped context on @nest alias term (#tc037 对拍)" {
   let options = JsonLdOptions::{
     load_context: None,
+    rdf_direction: None,
+    produce_generalized_rdf: false,
     base: None,
     expand_context: None,
     processing_mode: JsonLd11,
@@ -658,6 +682,8 @@ test "property-scoped context on @nest alias term (#tc037 对拍)" {
 test "scoped context nullifies term: key dropped (#tin06 同族对拍)" {
   let options = JsonLdOptions::{
     load_context: None,
+    rdf_direction: None,
+    produce_generalized_rdf: false,
     base: None,
     expand_context: None,
     processing_mode: JsonLd11,
@@ -700,6 +726,8 @@ test "scoped context nullifies term: key dropped (#tin06 同族对拍)" {
 test "unused embedded context still checked (#tc033 对拍)" {
   let options = JsonLdOptions::{
     load_context: None,
+    rdf_direction: None,
+    produce_generalized_rdf: false,
     base: None,
     expand_context: None,
     processing_mode: JsonLd11,
@@ -718,6 +746,8 @@ test "unused embedded context still checked (#tc033 对拍)" {
 test "element @context applies regardless of position (#t0073 对拍)" {
   let options = JsonLdOptions::{
     load_context: None,
+    rdf_direction: None,
+    produce_generalized_rdf: false,
     base: None,
     expand_context: None,
     processing_mode: JsonLd11,
@@ -748,6 +778,8 @@ test "element @context applies regardless of position (#t0073 对拍)" {
 test "type-scoped context does not propagate to nested node (#tc009 对拍)" {
   let options = JsonLdOptions::{
     load_context: None,
+    rdf_direction: None,
+    produce_generalized_rdf: false,
     base: None,
     expand_context: None,
     processing_mode: JsonLd11,
@@ -790,6 +822,8 @@ test "type-scoped context does not propagate to nested node (#tc009 对拍)" {
 test "single-@id shaped value keeps type-scoped base (#tc015 同族对拍)" {
   let options = JsonLdOptions::{
     load_context: None,
+    rdf_direction: None,
+    produce_generalized_rdf: false,
     base: Some("http://example/base-base"),
     expand_context: None,
     processing_mode: JsonLd11,
@@ -819,6 +853,8 @@ test "@propagate must be boolean and 1.1-only (#tc029/#tc030 对拍)" {
   }
   let options_11 = JsonLdOptions::{
     load_context: None,
+    rdf_direction: None,
+    produce_generalized_rdf: false,
     base: None,
     expand_context: None,
     processing_mode: JsonLd11,
@@ -838,6 +874,8 @@ test "@propagate must be boolean and 1.1-only (#tc029/#tc030 对拍)" {
   }
   let options_10 = JsonLdOptions::{
     load_context: None,
+    rdf_direction: None,
+    produce_generalized_rdf: false,
     base: None,
     expand_context: None,
     processing_mode: JsonLd10,
@@ -863,6 +901,8 @@ test "@propagate must be boolean and 1.1-only (#tc029/#tc030 对拍)" {
 test "protected term: equivalent redefinition keeps protection (#pr42 对拍)" {
   let options = JsonLdOptions::{
     load_context: None,
+    rdf_direction: None,
+    produce_generalized_rdf: false,
     base: None,
     expand_context: None,
     processing_mode: JsonLd11,
@@ -884,6 +924,8 @@ test "protected term: equivalent redefinition keeps protection (#pr42 对拍)" {
 test "override protected faces: type-scoped vs property-scoped (#pr17/#pr06 对拍)" {
   let options = JsonLdOptions::{
     load_context: None,
+    rdf_direction: None,
+    produce_generalized_rdf: false,
     base: None,
     expand_context: None,
     processing_mode: JsonLd11,
@@ -904,6 +946,8 @@ test "override protected faces: type-scoped vs property-scoped (#pr17/#pr06 对�
 test "td unknown key vs unimplemented key (#ter56 同族对拍)" {
   let options = JsonLdOptions::{
     load_context: None,
+    rdf_direction: None,
+    produce_generalized_rdf: false,
     base: None,
     expand_context: None,
     processing_mode: JsonLd11,
@@ -938,6 +982,8 @@ test "td unknown key vs unimplemented key (#ter56 同族对拍)" {
 test "type map: prepend @type + implicit @id mapping (#tm003/#tm017 对拍)" {
   let options = JsonLdOptions::{
     load_context: None,
+    rdf_direction: None,
+    produce_generalized_rdf: false,
     base: Some("http://example.org/base/"),
     expand_context: None,
     processing_mode: JsonLd11,
@@ -977,6 +1023,8 @@ test "type map: prepend @type + implicit @id mapping (#tm003/#tm017 对拍)" {
 test "index map: writes @index from map key (#tc013 同族对拍)" {
   let options = JsonLdOptions::{
     load_context: None,
+    rdf_direction: None,
+    produce_generalized_rdf: false,
     base: None,
     expand_context: None,
     processing_mode: JsonLd11,
@@ -1009,6 +1057,8 @@ test "index map: writes @index from map key (#tc013 同族对拍)" {
 test "container @type restricts type mapping to @id/@vocab (#tm020 对拍)" {
   let options = JsonLdOptions::{
     load_context: None,
+    rdf_direction: None,
+    produce_generalized_rdf: false,
     base: None,
     expand_context: None,
     processing_mode: JsonLd11,
@@ -1029,6 +1079,8 @@ test "container @type restricts type mapping to @id/@vocab (#tm020 对拍)" {
 test "id map: writes document-relative @id, keeps existing (#tm001/#tm005 对拍)" {
   let options = JsonLdOptions::{
     load_context: None,
+    rdf_direction: None,
+    produce_generalized_rdf: false,
     base: Some("http://example.org/"),
     expand_context: None,
     processing_mode: JsonLd11,
@@ -1072,6 +1124,8 @@ test "id map: writes document-relative @id, keeps existing (#tm001/#tm005 对拍
 test "language map: @none alias and null skip (#tm010/#tl001 对拍)" {
   let options = JsonLdOptions::{
     load_context: None,
+    rdf_direction: None,
+    produce_generalized_rdf: false,
     base: None,
     expand_context: None,
     processing_mode: JsonLd11,
@@ -1115,6 +1169,8 @@ test "language map: @none alias and null skip (#tm010/#tl001 对拍)" {
 test "map container with array value falls through per element (#t0040 对拍)" {
   let options = JsonLdOptions::{
     load_context: None,
+    rdf_direction: None,
+    produce_generalized_rdf: false,
     base: Some("http://example.com/base/"),
     expand_context: None,
     processing_mode: JsonLd11,
@@ -1150,6 +1206,8 @@ test "map container with array value falls through per element (#t0040 对拍)" 
 test "index mapping: index written as property, appended before existing (#tpi 对拍)" {
   let options = JsonLdOptions::{
     load_context: None,
+    rdf_direction: None,
+    produce_generalized_rdf: false,
     base: Some("http://example.com/"),
     expand_context: None,
     processing_mode: JsonLd11,
@@ -1195,6 +1253,8 @@ test "index mapping: index written as property, appended before existing (#tpi �
 test "index mapping validation + value object rejection (#tpi 负例对拍)" {
   let options = JsonLdOptions::{
     load_context: None,
+    rdf_direction: None,
+    produce_generalized_rdf: false,
     base: None,
     expand_context: None,
     processing_mode: JsonLd11,
@@ -1209,6 +1269,8 @@ test "index mapping validation + value object rejection (#tpi 负例对拍)" {
   assert_true(expand_document(not_a_string, options) is Err(InvalidContext(_)))
   let options_10 = JsonLdOptions::{
     load_context: None,
+    rdf_direction: None,
+    produce_generalized_rdf: false,
     base: None,
     expand_context: None,
     processing_mode: JsonLd10,
@@ -1229,6 +1291,8 @@ test "index mapping validation + value object rejection (#tpi 负例对拍)" {
 test "reverse term with index container keeps reverse-only node (#t0063/#t0131 对拍)" {
   let options = JsonLdOptions::{
     load_context: None,
+    rdf_direction: None,
+    produce_generalized_rdf: false,
     base: None,
     expand_context: None,
     processing_mode: JsonLd11,

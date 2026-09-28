@@ -71,8 +71,8 @@ pub(all) struct ExpandedNode {
   types : Array[String]
   properties : Array[(String, Array[ExpandedValue])]
   reverse_props : Array[(String, Array[ExpandedValue])]
-  graph : Array[ExpandedValue]?
-  included : Array[ExpandedNode]?
+  mut graph : Array[ExpandedValue]?
+  mut included : Array[ExpandedNode]?
   mut index : String?
 } derive(@debug.Debug)
 pub fn ExpandedNode::to_repr(Self) -> @debug.Repr
@@ -117,6 +117,8 @@ pub(all) struct JsonLdOptions {
   expand_context : JsonValue?
   processing_mode : ProcessingMode
   load_context : ((String) -> Result[String, String])?
+  rdf_direction : String?
+  produce_generalized_rdf : Bool
 }
 
 pub(all) struct JsonLdQuad {

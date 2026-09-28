@@ -588,6 +588,35 @@ fn datasets_isomorphic(
   a : Array[@jsonld.JsonLdQuad],
   b : Array[@jsonld.JsonLdQuad],
 ) -> Bool {
+  // RDF 集合语义：双侧先去重（#te036 oracle——expected 引用产物对 index-map
+  // 各组同型字面量发射重复三元组；重复在 RDF 集合中无意义）
+  let a_set : Map[String, Bool] = Map([])
+  let a_uniq : Array[@jsonld.JsonLdQuad] = []
+  for q in a {
+    let key = nq_quad_render(q)
+    if !a_set.contains(key) {
+      a_set[key] = true
+      a_uniq.push(q)
+    }
+  }
+  let b_set : Map[String, Bool] = Map([])
+  let b_uniq : Array[@jsonld.JsonLdQuad] = []
+  for q in b {
+    let key = nq_quad_render(q)
+    if !b_set.contains(key) {
+      b_set[key] = true
+      b_uniq.push(q)
+    }
+  }
+  nq_datasets_isomorphic_set(a_uniq, b_uniq)
+}
+
+///|
+/// 去重后的同构核（原 datasets_isomorphic 主体）
+fn nq_datasets_isomorphic_set(
+  a : Array[@jsonld.JsonLdQuad],
+  b : Array[@jsonld.JsonLdQuad],
+) -> Bool {
   if a.length() != b.length() {
     return false
   }

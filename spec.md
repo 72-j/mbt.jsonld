@@ -419,6 +419,18 @@ type-scoped 快照必须以"元素 @context 已生效"的 active context 为底�
 - 手写：在骨架钩子里实现递归
 - 对账门：接口一致 + 步骤覆盖 + 值级对拍
 
+### 5.1 J4 对账三件套（2026-09-29 开工钉；J2/J3 全 plain ≠ 收官）
+**J4 的比较对象 = 骨架 vs 手写**（gen 产物 jsonld_gen.toml 声明面 ↔
+expand_standard/to_rdf 手写钩子），**不是模型 vs 引擎**——J2/J3 的套件对拍
+是后者（引擎行为 vs W3C oracle），两者互补不可互替：
+1. **接口一致**：gen 产物接口（.mbti / 调度表行）与手写钩子签名逐一对照
+   （interface_gate_test 既有门——复核覆盖面是否含 J3 新增 to_rdf_document/
+   node_to_quads 臂）。
+2. **步骤覆盖**：gen 表每行 handler/None 裁定 vs 手写实现落点——None = 已裁定
+   无需手写（ctx §3 口诀），非空 hook 必有落点；缺行/多行皆红。
+3. **值级对拍**：同一输入过 gen 调度面与手写链各一次，产物逐值对拍
+   （黄金门形态——G9 同款；J4 新增面 = expand/toRdf 两调度路径）。
+
 ## 6 与现有体系的关系
 - 共享库：TOML 读、代码 emit、测试 harness
 - 不共享：schema 语义、生成器框架、FSM 形状
@@ -514,6 +526,32 @@ type-scoped 快照必须以"元素 @context 已生效"的 active context 为底�
   字面量发射臂）≠ `nq_jcs`（J3.3，ECMAScript Number::toString 词形——
   `1e+30`/`0.002`，rdf:JSON 词形）。MoonBit Double 显示 = ECMAScript 形
   （探针实证），JCS 数值零转换直用；两词形服务两 oracle 族，**禁互相借调**。
+
+### 8.36 J3.4 开工钉（rdfDirection + produceGeneralizedRdf；2026-09-29 实证定案）
+- **rdfDirection 值域**：`"i18n-datatype"` | `"compound-literal"`（缺省 None =
+  @direction 弃——方向本就非 RDF 可序列化面）。与 @direction 关系：@direction
+  是展开期值对象成员；无选项时仅语言进 langtag（方向弃）；**有选项且值对象带
+  方向**时方向决定字面量的 RDF 形态；无方向 + 有语言 ⇒ 常规 langtag（选项不
+  触发——四例 input 全带方向，无此反例面，照 REC 落）。
+- **tdi×4 覆盖（全部实证）**：
+  - tdi09 = i18n-datatype × 仅方向 ⇒ `"no language"^^<https://www.w3.org/ns/i18n#_rtl>`
+    （**空语言段 = "_"**）
+  - tdi10 = i18n-datatype × 语言+方向 ⇒ `"en-US"^^<i18n#en-us_rtl>`（语言
+    **小写化**入 datatype；值原样）
+  - tdi11 = compound-literal × 仅方向 ⇒ 对象换新 bnode + `(b, rdf:value,
+    简单字面量)` + `(b, rdf:direction, "rtl")`
+  - tdi12 = compound-literal × 语言+方向 ⇒ 上形 + `(b, rdf:language, "en-us")`
+    （**小写**）；rdf:value **恒简单字面量**（语言不进 value——di12 实证）
+  - 二值互斥（单选项）；compound 的 bnode 不带 rdf:type。
+- **produceGeneralizedRdf**：谓词位放行 bnode（t0118：term→`_:term` bnode 映射
+  经谓词位；te075：`@vocab: "_:"` + 属性名 ⇒ `_:b1/_:b2` 谓词）。其余不变：
+  相对 IRI 仍按 base 消解（0118 `relativeIri` → 文档 URL 全形实证）；bnode 型
+  @type 照 tm003 臂发射。
+- **图位是作用域键的一部分（个案收官定案，2026-09-29）**：同 id 节点预合并
+  （F2）与 emit-once 同一原则——**作用域键 = graph_key|id**：默认图与各具名
+  图是不同作用域，跨图不并。#t0027（Paris#this 两图各发其属性）与 #te108
+  （@graph+@id map 同键双图对象 graph 内容并集）是同一原则的两面：图内
+  合并、跨图隔离。
 
 ### 8.4 范围重估（改变 J3 范围的四点）
 1. **JCS 是新机制子役**：23 例挂它，RFC 8785（ECMAScript 数值词形 + 串转义 +

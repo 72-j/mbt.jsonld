@@ -21,6 +21,12 @@ pub(all) struct JsonLdOptions {
   /// 由调用方注入；None + string context → Unsupported（红非静默）。同步闭包
   /// ——expand_document 保持同步。fn 字段不可派生 Debug，故本结构不再 derive
   load_context : ((String) -> Result[String, String])?
+  /// toRdf 面（J3.4——spec §8.36）：@direction 序列化模式。None = 方向弃；
+  /// "i18n-datatype" = ^^<i18n#lang_dir>；"compound-literal" = bnode +
+  /// rdf:value/language/direction 三元组组
+  rdf_direction : String?
+  /// toRdf 面（J3.4）：广义三元组放行——谓词位 bnode（#t0118/#te075 oracle）
+  produce_generalized_rdf : Bool
 }
 
 ///|
@@ -60,10 +66,12 @@ pub(all) struct ExpandedNode {
   types : Array[String]
   properties : Array[(String, Array[ExpandedValue])]
   reverse_props : Array[(String, Array[ExpandedValue])] // @reverse 映射（reverse 批）
-  graph : Array[ExpandedValue]? // 节点位 @graph（文档级批——t0020 保留 / t0009 顶层表面化）
+  /// mut（J3.4 F2 同 id 预合并——首见对象原地并集图内容）
+  mut graph : Array[ExpandedValue]? // 节点位 @graph（文档级批——t0020 保留 / t0009 顶层表面化）
   // Included Blocks（@included 纯形批——in01-in04 oracle：@included 作为节点
   // 对象键渲染，非顶层拼接；嵌套 included 随序列化递归自展）
-  included : Array[ExpandedNode]?
+  /// mut（J3.4 F2 同 id 预合并——首见对象原地并集 included）
+  mut included : Array[ExpandedNode]?
   /// 节点 @index（@container 映射批：index map 应用——#tc013 oracle：index map
   /// 的键写入条目 @index；值对象位未落，挂后续 index 批）
   mut index : String?

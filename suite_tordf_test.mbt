@@ -78,7 +78,8 @@ async test "toRdf suite harness: judge ready, all deferred pre-J3.1" {
     "#te061", "#trt01", "#tjs01", "#tjs02", "#tjs03", "#tjs04", "#tjs05", "#tjs06",
     "#tjs07", "#tjs08", "#tjs09", "#tjs10", "#tjs11", "#tjs12", "#tjs13", "#tjs14",
     "#tjs15", "#tjs16", "#tjs17", "#tjs18", "#tjs19", "#tjs20", "#tjs21", "#tjs22",
-    "#tjs23",
+    "#tjs23", "#t0118", "#tdi09", "#tdi10", "#tdi11", "#tdi12", "#te075", "#te014",
+    "#te036", "#te108", "#tin06",
   ]
   let deferred : Array[String] = []
   let plain : Array[String] = []
@@ -186,8 +187,8 @@ async test "toRdf suite harness: judge ready, all deferred pre-J3.1" {
     }
   }
   // pin 闭合：桶总和 == 普查数（467 = 345 正 + 106 负 + 16 句法——spec §8.1）
-  assert_eq(deferred.length(), 10)
-  assert_eq(plain.length(), 457)
+  assert_eq(deferred.length(), 0)
+  assert_eq(plain.length(), 467)
   assert_eq(parsed_ok + parse_err, 467)
   assert_true(parse_err == 0)
 }
