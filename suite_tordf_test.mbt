@@ -26,6 +26,7 @@ async test "toRdf suite harness: judge ready, all deferred pre-J3.1" {
     "#t0017", "#t0018", "#t0019", "#t0020", "#t0023", "#t0024", "#t0025", "#t0026",
     "#t0027", "#t0028", "#t0029", "#t0030", "#t0031", "#t0032", "#t0033", "#t0034",
     "#t0036", "#t0113", "#t0114", "#t0115", "#t0116", "#t0117", "#t0119", "#t0128",
+    "#t0120", "#t0121", "#t0122", "#t0123", "#t0124", "#t0125", "#t0126", "#t0127",
     "#t0129", "#t0131", "#t0132", "#t0133", "#tc001", "#tc002", "#tc003", "#tc004",
     "#tc005", "#tc006", "#tc007", "#tc008", "#tc009", "#tc010", "#tc011", "#tc012",
     "#tc013", "#tc014", "#tc015", "#tc016", "#tc017", "#tc018", "#tc019", "#tc020",
@@ -180,8 +181,8 @@ async test "toRdf suite harness: judge ready, all deferred pre-J3.1" {
     }
   }
   // pin 闭合：桶总和 == 普查数（467 = 345 正 + 106 负 + 16 句法——spec §8.1）
-  assert_eq(deferred.length(), 51)
-  assert_eq(plain.length(), 416)
+  assert_eq(deferred.length(), 43)
+  assert_eq(plain.length(), 424)
   assert_eq(parsed_ok + parse_err, 467)
   assert_true(parse_err == 0)
 }

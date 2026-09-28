@@ -288,35 +288,88 @@ fn resolve_base_value(value : String, previous : String?) -> String {
     Some(b) => b
     None => ""
   }
-  let merged = merge_base_reference(prev, value)
-  // RFC 3986 5.2.4：点段消除只作用于 path（".. " 弹前段不出 authority 根、
-  // "." 丢弃；空段保留——"//" 与尾 "/" 语义不变，#t0029 oracle：../ 逐级出、
-  // 超根截停；#t0091 oracle：合并后 /./ 不保留）
-  let (authority, path) = split_authority_path(merged)
+  // A组①（#t0122 s091 oracle vs #t0127 s296 反例族）：引用拆 = 路径部分
+  // （首个 ?/# 之前）+ 尾巴（query/fragment 原样照挂）。**路径部分为空 ⇒
+  // merge 原样、不进路径处理**（RFC 5.2：R.path 未定义时 T.path = Base.path
+  // 词面——s091 base "/./" 保留）；非空 ⇒ 段算法跑 merge 后整条路径（s296
+  // ".?a=b" → base 目录 + "?a=b"）。
+  let mut cut = -1
+  for i in 0..<value.length() {
+    let ch = value.get_char(i)
+    if ch == Some('?') || ch == Some('#') {
+      cut = i
+      break
+    }
+  }
+  let ref_path = if cut >= 0 { value[:cut].to_owned() } else { value }
+  let ref_suffix = if cut >= 0 { value[cut:].to_owned() } else { "" }
+  if ref_path is "" {
+    return merge_base_reference(prev, value)
+  }
+  let merged = merge_base_reference(prev, ref_path)
+  let (authority, full_path) = split_authority_path(merged)
   if authority is "" {
     return merged
   }
-  let segs : Array[String] = []
-  for seg in path.split("/").to_array() {
-    let seg = seg.to_owned()
+  // A组②（RFC 3986 5.2.4——remove_dot_segments 作用于 **merge 后整条
+  // path**，base 贡献段一并消除：#t0091 oracle，base "/./" 不保留；路径
+  // 为空时才词面保留——上方 A① 早退）。段源 = full_path **去首段**（首段
+  // 恒为根标记 ""，由 seeds=[""] 承担）：斜杠开形（"/x" / "//authority/x"）
+  // merge 已换根，full_path 即引用自身路径（base 段不入）；相对形 full_path
+  // = base 目录 + 引用（merge 只换尾段），点段规则均匀作用两方贡献段。
+  // "//g" 合并后 full_path="" ⇒ 段空 ⇒ 渲染裸 authority（s006 oracle）。
+  // 段规则："." 丢弃（**段尾 "." ⇒ 尾斜杠**，s117 "./g/." → "g/"）；".."
+  // 弹一段（**守卫 >1 护根标记——超根截停**，#t0029 still-root oracle；
+  // **段尾 ".." ⇒ 尾斜杠**）；**内部空段保真**（RFC 不折叠 "//"——#t0128
+  // base "ab//de" oracle；s303 "../xyz" 弹掉的正是空段 → 单斜杠）；
+  // **段尾空段 ⇒ 尾斜杠**。#t0122 s100：/bb/ccc/../../.. → "/"。
+  let segs : Array[String] = [""]
+  let raw = full_path.split("/").to_array()
+  let tokens : Array[String] = []
+  for j in 1..<raw.length() {
+    tokens.push(raw[j].to_owned())
+  }
+  let n = tokens.length()
+  let mut trailing = false
+  for i in 0..<n {
+    let seg = tokens[i]
     if seg is ".." {
+      // 守卫 >1：segs[0] 是根标记（""），禁弹（钉①——超根截停）
       if segs.length() > 1 {
         let _ = segs.pop()
       }
+      if i == n - 1 {
+        trailing = true
+      }
     } else if seg is "." {
-      ()
+      if i == n - 1 {
+        trailing = true
+      }
+    } else if seg is "" {
+      // 空段：内部 = 保真入栈（#t0128）；段尾 = 尾斜杠标记，不入栈
+      if i == n - 1 {
+        trailing = true
+      } else {
+        segs.push(seg)
+      }
     } else {
       segs.push(seg)
     }
   }
   let out = StringBuilder()
+  out.write_string(authority)
   for i, seg in segs {
+    // i>0 条件 join：首段（根标记 ""）不产生斜杠——authority 自带 "//"
     if i > 0 {
-      out <+ "/"
+      out.write_string("/")
     }
-    out <+ "\{seg}"
+    out.write_string(seg)
   }
-  "\{authority}\{out.to_string()}"
+  if trailing {
+    out.write_string("/")
+  }
+  out.write_string(ref_suffix)
+  out.to_string()
 }
 
 ///|
