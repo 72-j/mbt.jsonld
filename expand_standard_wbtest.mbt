@@ -566,9 +566,10 @@ test "merge_base_reference absolute-path reference (t0051 对拍)" {
   assert_true(
     merge_base_reference("http://example/base", "/x") is "http://example/x",
   )
-  // 无 authority 形态（链式相对 base，契约外输入）→ 落回相对合并补根分支，
-  // 引用自带 "/" → 退化出双斜杠（仅此退化形态，正规 base 不经此路）
-  assert_true(merge_base_reference("a/b", "/c") is "a/b//c")
+  // 无 authority 形态（链式相对 base，契约外输入）→ 落回相对合并截段分支，
+  // 引用自带 "/" → 退化出双斜杠（仅此退化形态，正规 base 不经此路；
+  // authority 感知边界后 = 截段 + 引用，旧魔数分支为追加）
+  assert_true(merge_base_reference("a/b", "/c") is "a//c")
   // 相对引用回归钉
   assert_true(
     merge_base_reference("http://example", "relative-iri")
@@ -1267,4 +1268,42 @@ test "reverse term with index container keeps reverse-only node (#t0063/#t0131 �
       )
     ),
   )
+}
+
+///|
+/// B组边界钉：merge_base_reference 三形臂位（spec §IRI 解析实现边界）——
+/// 短 scheme 角（套件不可达）经 authority 感知边界后仍走目录替换臂
+///（RFC 5.2.3：base.path 截最后 "/" 含 + 引用）
+test "merge_base_reference short-scheme authority-aware boundary" {
+  // 短 scheme + authority + 路径：截段（曾误走补根臂 idx>6 魔数）
+  assert_eq(merge_base_reference("a://b/c", "d"), "a://b/d")
+  // scheme-only 带路径：目录替换
+  assert_eq(merge_base_reference("ex:/a", "b"), "ex:/b")
+  // authority 形 path 空：补根（#t0129 oracle 保持）
+  assert_eq(merge_base_reference("http://a", "g"), "http://a/g")
+  // scheme-only 全串无 "/"：整段替换（#t0130/#tli11 oracle）
+  assert_eq(merge_base_reference("tag:example", "a"), "tag:a")
+  assert_eq(merge_base_reference("ex:", "test"), "ex:test")
+  // scheme-only 多段：截最后 "/"（#t0131/#t0132 oracle 保持）
+  assert_eq(merge_base_reference("tag:example/foo", "a"), "tag:example/a")
+  assert_eq(merge_base_reference("tag:example/foo/", "a"), "tag:example/foo/a")
+}
+
+///|
+/// C组成分门钉：nq_iri_chars_legal fragment 位判别（#te111/#te112 oracle——
+/// spec 附录 IRI 正则 fragment 内不容第二 "#"；B组②平面门在其上）
+test "nq_iri_chars_legal fragment component gate" {
+  // fragment 位第二 "#" 非法 → 弃（te111 #fragment-works 键）
+  assert_true(
+    !nq_iri_chars_legal("http://example.com/vocabulary/./rel2##fragment-works"),
+  )
+  // fragment 位 "?" 与 "/" 合法 → 留
+  assert_true(
+    nq_iri_chars_legal("http://example.com/vocabulary/./rel2#?query=works"),
+  )
+  assert_true(
+    nq_iri_chars_legal("http://example.com/vocabulary/./rel2#../parent"),
+  )
+  // 平面门：文法外字符弃（tli12）
+  assert_true(!nq_iri_chars_legal("http://invalid/<>/test"))
 }

@@ -236,16 +236,38 @@ fn merge_base_reference(base : String, reference : String) -> String {
       None => () // 无 authority 形态 → 落相对合并
     }
   }
-  // authority 后无 "/"（base 仅到 host）→ 补根 "/"；有 → 截最后 "/"（含）
+  // 相对合并（RFC 5.2.3）：idx 落在 scheme 后 "//" 尾内（http://a 的 idx=6）
+  // ⇒ base.path 空 ⇒ 补根 "/"；否则 idx = 目录段截位 ⇒ 截最后 "/"（含）+
+  // 引用（目录替换——#t0131/#t0132 oracle：tag:example/foo + a →
+  // tag:example/a）。authority 感知边界取代 idx>6 魔数（短 scheme 角：
+  // a://b/c、ex:/a 曾误走补根臂——套件不可达，wbtest oracle 钉）
   match base.rev_find("/") {
-    Some(idx) =>
-      if idx > 6 {
+    Some(idx) => {
+      let authority_slash_end = match colon_index(base) {
+        Some(at) =>
+          if base.get_char(at + 1) is Some('/') &&
+            base.get_char(at + 2) is Some('/') {
+            at + 2
+          } else {
+            -1
+          }
+        None => -1
+      }
+      if idx <= authority_slash_end {
+        "\{base}/\{reference}"
+      } else {
         let head = base[:idx + 1].to_owned()
         "\{head}\{reference}"
-      } else {
-        "\{base}/\{reference}"
       }
-    None => "\{base}/\{reference}"
+    }
+    None =>
+      // base 全串无 "/"（B组①——scheme-only 形："tag:example"/"ex:"）：
+      // RFC 5.2.3 base.path 无目录段 ⇒ 引用替换整段路径、scheme 保留
+      //（#t0130/#tli11 oracle：tag:example+a → tag:a、ex:+test → ex:test）
+      match colon_index(base) {
+        Some(at) => "\{base[:at + 1].to_owned()}\{reference}"
+        None => "\{base}\{reference}"
+      }
   }
 }
 

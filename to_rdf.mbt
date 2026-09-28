@@ -63,9 +63,60 @@ fn nq_emit_escape(value : String) -> String {
 }
 
 ///|
-/// IRI 词面（绝对 ⇒ `<iri>`；相对/空 ⇒ None——REC §6.3 非绝对主体/谓词不产出）
+/// IRI 词面合法性（发射面；expand 面不受扰——分层归因，nq 发射层专用）：
+/// ① 平面门（B组②——RFC 3986/3987 文法外字符弃——#tli12 oracle：
+/// "http://invalid/<>/test" 含 `<`/`>` ⇒ 三元组不产出）；
+/// ② 成分门（C组——spec 附录 IRI 正则：fragment 内不容第二 `#`——
+/// #te111/#te112 oracle：vocab `…/rel2##fragment-works` 弃发，
+/// `…/rel2#?query=works` 与 `…/rel2#../parent` 保留）
+fn nq_iri_chars_legal(iri : String) -> Bool {
+  let mut in_fragment = false
+  for ch in iri {
+    if ch == '#' {
+      // 成分门：首个 "#" 开 fragment，fragment 内第二 "#" 非法（REC IRI 正则）
+      if in_fragment {
+        return false
+      }
+      in_fragment = true
+    } else {
+      let ok = (ch >= 'a' && ch <= 'z') ||
+        (ch >= 'A' && ch <= 'Z') ||
+        (ch >= '0' && ch <= '9') ||
+        ch == '-' ||
+        ch == '.' ||
+        ch == '_' ||
+        ch == '~' ||
+        ch == ':' ||
+        ch == '/' ||
+        ch == '?' ||
+        ch == '[' ||
+        ch == ']' ||
+        ch == '@' ||
+        ch == '!' ||
+        ch == '$' ||
+        ch == '&' ||
+        ch == '\'' ||
+        ch == '(' ||
+        ch == ')' ||
+        ch == '*' ||
+        ch == '+' ||
+        ch == ',' ||
+        ch == ';' ||
+        ch == '=' ||
+        ch == '%'
+      if !ok {
+        return false
+      }
+    }
+  }
+  true
+}
+
+///|
+/// IRI 词面（绝对且字符合法 ⇒ `<iri>`；相对/空/文法外字符 ⇒ None——REC §6.3
+/// 非绝对主体/谓词不产出）
 fn nq_iri_term(iri : String) -> String? {
-  if is_valid_absolute_iri(iri) {
+  if is_valid_absolute_iri(iri) && nq_iri_chars_legal(iri) {
     Some("<" + iri + ">")
   } else {
     None
@@ -144,7 +195,7 @@ fn nq_node_subject(state : ToRdfState, node : ExpandedNode) -> String? {
         None
       } else if id.get_char(0) == Some('_') && id.get_char(1) == Some(':') {
         Some(id)
-      } else if is_valid_absolute_iri(id) {
+      } else if is_valid_absolute_iri(id) && nq_iri_chars_legal(id) {
         Some("<" + id + ">")
       } else {
         None
@@ -164,7 +215,7 @@ fn nq_literal_term_of(l : ExpandedLiteral) -> String? {
     Some(dt) =>
       if dt == XSD_STRING && l.language is None {
         Some("\"" + esc + "\"")
-      } else if is_valid_absolute_iri(dt) {
+      } else if is_valid_absolute_iri(dt) && nq_iri_chars_legal(dt) {
         Some("\"" + esc + "\"^^<" + dt + ">")
       } else {
         None
