@@ -549,7 +549,8 @@ fn compact_node_jv(
   let nest_groups : Map[String, Array[(String, JsonValue)]] = Map([])
   let nest_order : Array[String] = []
   // 正向属性：值感知分选（同 IRI 多 term 按值拆键——#t0006/#t0015 oracle；
-  // 两遍 = bare_fit 优先、object_fit 次之、残余落前缀/相对词兜底键）
+  // 两遍 = bare_fit 优先、object_fit 次之、残余落前缀/相对词兜底键）+
+  // 容器逆形映射归组路由（§8.43——单映射容器 term 成批机制）
   for pair in node.properties {
     let cands = compact_term_candidates(pair.0, false, active)
     let cand_tds : Array[(String, TermDefinition)] = []
@@ -559,6 +560,24 @@ fn compact_node_jv(
         None => ()
       }
     }
+    // 映射容器候选（单 @index/@id/@type/@language——§8.43 共性路由位）
+    let map_tds : Array[(String, TermDefinition)] = []
+    for entry in cand_tds {
+      let is_map = match entry.1.container {
+        Some(Id) | Some(Type) | Some(Index) | Some(Language) => true
+        _ => false
+      }
+      if is_map && entry.1.graph_secondary is None {
+        map_tds.push(entry)
+      }
+    }
+    // 映射归组账（term 键 → (subkey, 渲染值) 列表；首现序）
+    let map_names : Array[String] = []
+    let map_subs : Map[String, Array[(String, JsonValue)]] = Map([])
+    for entry in map_tds {
+      map_names.push(entry.0)
+      map_subs[entry.0] = []
+    }
     // 分组账：键 → 值数组（首现序）
     let group_keys : Array[String] = []
     let group_vals : Map[String, Array[JsonValue]] = Map([])
@@ -566,6 +585,24 @@ fn compact_node_jv(
     let group_tds : Map[String, TermDefinition] = Map([])
     let leftovers : Array[JsonValue] = []
     for v in pair.1 {
+      // 映射归组优先（§8.43——值 fit 映射容器即归组；不适值照旧分选）
+      let mut map_done = false
+      for entry in map_tds {
+        match compact_map_entry(v, entry.1, active, options) {
+          Some((subkey, rendered)) => {
+            match map_subs.get(entry.0) {
+              Some(arr) => arr.push((subkey, rendered))
+              None => ()
+            }
+            map_done = true
+            break
+          }
+          None => ()
+        }
+      }
+      if map_done {
+        continue
+      }
       // 两遍选 term：bare_fit 优先（吸收成裸形），object_fit 次之
       let mut chosen : (String, TermDefinition, Bool)? = None
       for pass_bare in [true, false] {
@@ -619,6 +656,41 @@ fn compact_node_jv(
           }
           leftovers.push(jv)
         }
+      }
+    }
+    // 容器逆形映射出键（§8.43——subkey → 值；单值塌缩随 compactArrays）
+    for name in map_names {
+      match map_subs.get(name) {
+        Some(entries) =>
+          if entries.length() > 0 {
+            let sub_pairs : Array[(String, JsonValue)] = []
+            let sub_keys : Array[String] = []
+            let sub_vals : Map[String, Array[JsonValue]] = Map([])
+            for entry in entries {
+              match sub_vals.get(entry.0) {
+                Some(arr) => arr.push(entry.1)
+                None => {
+                  sub_vals[entry.0] = [entry.1]
+                  sub_keys.push(entry.0)
+                }
+              }
+            }
+            for sub in sub_keys {
+              match sub_vals.get(sub) {
+                Some(arr) => {
+                  let out = if options.compact_arrays && arr.length() == 1 {
+                    arr[0]
+                  } else {
+                    JsonValue::Array(arr)
+                  }
+                  sub_pairs.push((sub, out))
+                }
+                None => ()
+              }
+            }
+            pairs.push((name, JsonValue::Object(sub_pairs)))
+          }
+        None => ()
       }
     }
     // 各 term 组出键（单值塌缩——容器/@set/compactArrays 门）
@@ -735,4 +807,167 @@ fn compact_node_jv(
     pairs.push(("@reverse", JsonValue::Object(rev_pairs)))
   }
   Ok(JsonValue::Object(pairs))
+}
+
+///|
+/// 容器逆形映射条目（§8.43 成批机制——fit + 子键 + 键化成员剥离一体；
+/// None = 值不入该映射容器，落常规分选）。四类差异钉：
+/// @id = 节点 @id 作键（@id 值位旗词形——exact/vocab 禁）、值 @id 整剥
+/// （#tm001/#tm002/#tm005）；@type = 首 type 作键（类型位旗词形）、值留
+/// 残余 type（#tm003/#tm004）；@index = @index 原文作键、值 @index 剥；
+/// @language = 语言原文作键、值裸串（#tm012/#tla01）；无键化成员 →
+/// @none 兜底（别名词形感知——#tm012 "none" / #tm017 字面）
+fn compact_map_entry(
+  value : ExpandedValue,
+  td : TermDefinition,
+  active : ActiveContext,
+  options : JsonLdOptions,
+) -> (String, JsonValue)? {
+  let none_key = compact_iri_word("@none", true, false, active, options)
+  match td.container {
+    Some(Id) =>
+      match value {
+        ExpandedValue::Node(child) => {
+          let subkey = match child.id {
+            Some(id) => compact_iri_word(id, false, false, active, options)
+            None => none_key
+          }
+          let id_key = compact_iri_word("@id", true, false, active, options)
+          match compact_node_jv(child, active, options) {
+            Ok(JsonValue::Object(pairs)) => {
+              let stripped : Array[(String, JsonValue)] = []
+              for p in pairs {
+                if p.0 != id_key {
+                  stripped.push(p)
+                }
+              }
+              Some((subkey, JsonValue::Object(stripped)))
+            }
+            Ok(other) => Some((subkey, other))
+            Err(_) => None
+          }
+        }
+        _ => None
+      }
+    Some(Type) => {
+      let first : String? = match value {
+        ExpandedValue::Node(child) => child.types.get(0)
+        ExpandedValue::Value(lit) => lit.datatype
+        _ => None
+      }
+      let rendered : Result[JsonValue, JsonLdError] = match value {
+        ExpandedValue::Node(child) => {
+          // 首 type 键化、残余留（#tm004 oracle——types[1:] 浅拷贝出形）
+          let rest : Array[String] = []
+          for i in 1..<child.types.length() {
+            rest.push(child.types[i])
+          }
+          let variant : ExpandedNode = {
+            id: child.id,
+            types: rest,
+            properties: child.properties,
+            reverse_props: child.reverse_props,
+            graph: child.graph,
+            included: child.included,
+            index: child.index,
+          }
+          compact_node_jv(variant, active, options)
+        }
+        ExpandedValue::Value(lit) => {
+          // 字面量 datatype 键化 → 值对象去 @type 对
+          let rendered_lit = compact_value_jv(lit, None, active, options)
+          match rendered_lit {
+            JsonValue::Object(pairs) => {
+              let stripped : Array[(String, JsonValue)] = []
+              for p in pairs {
+                if p.0 != "@type" {
+                  stripped.push(p)
+                }
+              }
+              Ok(JsonValue::Object(stripped))
+            }
+            other => Ok(other)
+          }
+        }
+        _ => Ok(JsonValue::Null)
+      }
+      match rendered {
+        Ok(jv) => {
+          let subkey = match first {
+            Some(t) => compact_iri_word(t, true, true, active, options)
+            None => none_key
+          }
+          Some((subkey, jv))
+        }
+        Err(_) => None
+      }
+    }
+    Some(Index) => {
+      let subkey_opt : String? = match value {
+        ExpandedValue::Node(child) => child.index
+        ExpandedValue::Value(lit) => lit.index
+        _ => None
+      }
+      let rendered : Result[JsonValue, JsonLdError] = match value {
+        ExpandedValue::Node(child) => {
+          // @index 键化 → 剥（浅拷贝 index None）
+          let variant : ExpandedNode = {
+            id: child.id,
+            types: child.types,
+            properties: child.properties,
+            reverse_props: child.reverse_props,
+            graph: child.graph,
+            included: child.included,
+            index: None,
+          }
+          compact_node_jv(variant, active, options)
+        }
+        ExpandedValue::Value(lit) => {
+          // index 清除副本（#tm009 oracle——字面量 index 键化后须裸形；
+          // index 在场会挡 compact_value_jv 缺省裸臂）
+          let bare_lit : ExpandedLiteral = {
+            value: lit.value,
+            datatype: lit.datatype,
+            language: lit.language,
+            direction: lit.direction,
+            raw: lit.raw,
+            index: None,
+            included: lit.included,
+          }
+          Ok(compact_value_jv(bare_lit, None, active, options))
+        }
+        _ => Ok(JsonValue::Null)
+      }
+      match rendered {
+        Ok(jv) => {
+          let subkey = match subkey_opt {
+            Some(ix) => ix
+            None => none_key
+          }
+          Some((subkey, jv))
+        }
+        Err(_) => None
+      }
+    }
+    Some(Language) =>
+      match value {
+        ExpandedValue::Value(lit) => {
+          // 串值裸形（语言键化即剥——#tm012 oracle）；无语言 → @none
+          let subkey = match lit.language {
+            Some(lang) => lang
+            None => none_key
+          }
+          Some((subkey, JsonValue::String(literal_value_of(lit))))
+        }
+        _ => None
+      }
+    _ => None
+  }
+}
+
+///|
+/// 字面量串值取形（language map 裸形用；raw 在场取 raw——数值型语言图
+/// 不入册，此处词形兜底）
+fn literal_value_of(lit : ExpandedLiteral) -> String {
+  lit.value
 }
