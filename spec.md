@@ -66,10 +66,20 @@ expand_top_values 全链，修正单点落共享函数，385+416 两面同批受
   oracle）。**绝对路径引用（"/" 开头）= authority 保留、path 整体替换**
   （#t0051 oracle：/issue/1 → https://w3c.github.io/issue/1；authority_root
   助手截 scheme://authority，无 authority 形态落回相对合并）。
-- **resolve_base_value（5.2.4 点段消除，窄化）**：".." 弹前段并补根段、"." 丢弃，
-  **只作用于合并结果**——绝对 base 置位时原样保留（/./ 可暂存；#t0091 oracle：
-  base1 绝对原样、base2 合并后 /./ 消除）；value 绝对 → 原样返回不做归一
-  （#t0092 oracle：raw 拼接即预期，完整 5.2.4 挂后续）。
+- **resolve_base_value（5.2.4 点段消除；A组终版 2026-09-28——段模型统一）**：
+  **豁免面唯一 = R.path 未定义**（引用拆 = 路径部分〔首个 ?/# 前〕+ 尾巴；
+  **路径部分为空 ⇒ merge 原样、T.path = Base.path 词面**——s091 `?y`：base
+  `/./` 保留。判据从早期"含 ?/# 即豁免"收窄至此——#t0091 实测修正：「消除
+  只作用于引用贡献段」命题只在 R.path 未定义与根/授权替换两形成立，相对形
+  消除域 = merge 后**整条路径**，base 贡献段一并消除）。非空 ⇒ 段算法：段源
+  = full_path **去首段**（首段恒为根标记 ""，seeds=[""] 承担；斜杠开形 merge
+  已换根故 full_path 即引用自身路径；`//g` ⇒ 段空 ⇒ 裸 authority，s006
+  oracle）。pop 守卫 >1 护根标记（**超根截停**，#t0029 still-root oracle）；
+  **内部空段保真**（RFC 不折叠 "//"——#t0128 base `ab//de` oracle；s303
+  `../xyz` 弹掉的正是空段）；段尾 "." / ".." / "" ⇒ 尾斜杠（s117/s100
+  oracle）；尾巴（query/fragment）渲染尾接挂（s296 族 `.?a=b` →
+  `http://abc/def/?a=b`）。value 绝对 → 原样返回不做归一（#t0092 oracle：
+  raw 拼接即预期）。
 - **is_valid_absolute_iri（scheme 文法）**：scheme 冒号须在非首位（":fish" 空方案
   非绝对 → 走 vocab 拼接，#t0118 oracle）+ **scheme 首字符须 ALPHA**（RFC 3986
   `scheme = ALPHA *( ALPHA / DIGIT / "+" / "-" / "." )`，JSON-LD 规范 IRI 正则
