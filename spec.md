@@ -52,6 +52,14 @@
 - order（求值顺序）, kind（keyword/absolute/bnode/compact/vocab/relative/term）,
   condition（可枚举形态判断词表）, action, handler_hook（可选）
 
+### IRI 规则的 expand/toRdf 共享面（2026-09-28 钉）
+两面 IRI 规则 = **同一套函数单点实现**（expand_iri 五分类、merge_base_reference/
+resolve_base_value、colon_index、is_valid_absolute_iri）——to_rdf_document 走
+expand_top_values 全链，修正单点落共享函数，385+416 两面同批受测。唯一有意
+分叉：**发射期绝对性**（nq_iri_term——expand 期允许的相对保留值 [t0060 oracle]
+在发射面弃 [te122/t0016 oracle]），由分层保证。IRI 规则批（A/B/C 三组）勘定
+表见 todo 同日账。
+
 ### IRI 解析实现边界（2026-09-26 定案；三者皆 RFC 3986 实现边界）
 - **merge_base_reference（5.2.3 merge，authority-only）**：相对引用 = base 截最后
   "/"（含）+ 引用；base 仅到 authority（无路径 "/"）→ 补根 "/"（#t0129/#t0130

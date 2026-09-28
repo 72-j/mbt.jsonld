@@ -795,12 +795,3 @@ fn render_nq(quads : Array[@jsonld.JsonLdQuad]) -> String {
   }
   out.to_string()
 }
-
-///|
-/// 单四元组差集渲染行（清点探针用；图位空则省略）
-fn render_for_diff(q : @jsonld.JsonLdQuad) -> String {
-  match q.graph {
-    Some(g) => "\{q.subject} \{q.predicate} \{q.object} \{g}"
-    None => "\{q.subject} \{q.predicate} \{q.object}"
-  }
-}
