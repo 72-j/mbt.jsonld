@@ -620,7 +620,7 @@ expand_standard/to_rdf 手写钩子），**不是模型 vs 引擎**——J2/J3 �
 |---|---|---|---|
 | expansion | 385（正 276 / 负 109） | ✅ **385/385 全 plain** | suite_expand_test pin（deferred=0）+ 值级对拍 |
 | toRDF | 467（正 345 / 负 106 / 句法 16） | ✅ **467/467 全 plain** | suite_tordf_test pin + 判定器（迷你 N-Quads 解析 + 集合同构） |
-| compact | 246 | 🚧 **已立案开工** | ——（开工前置钉 §8.41：I/O 关系钉 + 246 例分组勘定） |
+| compact | 246（正 229 / 负 17） | 🚧 **98/246 plain**（正 83 + 负 15）/ deferred 148 在册 | suite_compact_test pin（deferred=148）+ canonical_for_suite 直比 + bnode 双射兜底 |
 | flatten | 58（正 57 / 负 1） | ✅ **56/58 plain**（正 55 + 负 1）/ deferred 2 在册 | suite_flatten_test pin（deferred=2）+ canonical_for_suite 直比 + bnode 双射兜底（isomorphic_for_suite——判定器自检四钉） |
 | fromRdf | 54 | ❌ 未实现 | ——（§8.39） |
 | html | 50 | ❌ 未实现 | ——（§8.39） |
@@ -634,8 +634,8 @@ expand_standard/to_rdf 手写钩子），**不是模型 vs 引擎**——J2/J3 �
 
 ### 8.39 缺口解释表（三分类钉——零 deferred ≠ 零缺口；2026-09-29）
 **「设计如此」**（范围/兼容性裁决，注出处）：
-1. compact 246 例——**已立案开工**（2026-09-29 优先序定案第二环随 flatten
-   收官解锁；开工前置钉见 §8.41）
+1. compact 246 例——**已立案已开工**（2026-09-29 首波 98/246 plain——
+   开工前置钉 §8.41 + 首波实录 §8.42；deferred 148 缺口三分类在册）
 2. @reverse 展开保形（非 REC 反转）——t0042 套件 oracle（同形异判表
    「oracle > 规范字面」族）
 3. JCS 键序码点序（非 RFC 字面 UTF-16 码元序）——#tjs13 套件 oracle（同族）
@@ -748,3 +748,48 @@ expand_standard/to_rdf 手写钩子），**不是模型 vs 引擎**——J2/J3 �
   invalid @prefix value / invalid @nest value / invalid @version value /
   invalid context nullification / IRI confused with prefix / processing
   mode conflict）+ 1 例 compaction 特有（"compaction to list of lists"）
+
+### 8.42 compaction 首波实录（2026-09-29 开工批；98/246 plain——正 83 + 负 15）
+- **落码面**（compact_standard.mbt + engine 入口 `compact_document`）：
+  输入原文（expansion 全链）+ context 文本（process_context）→ 压缩序列化。
+  顶层形三钉（0 → {} / 1 → 单对象 / n → @graph 包裹）；@context 键 = 原文
+  逐字发射（223/223 实证）、context 空不发射（6 例 = ctx {} 族实证）
+- **机制清单**（逐族 oracle）：
+  1. **值感知 term 分选**（两遍 = bare_fit 吸收形优先、object_fit 值对象形
+     次之、残余落前缀/相对词兜底键）——同 IRI 多 term 按值拆键：#t0015 五
+     term 归组 / #t0006 datatype 失配 term 弃用 / #t0002 纯 term 容
+     datatype·language 值对象（重展开安全 = 钉死在对象内）
+  2. **语言态对齐裸形**：值语言 == context 缺省语言 → 裸值（重展开带回同
+     语言安全）；纯串无修饰且缺省在场 → 对象形也不安全（分选层拒）
+  3. **IRI 压缩四步**：精确 term → 最长前缀 compact IRI（前缀资格 = @prefix
+     显式 true 或**简单 string 形**缺省——map 形缺省 false，#tp001 oracle，
+     新增 `simple_form` 位）→ @vocab 相对词（仅谓词/类型位——@id 值位禁，
+     #t0021 oracle）→ base 相对化（段界对齐，compactToRelative 门）
+  4. **@id 值位词表门**：exact-term 塌缩禁（值位重展开不走词表——#t0060
+     oracle："Bar" 保全 IRI）
+  5. **@reverse 正向提升**：reverse term 匹配（td.reverse 判定不论 iri）→
+     普通属性；无匹配 → "@reverse" 包裹保形（#t0033/#t0050 oracle）
+  6. **@nest 重嵌**（TermDefinition 新增 `nest` 承接位）：td.nest 组账出
+     "@nest" 键（#tn001 oracle）；别名校验（非关键字值须在册 term 且
+     iri=@nest——#ten01 oracle）+ 1.0 门（@prefix/@nest 系 1.1 特性 =
+     invalid term definition——#tep07/#tep09/#tep10 oracle；带 ":" 的
+     term 名 + @prefix:true 同禁）
+  7. **@list 吸收 + @set 保形 + 数组塌缩**（compactArrays 门）+ 值去重；
+     1.0 嵌套 list = compaction to list of lists 错（#te001 oracle）
+  8. **关键字别名键**：@id/@graph 键走 term 词形（#t0008 "uri" / #t0014
+     "data" / #t0052 "graph" oracle）；**@included 出键**（#tin01 oracle）；
+     **@json 值直出**（#tjs07 oracle——容器/塌缩不包 JSON 原值）
+- **选项面**：JsonLdOptions 新增 `compact_arrays` / `compact_to_relative`
+  （REC 缺省均 true；36 构造点编译器驱动同笔补）
+- **负例 15/17**：16 例 context 处理面复用检出（其中 tep07/09/10、ten01 为
+  本批新增校验）+ LoL 1 例；余 2 = te002（IRI confused with prefix——歧义
+  判定细研，涉共享展开面风险）、tpr03（type-scoped 保护重定义——scoped
+  保护面随 scoped context 压缩面同批）
+- **deferred 148 缺口三分类**（§8.39 管辖）：
+  - **未实现·已立案**：容器逆形分组 68 例次（@index 26 / @id 19 / @type 12 /
+    @language 11——tc/tm/tpi/tla 族）；scoped context 压缩面（type-scoped /
+    property-scoped term 选择——tc001-028 族）；@nest 链式/别名细化（tn002-011）；
+    方向面（tdi01-07）；@graph 容器次级形（tp002-007）；@included 容器形；
+    t0007（@id-term 串塌缩键面——重展开安全判定细研）
+  - **依赖外**：0
+  - **设计如此**：0
