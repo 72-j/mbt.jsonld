@@ -94,6 +94,7 @@
 | #tec02 vs #pr30 | 形态分叉（**关键字 term 的 td 值**） | `{"@container":"@set"}`/`{"@protected":…}` 的有无 | "only either **or both of** following entries" ⇒ 须**至少一条**：`{"@type": {}}` → `keyword redefinition`；`{"@container":"@set","@protected":true}` → 合法（关键字可保护） |
 | #t0003 vs #tjs18/#tjs22 | **@json term 豁免**（形态+成员分叉） | `@value: null`——普通属性整体丢弃；**@json term** 的 null = JSON null 字面量保留（第三组同形异判） |
 | #ter01 vs #t0005/#tpr34~#tpr39 | **@ 前缀 ≠ 关键字**分叉 | "@iri": "@id"（keyword 形态**非真关键字**）定义**忽略不报错**、节点键随之丢弃；"@type": "@id"（**真关键字**映射异关键字）→ keyword redefinition。同族判据：@ 前缀 + 非关键字形态的键 → 忽略不产出属性（#t0119/#tpr34/#tpr36） |
+| **@value:null 分叉族**（三对归组；2026-09-28 并入 #t0014 辖域行） | | | |
 | #t0019 vs #t0004 | 值形态（**@value:null 值对象** vs 空数组字面值） | @value:null 值对象 ⇒ 属性**整体丢弃**（预扫描）；空数组字面值属性保留（"set3": []）——同文档两形态并存（t0019/t0004 oracle） |
 | #t0008 vs #t0022 系 | 值对象成员完备性 | 仅 @language/@direction 无 @value ⇒ 值对象**丢弃**（language-only 不产出）；有 @value ⇒ 正常展开 |
 | #tjs18/#tjs22 vs #t0019 | **@json term 豁免** | @type:@json 值对象的 null = JSON null 字面量**保留**（预扫描豁免）；无 @json 语义的 null 值对象丢弃 |
@@ -108,7 +109,7 @@
 | #tso08/#tso11 vs 同 context 同名覆盖 | **@import 替换 vs 并存覆盖**（同名 term 条目） | imported 定义是"被替换不处理"还是"安装后覆盖" | @import = "replacing common entries" ⇒ imported 定义**不参与处理**（不受本 context `@protected` 追溯保护——#tso11 合法覆盖）；同 context 两道定义（非 @import）= 安装后覆盖 ⇒ 前者已按当时保护位生效 |
 | #t0122 vs #t0119/#tpr34 | **@ 形同位异判**（`@1*ALPHA` keyword 形非关键字） | 值位 vs 键位 | @id **值**位：REC §5.2 IRI 展开返回 null ⇒ 节点保留、id 位**字面 `{"@id": null}`**（#t0122）；**键**位：忽略不产出属性（#t0119/#tpr34/#tpr36） |
 | #t0060 vs #ter48 | **相对 IRI 位置分叉** | term 名位 vs @id 值位 | term 名相对路径（`.` 开头）⇒ context 处理期 invalid IRI mapping（#ter48）；@id **值**位无绝对性校验——base 无时**原样保留相对**（#t0060 `@base:null` 后 "../document-relative" 保相对） |
-| #t0014 vs #t0019 | **@set × @value:null 辖域分叉**（别名键形态） | null 值对象的挂载层级 | 直挂属性值 ⇒ 属性**整体丢弃**（#t0019 预扫描）；@set（含别名 "set"）数组元素级 ⇒ 属性**保空数组**（#t0014）；别名键归一先于 set/list 对象形态判定（#t0014 vs #t0004 裸键同路） |
+| #t0014 vs #t0019 | 辖域分叉（**@set 数组元素级**，别名键形态） | null 值对象的挂载层级 | 直挂属性值 ⇒ 属性**整体丢弃**（#t0019 预扫描辖域）；@set（含别名 "set"）数组元素级 ⇒ 属性**保空数组**（预扫描不误伤——#t0014）；副产品：别名键归一先于 set/list 对象形态判定（vs #t0004 裸键同路） |
 
 ### term 名一致性检查（REC 4.2.2 @id 臂 "must be consistent"；2026-09-26 修正）
 - 判据：term 名含冒号（**非**首位、**非**末位）或含斜杠时，**term 名自身的 IRI
@@ -453,11 +454,18 @@ type-scoped 快照必须以"元素 @context 已生效"的 active context 为底�
 - **gen_nquads 词法扫描器**（is_numeric_span/is_boolean_word/banned langstring）
   = RDF 词形规则的**参考实现**，J3 判定器可概念镜像；黄金门 G9（n3gen）正交，
   提交前必跑口径不变。
-- **expected .nq 的读入**：gen_nquads 解析器可parse，但 jsonld 按独立项目布局
-  设计（整体迁走），**禁主包/测试面对子仓包建依赖**——勘定结论：判定器在
-  jsonld 测试面**自建 N-Quads 迷你解析**（套件 expected 皆为受限子集：行式、
-  四段/三段、`<>`/`""`/`_:`/`^^` 无换行转义面）+ 自建 bnode 双射（小额数据集
-  哈希细化即可）。将来两仓可互为 differential oracle（桥接件挂账不排期）。
+- **expected .nq 的读入**：判定器在 jsonld 测试面**自建 N-Quads 迷你解析** +
+  bnode 双射（行式状态机 12 态 + canonical 转义双端同用）。**够用性全量实测
+  （2026-09-28，345/345 expected 全过）**：1502 四元组 / 单文件最多 42 / 223
+  文件含 bnode / 自同构全绿（修出两枚：自指 `_:b0 _:b0 _:b0` 的**同源同靶**
+  绑定一致性 + generalized 谓词位 bnode 纳入 bucket/标签收集）。**ttl 依赖
+  挂起（用户令 2026-09-28）**：主仓 moon.mod 已声明 `thy1016/moonttl@0.2.2`
+  （本地 src/ttl 为 0.3.0-dev），待 0.3.0 发版后升引——gen_nquads 可作
+  differential oracle（桥接件挂账不排期）；判定器规范形转义双端同用保证
+  判定与词形解耦。**升级触发条件（任一即启，防「够用」变「永不升级」）**：
+  ① moonttl 0.3.0 发版 ⇒ 升引版本行 + 差分对照探针一枚（迷你判定器 ×
+  gen_nquads 对拍全部 expected，结论入账）；② 迷你判定器发现**自同构覆盖
+  不到的边界**（受限子集外的词形/需要规范化面）⇒ 当批评估切换或加固。
 
 ### 8.4 范围重估（改变 J3 范围的四点）
 1. **JCS 是新机制子役**：23 例挂它，RFC 8785（ECMAScript 数值词形 + 串转义 +
