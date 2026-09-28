@@ -433,13 +433,17 @@ fn parse_nquads(text : String) -> Result[Array[@jsonld.JsonLdQuad], String] {
 }
 
 ///|
-/// 四元组是否含 bnode 位（subject/object/graph；谓词恒 IRI）
+/// 四元组是否含 bnode 位（subject/predicate/object/graph——谓词位为
+/// produceGeneralizedRdf 面预留，#t0118 实证 bnode 谓词）
 fn nq_quad_has_bnode(q : @jsonld.JsonLdQuad) -> Bool {
   let graph_bnode = match q.graph {
     Some(g) => nq_is_bnode(g)
     None => false
   }
-  nq_is_bnode(q.subject) || nq_is_bnode(q.object) || graph_bnode
+  nq_is_bnode(q.subject) ||
+  nq_is_bnode(q.predicate) ||
+  nq_is_bnode(q.object) ||
+  graph_bnode
 }
 
 ///|
@@ -457,6 +461,9 @@ fn nq_collect_labels(q : @jsonld.JsonLdQuad, into : Map[String, Bool]) -> Unit {
   if nq_is_bnode(q.subject) {
     into[q.subject] = true
   }
+  if nq_is_bnode(q.predicate) {
+    into[q.predicate] = true
+  }
   if nq_is_bnode(q.object) {
     into[q.object] = true
   }
@@ -464,20 +471,6 @@ fn nq_collect_labels(q : @jsonld.JsonLdQuad, into : Map[String, Bool]) -> Unit {
     Some(g) => if nq_is_bnode(g) { into[g] = true }
     None => ()
   }
-}
-
-///|
-/// 绑定目标是否已被本四元组内先前绑定占用（同四元组两标签同靶的冲突侦测）
-fn nq_bindings_has_target(
-  bindings : Array[(String, String)],
-  target : String,
-) -> Bool {
-  for pair in bindings {
-    if pair.1 == target {
-      return true
-    }
-  }
-  false
 }
 
 ///|
@@ -510,12 +503,27 @@ fn nq_bind_quad(
       if t_bnode && o_bnode {
         match map.get(t) {
           Some(prev) => if prev != o { ok = false }
-          None =>
-            if used.contains(o) || nq_bindings_has_target(bindings, o) {
-              ok = false
-            } else {
+          None => {
+            // 本四元组内**同源同靶**（自指 `_:b0 _:b0 _:b0`——#t0118/#te038
+            // 实证）＝一致，不新增绑定；同靶异源＝冲突
+            let mut bound_same = false
+            let mut target_taken = used.contains(o)
+            for b in bindings {
+              if b.0 == t {
+                if b.1 == o {
+                  bound_same = true
+                } else {
+                  ok = false
+                }
+              }
+              if b.1 == o {
+                target_taken = true
+              }
+            }
+            if ok && !bound_same && !target_taken {
               bindings.push((t, o))
             }
+          }
         }
       } else if !t_bnode && !o_bnode {
         if t != o {
@@ -762,5 +770,37 @@ async test "nquads judge: suite files self-isomorphic" {
       Err(m) => fail("\{name}: \{m}")
     }
     assert_true(datasets_isomorphic(quads, quads))
+  }
+}
+
+///|
+/// 产物四元组 → N-Quads 文本（判定器 parse_nquads 归一前的回读面——发射侧
+/// 词形经同一次归一，词形选择与判定解耦）
+fn render_nq(quads : Array[@jsonld.JsonLdQuad]) -> String {
+  let out = StringBuilder()
+  for q in quads {
+    out.write_string(q.subject)
+    out.write_string(" ")
+    out.write_string(q.predicate)
+    out.write_string(" ")
+    out.write_string(q.object)
+    match q.graph {
+      Some(g) => {
+        out.write_string(" ")
+        out.write_string(g)
+      }
+      None => ()
+    }
+    out.write_string(" .\n")
+  }
+  out.to_string()
+}
+
+///|
+/// 单四元组差集渲染行（清点探针用；图位空则省略）
+fn render_for_diff(q : @jsonld.JsonLdQuad) -> String {
+  match q.graph {
+    Some(g) => "\{q.subject} \{q.predicate} \{q.object} \{g}"
+    None => "\{q.subject} \{q.predicate} \{q.object}"
   }
 }

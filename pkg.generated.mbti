@@ -20,6 +20,8 @@ pub fn jsonld_keyword_routes() -> Array[JsonLdKeywordRoute]
 
 pub fn parse_json(String) -> Result[JsonValue, JsonLdError]
 
+pub fn to_rdf_document(String, JsonLdOptions) -> Result[Array[JsonLdQuad], JsonLdError]
+
 // Errors
 
 // Types and methods

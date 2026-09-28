@@ -192,6 +192,11 @@ fn merge_base_reference(base : String, reference : String) -> String {
   if base is "" {
     return reference
   }
+  // 空引用（RFC 3986 5.2：R.path 空且无 query/fragment ⇒ T = base 原样——
+  // toRdf #t0016 oracle：@id "" 取文档全 URL 含文件名，不得坍缩到目录）
+  if reference is "" {
+    return base
+  }
   // base 自身 fragment 剥除（RFC 3986 5.2：fragment 不参与 base 解析——
   // #t0029 oracle：base "file#with-a-fragment" + "#fragment-works" →
   // "file#fragment-works"）

@@ -27,11 +27,16 @@ fn initial_context(options : JsonLdOptions) -> ActiveContext {
 }
 
 ///|
-/// expansion 文档入口：JSON 文本 → 展开形态（顶层恒为数组；free-floating 顶层节点丢弃）
-pub fn expand_document(
+
+///|
+/// 顶层展开核心（J3.1 抽取——expand_document / to_rdf_document 共用）：JSON
+/// 文本 → 顶层存活元素（ExpandedValue）。选择规则 = serialize_top 同款：顶层
+/// 值对象即弃（#t0045）/ free-floating 节点即弃（#t0001）/ 裸 @graph 根节点
+/// 表面化为图内容（#t0009/#t0021——toRdf 侧即默认图，REC §6.3）。
+fn expand_top_values(
   text : String,
   options : JsonLdOptions,
-) -> Result[JsonValue, JsonLdError] {
+) -> Result[Array[ExpandedValue], JsonLdError] {
   let element = match parse_json(text) {
     Ok(value) => value
     Err(e) => return Err(e)
@@ -71,15 +76,13 @@ pub fn expand_document(
     }
     None => initial_context(options)
   }
-  // 顶层形态三分：数组（逐元素展开收集、free-floating/值对象即弃——#t0013）、
-  // 对象（单节点路径）、标量（挂后续例）
+  let out : Array[ExpandedValue] = []
   match shape_of(element) {
     "array" => {
       let items = match element {
         JsonValue::Array(items) => items
         _ => return Err(JsonLdError::InvalidValue("shape mismatch: array"))
       }
-      let out : Array[JsonValue] = []
       for item in items {
         let step = match JsonLdStep::dispatch(ExpansionEntry, shape_of(item)) {
           Some(step) => step
@@ -105,19 +108,11 @@ pub fn expand_document(
           _ => continue
         }
         match expanded {
-          Ok(Some(ExpandedValue::Node(node))) =>
-            if is_free_floating(node) {
-              () // 顶层 free-floating 节点即弃（#t0001 同族）
-            } else {
-              out.push(serialize_value(ExpandedValue::Node(node)))
-            }
-          Ok(Some(ExpandedValue::Value(_))) => () // 顶层值对象即弃（#t0045 同族）
-          Ok(Some(other)) => out.push(serialize_value(other))
+          Ok(Some(value)) => push_top_value(out, value)
           Ok(None) => ()
           Err(e) => return Err(e)
         }
       }
-      Ok(JsonValue::Array(out))
     }
     "object" => {
       let expanded = StandardExpander::expand_object(
@@ -128,8 +123,9 @@ pub fn expand_document(
         options,
       )
       match expanded {
-        Ok(value) => Ok(serialize_top(value))
-        Err(e) => Err(e)
+        Ok(Some(value)) => push_top_value(out, value)
+        Ok(None) => ()
+        Err(e) => return Err(e)
       }
     }
     _ => {
@@ -140,22 +136,22 @@ pub fn expand_document(
         None,
       )
       match expanded {
-        Ok(value) => Ok(serialize_top(Some(value)))
-        Err(e) => Err(e)
+        Ok(value) => push_top_value(out, value)
+        Err(e) => return Err(e)
       }
     }
   }
+  Ok(out)
 }
 
 ///|
-/// 顶层形态：展开结果恒为数组；free-floating 顶层节点（仅 @id、无属性/类型）丢弃
-/// ——#t0001 判定（"drop free-floating nodes"）；嵌套位置的 free-floating 挂后续例。
-fn serialize_top(expanded : ExpandedValue?) -> JsonValue {
-  match expanded {
-    None => Array([])
+/// 顶层元素选择（serialize_top 同款判据，ExpandedValue 直收——J3.1 抽取注记
+/// 见 expand_top_values）
+fn push_top_value(out : Array[ExpandedValue], value : ExpandedValue) -> Unit {
+  match value {
     // 顶层值对象即弃（#t0045："Top-level value objects are removed"）
-    Some(ExpandedValue::Value(_)) => Array([])
-    Some(ExpandedValue::Node(node)) =>
+    ExpandedValue::Value(_) => ()
+    ExpandedValue::Node(node) =>
       // 顶层 @graph 单一门（文档级批——#t0009/#t0021/#t0046 oracle）：展开后
       // 仅存 @graph 的根节点对象表面化为图内容数组；带任何其他属性（含 @id、
       // @type、正属性、@reverse）则保留节点形态（#t0021：title + @graph 并存）
@@ -164,14 +160,43 @@ fn serialize_top(expanded : ExpandedValue?) -> JsonValue {
         node.types.is_empty() &&
         node.properties.is_empty() &&
         node.reverse_props.is_empty() {
-        Array(graph_items.map(serialize_value))
+        for item in graph_items {
+          out.push(item)
+        }
       } else if is_free_floating(node) {
-        Array([])
+        () // 顶层 free-floating 节点即弃（#t0001 同族）
       } else {
-        Array([serialize_value(ExpandedValue::Node(node))])
+        out.push(value)
       }
-    Some(other) => Array([serialize_value(other)])
+    other => out.push(other)
   }
+}
+
+///|
+/// expansion 文档入口：JSON 文本 → 展开形态（顶层恒为数组；free-floating 顶层节点丢弃）
+pub fn expand_document(
+  text : String,
+  options : JsonLdOptions,
+) -> Result[JsonValue, JsonLdError] {
+  let values = match expand_top_values(text, options) {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  Ok(JsonValue::Array(values.map(serialize_value)))
+}
+
+///|
+/// toRDF 文档入口（J3.1——库级 API，gen 调度面 handler_hook 的调用面）：
+/// JSON 文本 → 展开形 → 四元组。负例 = 任一段 Err。
+pub fn to_rdf_document(
+  text : String,
+  options : JsonLdOptions,
+) -> Result[Array[JsonLdQuad], JsonLdError] {
+  let values = match expand_top_values(text, options) {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  ToRdfProcessor::node_to_quads(StandardExpander::{ }, values, options)
 }
 
 ///|
