@@ -147,9 +147,10 @@ expand_top_values 全链，修正单点落共享函数，385+416 两面同批受
 | #t0122 vs #t0119/#tpr34 | **@ 形同位异判**（`@1*ALPHA` keyword 形非关键字） | 值位 vs 键位 | @id **值**位：REC §5.2 IRI 展开返回 null ⇒ 节点保留、id 位**字面 `{"@id": null}`**（#t0122）；**键**位：忽略不产出属性（#t0119/#tpr34/#tpr36） |
 | #t0060 vs #ter48 | **相对 IRI 位置分叉** | term 名位 vs @id 值位 | term 名相对路径（`.` 开头）⇒ context 处理期 invalid IRI mapping（#ter48）；@id **值**位无绝对性校验——base 无时**原样保留相对**（#t0060 `@base:null` 后 "../document-relative" 保相对） |
 | #t0014 vs #t0019 | 辖域分叉（**@set 数组元素级**，别名键形态） | null 值对象的挂载层级 | 直挂属性值 ⇒ 属性**整体丢弃**（#t0019 预扫描辖域）；@set（含别名 "set"）数组元素级 ⇒ 属性**保空数组**（预扫描不误伤——#t0014）；副产品：别名键归一先于 set/list 对象形态判定（vs #t0004 裸键同路） |
-| **oracle > 规范字面 分叉族**（两例归组；2026-09-29 收录） | | |
+| **oracle > 规范字面 分叉族**（三例归组；2026-09-29 收录两例） | | | |
 | #tjs13 vs RFC 8785 §3.2.3 字面 | 键序定义分叉 | JCS 键序：套件 oracle = **Unicode 码点序**（U+F8DF < U+1F602）vs RFC 字面「UTF-16 码元序」（D83D < F8DF） | 码点序胜出——nq_key_compare 逐码点自实现（const §5 String::compare 假序同日禁用） |
 | toRdf @reverse vs REC §6.3 反转形 | 展开词形分叉 | 引擎 = **t0042 保形**（@reverse 映射保留）vs REC 字面反转形（node 获反向属性） | 保形胜出——reverse 批 oracle 沿袭；J4 fixture 首写按 REC 记忆错一处实证 |
+| flatten te001 vs free-floating 字面弃置 | 弃置位分叉 | free-floating（@id-only 弃）是否豁免 **@index**：oracle 要求 @id+@index 裸节点**必达合并面**（te001「Conflicting indexes」负例——弃则冲突不可见，负例永不可红） | **@index 豁免胜出**——is_free_floating 增 `index is None` 位；expand/toRdf 套件无此形在册案例（零回归面实测） |
 | **族判据** | | | **规范字面与套件 oracle 冲突时，套件 oracle 为权威**——规范是解释起点，套件是判定终点；分叉必须在账（两例皆入册），禁静默择一 |
 
 ### term 名一致性检查（REC 4.2.2 @id 臂 "must be consistent"；2026-09-26 修正）
@@ -600,8 +601,10 @@ expand_standard/to_rdf 手写钩子），**不是模型 vs 引擎**——J2/J3 �
   为注记非依据）
 - **冷缓存**：moon clean 后首跑（含 registry 依赖解析面）
 - **通过口径**：expand 套件 pin `plain 385 / deferred 0` + toRdf 套件 pin
-  `plain 467 / deferred 0` + 对账三件套（interface_gate/gen_gate/j4_reconcile）
-  + 全目 62 测试绿（2026-09-29 基线实测）
+  `plain 467 / deferred 0` + flatten 套件 pin `plain 56 / deferred 2` +
+  对账三件套（interface_gate/gen_gate/j4_reconcile）
+  + 全目 64 测试绿（2026-09-29 flatten 收官批实测；62 = J5 首役基线 →
+  +1 flatten harness → +1 双射判定器自检）
 - **变更敏感性**：套件文件/引脚数/表行任一变更 ⇒ 本钉作废须重钉（版本钉的
   维护义务随 J5 归复核面）。
 - **缺口解释表三分类钉（J5 开工前置）**：复核面的缺口逐条归三类，**禁止
@@ -617,8 +620,8 @@ expand_standard/to_rdf 手写钩子），**不是模型 vs 引擎**——J2/J3 �
 |---|---|---|---|
 | expansion | 385（正 276 / 负 109） | ✅ **385/385 全 plain** | suite_expand_test pin（deferred=0）+ 值级对拍 |
 | toRDF | 467（正 345 / 负 106 / 句法 16） | ✅ **467/467 全 plain** | suite_tordf_test pin + 判定器（迷你 N-Quads 解析 + 集合同构） |
-| compact | 246 | ❌ 未实现 | ——（缺口解释表 §8.39） |
-| flatten | 58 | ❌ 未实现 | ——（§8.39） |
+| compact | 246 | 🚧 **已立案开工** | ——（开工前置钉 §8.41：I/O 关系钉 + 246 例分组勘定） |
+| flatten | 58（正 57 / 负 1） | ✅ **56/58 plain**（正 55 + 负 1）/ deferred 2 在册 | suite_flatten_test pin（deferred=2）+ canonical_for_suite 直比 + bnode 双射兜底（isomorphic_for_suite——判定器自检四钉） |
 | fromRdf | 54 | ❌ 未实现 | ——（§8.39） |
 | html | 50 | ❌ 未实现 | ——（§8.39） |
 | remote-doc | 18 | ⭕ 依赖外 | ——（§8.39：HTTP fetch 面） |
@@ -631,7 +634,8 @@ expand_standard/to_rdf 手写钩子），**不是模型 vs 引擎**——J2/J3 �
 
 ### 8.39 缺口解释表（三分类钉——零 deferred ≠ 零缺口；2026-09-29）
 **「设计如此」**（范围/兼容性裁决，注出处）：
-1. compact 246 例不实现——§1 范围「暂不做（看擂台）」，J5 后评估归口
+1. compact 246 例——**已立案开工**（2026-09-29 优先序定案第二环随 flatten
+   收官解锁；开工前置钉见 §8.41）
 2. @reverse 展开保形（非 REC 反转）——t0042 套件 oracle（同形异判表
    「oracle > 规范字面」族）
 3. JCS 键序码点序（非 RFC 字面 UTF-16 码元序）——#tjs13 套件 oracle（同族）
@@ -639,16 +643,108 @@ expand_standard/to_rdf 手写钩子），**不是模型 vs 引擎**——J2/J3 �
 5. keyword_dispatch 9 行 handler 指向 pending 桩（真落点 = expand_object
    内联臂）——J4 分叉账非红判据三条管辖（spec §5.2）
 
-**「未实现」**（应终于落码的面，注立案去向）：
-6. flatten 58 例——expand 面 + 节点字典即可落（不依赖 compact）；**未立案**
-7. fromRdf 54 例——RDF → JSON-LD 反向（可借力 src/ttl 解析面，跨仓复用
-   见 §8.3 边界）；**未立案**
-8. html 50 例——依赖 HTML 解析面（本仓无此依赖）；**未立案**
+**「未实现」**（应终于落码的面，**逐条立案**——禁止无立案缺口；
+  优先序（用户令 2026-09-29）：flatten → compaction → framing →
+  canonicalization，性能优化缓打——flatten 已收官（§8.40）、compaction
+  已开工（§8.41））：
+6. flatten 58 例——**已立案已收官**（2026-09-29：56/58 plain——正 55 +
+   负 1；deferred 2 在册：t0044 = compact 前置随 compaction 面解、
+   tin06 = @nest 深研；落成实录见 §8.40）
+7. fromRdf 54 例——**已立案不排期**（RDF → JSON-LD 反向；可借力 src/ttl
+   解析面，跨仓复用见 §8.3 边界）
+8. html 50 例——**已立案不排期**（依赖 HTML 解析面，本仓无此依赖，需引
+   解析依赖后再议）
 
 **「依赖外」**（超出本仓可达面，注依赖物）：
 9. remote-doc 18 例——HTTP fetch 语义/状态码/重定向/Content-Type 协商
    （套件 README 明示依赖 HTTP 行为；本仓无网络面）
-10. framing 面——ffdb326 快照不含 frame-manifest（快照边界；上游 framing
-    另立 suite，引入即扩 §8.38 复核表）
-11. 复现环境的 registry 依赖版本（moonbitlang/async、thy1016/moonttl@0.2.2
-    等）——moon install 版本漂移（§8.37 变更敏感性条款管辖）
+10. framing 面——**勘定修正（2026-09-29）**：json-ld-api 套件（ffdb326
+    快照 + README 全文）**设计上不含 framing 测试面**（目录/清单全无，README
+    仅保留 flattening/framing 的比对注记）——framing 上游另立 REC 与套件。
+    非拉取范围问题；若做 framing 须另引 json-ld-framing 独立套件（依赖外
+    新增，立案不排期）
+11. **依赖外·复现环境三锚勘定（2026-09-29 拆分，三者漂移理由不同）**：
+    ① **套件语料锚**——ffdb326 + SHA256SUMS 2626 件（语料变 = 判定语料变，
+    单独钉于本节头）；② **mooncakes 依赖钉**——moon.mod import 版本行
+    （本实现面实际 import：moonbitlang/async@0.21.0 + core（工具链捆绑）+
+    bitbang/fsm 本仓包；thy1016/moonttl@0.2.2 等其余 import 行与本实现面
+    无关——src/jsonld 未引用）；依赖 API 变 = 行为面变；③ **工具链锚**——
+    moon 0.1.20260920 (914d7da) + 捆绑 core：**JCS 数值词形/行为语义随
+    core**（Double 显示即 ECMAScript 形的实证面），工具链升级须重跑复核面
+    全量（§8.37 复现命令）
+
+
+### 8.40 flatten 开工钉（2026-09-29 实证定案；已立案已开工）
+- **输入/输出**：输入 = 原文档（含 @context 原文形）；输出 = **展开形节点
+  数组** `[{node},...]`——**无 @context 保留、无压缩**（#flatten-0002-out
+  实证：全 IRI 键/`@type` 数组/值对象形）
+- **与 expansion 的关系** = expansion **全链**（context 处理 → 展开）→
+  节点字典（同 id 合并——F2 预合并语义同源复用）→ 枚举。**引擎三机制
+  已就绪**：自由浮动弃（#flatten-0001 oracle：@id-only 未引用节点 → `[]`）、
+  同 id 合并（F2）、数组逐项值对象（term5: [50,51] → 两个独立值对象——
+  非 @list，实证）
+- **词形细节**（样本实证）：数值/布尔 raw 保形进 `@value`；`@index`/
+  `@type` 照展开形
+- **选项**：specVersion ×13（mode 门）；compactArrays=false ×1（#t0044——
+  context 保留+压缩形 = compact 前置实证，deferred 在册 §8.39）；base ×1
+- **负例**：te001（1.1 面「Conflicting indexes」）——**已检出转正**
+  （2026-09-29 收官批）：双件合力——F2 合并面 @index 冲突检测（同 id 双
+  @index 不等 = colliding indexes 错，nq_merge_same_id Result 化）+
+  free-floating 豁免 @index（弃则冲突不可见——oracle 定案，expand/toRdf
+  套件均无此形在册案例，零回归面）
+
+#### 8.40.1 flatten 收官批（2026-09-29——52/57 → 56/58 plain，deferred 2）
+- **转正四件·机制各一**：
+  1. **t0038/t0045 = 判定器双射兜底件**：`isomorphic_for_suite`——直比
+     不过时 bnode 词面升为存在变量，存在标签双射 f 使 relabel 后规范形
+     逐字节相等 ⇒ 同构。词面位三钉（flatten 输出形）：谓词键位 / "@id"
+     值位 / "@type" 数组串值位；**"@value" 字面量串不重标**。标签数 > 8
+     直接 false——**8 是排列数工作界，非经验值**：回溯最坏 = n! 次全文档
+     重标规范渲染，8! = 40320 次为可接受上界；套件实测最大 4 标签（#t0038，
+     24 排列），8 留 4 倍标签余量。自检四钉：对调同构 ✓ /
+     @type+谓词键位 ✓ / 字面量不重标（异文即异构）✓ / 结构异构否 ✓
+     （suite_flatten_test 判定器自检件）
+  2. **t0046 = 相对 IRI 保形**：flatten_term 有词面恒保留（@base null 下
+     "0"/"" 恒词面——base 解析已在 expansion 全链完成，此处无第二次解析
+     面）；无 id 方生新 bnode
+  3. **te001 = colliding indexes 检出**（见上负例条）
+- **维持 deferred 2（在册 §8.39）**：t0044 = compact 前置（compactArrays
+  触发 context 保留+压缩形）；tin06 = @nest 深研（author 包装节点被 data
+  值吸收——base/9 合并面，非双射可解的结构差）
+- **判定口径**：canonical_for_suite 直比 → isomorphic_for_suite 双射兜底
+  （harness 接线；直比差异保留报错文）
+
+### 8.41 compaction 开工前置钉（2026-09-29 两钉定案；已立案开工——优先序第二环随 flatten 收官解锁）
+
+**钉一 · 输入/输出/关系**：
+- **输入** = 原文档原文形（可含 @context 压缩形——先过 expansion 全链）+
+  **active context**（套件经 manifest `context` 字段供给——246/246 全本地
+  文件零远程；API 调用面 = 显式入参）
+- **输出** = 压缩形 JSON：`@context` 键（active context 发射——223/246 例
+  期望形带此键）+ term 键（inverse context 词选择）+ 值塌缩形
+  （compactArrays 数组塌缩 / 值对象压缩 / @type 压缩）
+- **与 expansion 的关系** = **逆面**（同 ctx 下 expand∘compact 保形对拍
+  面）；**与 flatten 的关系 = 无前置依赖**——REC compaction 逐值递归、
+  无节点字典面；**F2 禁复用**（12 例重复 @id 输入按不合并保真——勘定
+  在册，flatten 的合并语义在此反而错）
+- **判定通道** = canonical_for_suite 直比 + isomorphic_for_suite 双射兜底
+  复用（bnode 输入面标签序差）
+
+**钉二 · 246 例分组勘定**（manifest @ ffdb326 逐例实测，2026-09-29）：
+- **总构成**：229 正 + 17 负；specVersion 1.1 ×164 / 显式 1.0 ×13
+  （t0038/t0075/t0106/te001/tep05-07/tep10-15/tp001）；compactArrays ×3 /
+  base ×3 / compactToRelative ×1；context 引用 246/246 全本地
+- **依赖 framing：0**（全套件无 @frame 面——与 §8.39 条 10 上游分立一致）
+- **依赖 flatten：12 例警示位**（输入递归重复 @id——按 REC compaction 不
+  合并，compaction 通道须保真不复用 F2；顶层裸重复 0）
+- **纯 compaction：234 例**——增量面 = 压缩序列化器（inverse context /
+  term 选择 / 容器逆形 / 数组塌缩 / @nest / 值压缩）；expand + context
+  处理面均已就绪（385/467 全绿）
+- **面内特征分布**（施工面宽度）：容器逆形 117 例次（@graph 27 / @index 26 /
+  @set 23 / @list 20 / @id 19 / @type 12 / @language 11）；@nest 13；
+  expect 带 @graph 键 40；输入已展开形 168 例
+- **负例 17**：16 例 = context 处理面错误码复用（invalid term definition
+  ×4 / invalid container mapping ×4 / protected term redefinition ×2 /
+  invalid @prefix value / invalid @nest value / invalid @version value /
+  invalid context nullification / IRI confused with prefix / processing
+  mode conflict）+ 1 例 compaction 特有（"compaction to list of lists"）
