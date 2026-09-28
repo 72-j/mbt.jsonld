@@ -10,6 +10,10 @@ pub fn canonical_for_suite(JsonValue) -> JsonValue
 
 pub fn expand_document(String, JsonLdOptions) -> Result[JsonValue, JsonLdError]
 
+pub fn flatten_document(String, JsonLdOptions) -> Result[JsonValue, JsonLdError]
+
+pub fn isomorphic_for_suite(JsonValue, JsonValue) -> Bool
+
 pub fn json_canonical(JsonValue) -> JsonValue
 
 pub fn jsonld_iri_routes() -> Array[JsonLdIriRoute]

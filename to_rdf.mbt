@@ -213,7 +213,7 @@ fn nq_merge_same_id(
   value : ExpandedValue,
   ctx : MergeCtx,
   graph_key : String,
-) -> Unit {
+) -> Result[Unit, JsonLdError] {
   match value {
     ExpandedValue::Node(node) => {
       let self_key : String? = match node.id {
@@ -231,6 +231,16 @@ fn nq_merge_same_id(
         Some(key) =>
           match ctx.seen.get(key) {
             Some(first) => {
+              // @index 冲突（REC Generate Node Map 合并面——#te001 oracle：
+              // 同 id 双 @index 不等 = colliding indexes 错；缺席侧采纳）
+              match (first.index, node.index) {
+                (Some(a), Some(b)) =>
+                  if a != b {
+                    return Err(JsonLdError::InvalidValue("colliding indexes"))
+                  }
+                (None, Some(b)) => first.index = Some(b)
+                _ => ()
+              }
               // 原地并集进首见对象
               for t in node.types {
                 first.types.push(t)
@@ -271,12 +281,18 @@ fn nq_merge_same_id(
       // 子树续走：图内容子树键 = 本节点词面（具名图作用域）；其余继承
       for pair in node.properties {
         for v in pair.1 {
-          nq_merge_same_id(v, ctx, graph_key)
+          match nq_merge_same_id(v, ctx, graph_key) {
+            Err(e) => return Err(e)
+            Ok(_) => ()
+          }
         }
       }
       for pair in node.reverse_props {
         for v in pair.1 {
-          nq_merge_same_id(v, ctx, graph_key)
+          match nq_merge_same_id(v, ctx, graph_key) {
+            Err(e) => return Err(e)
+            Ok(_) => ()
+          }
         }
       }
       match node.graph {
@@ -289,7 +305,10 @@ fn nq_merge_same_id(
             ctx.anon += 1
           }
           for it in items {
-            nq_merge_same_id(it, ctx, inner_key)
+            match nq_merge_same_id(it, ctx, inner_key) {
+              Err(e) => return Err(e)
+              Ok(_) => ()
+            }
           }
         }
         None => ()
@@ -297,16 +316,25 @@ fn nq_merge_same_id(
       match node.included {
         Some(incs) =>
           for inc in incs {
-            nq_merge_same_id(ExpandedValue::Node(inc), ctx, graph_key)
+            match nq_merge_same_id(ExpandedValue::Node(inc), ctx, graph_key) {
+              Err(e) => return Err(e)
+              Ok(_) => ()
+            }
           }
         None => ()
       }
+      Ok(())
     }
-    ExpandedValue::List(items) =>
+    ExpandedValue::List(items) => {
       for it in items {
-        nq_merge_same_id(it, ctx, graph_key)
+        match nq_merge_same_id(it, ctx, graph_key) {
+          Err(e) => return Err(e)
+          Ok(_) => ()
+        }
       }
-    ExpandedValue::Value(_) => ()
+      Ok(())
+    }
+    ExpandedValue::Value(_) => Ok(())
   }
 }
 
@@ -935,10 +963,13 @@ impl ToRdfProcessor for StandardExpander with fn node_to_quads(
     nq_reserve_labels(value, reserved)
   }
   state.reserved = reserved
-  // 同 id 节点预合并（图作用域——F2）
+  // 同 id 节点预合并（图作用域——F2；@index 冲突同点检出）
   let merge_ctx : MergeCtx = { anon: 0, seen: Map([]), }
   for value in expanded {
-    nq_merge_same_id(value, merge_ctx, "")
+    match nq_merge_same_id(value, merge_ctx, "") {
+      Err(e) => return Err(e)
+      Ok(_) => ()
+    }
   }
   for value in expanded {
     match value {

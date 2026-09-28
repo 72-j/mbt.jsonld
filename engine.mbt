@@ -210,7 +210,11 @@ fn is_free_floating(node : ExpandedNode) -> Bool {
   node.included is None && // included-bearing 节点不弃（#tin03：仅 @included 的根节点保留）
   // reverse-bearing 节点不弃（@index mapping 批——#t0131 oracle：仅 @reverse 的根节点
   // 保留；@reverse 项进 reverse_props 而非 properties，故须显式豁免）
-  node.reverse_props.is_empty()
+  node.reverse_props.is_empty() &&
+  // index-bearing 节点不弃（#te001 oracle——flatten「Conflicting indexes」负例
+  // 实证：@id+@index 裸节点须抵达节点字典合并面，弃则冲突不可见；expand/toRdf
+  // 套件均无此形在册案例，零回归面）
+  node.index is None
 }
 
 ///|
@@ -430,4 +434,578 @@ fn json_total_compare(a : JsonValue, b : JsonValue) -> Int {
     }
     _ => 0
   }
+}
+
+///|
+/// suite 判定器 bnode 双射兜底（flatten 批——引用实现重标签语义 oracle）：
+/// 直比对拍不过时，bnode 词面升为存在变量——存在标签双射 f 使 relabel 后
+/// 规范形逐字节相等 ⇒ 同构成立。词面位三钉（flatten 输出形）：谓词键位 /
+/// "@id" 值位 / "@type" 数组串值位；"@value" 字面量串不重标（字面量
+/// "_:x" 非节点词面）。标签数 > 8 直接 false——**8 是排列数工作界，非经验
+/// 值**：回溯最坏 = n! 次全文档重标规范渲染，8! = 40320 次为可接受上界；
+/// 套件实测最大 4 标签（#t0038，24 排列），8 留 4 倍标签余量。
+pub fn isomorphic_for_suite(ours : JsonValue, expected : JsonValue) -> Bool {
+  let ours_canon = jv_render(canonical_for_suite(ours))
+  let expected_canon = jv_render(canonical_for_suite(expected))
+  if ours_canon == expected_canon {
+    return true
+  }
+  let la : Map[String, Bool] = Map([])
+  jv_bnode_labels(ours, la)
+  let lb : Map[String, Bool] = Map([])
+  jv_bnode_labels(expected, lb)
+  if la.length() != lb.length() || la.length() > 8 {
+    return false
+  }
+  let left = la.keys().collect()
+  left.sort()
+  let right = lb.keys().collect()
+  right.sort()
+  jv_bnode_assign(left, right, 0, Map([]), Map([]), ours, expected_canon)
+}
+
+///|
+/// bnode 词面收集（三钉位递归全走；词面去重入表——判定器同形 nq_term_is_bnode）
+fn jv_bnode_labels(value : JsonValue, into : Map[String, Bool]) -> Unit {
+  match value {
+    JsonValue::Object(pairs) =>
+      for pair in pairs {
+        if nq_term_is_bnode(pair.0) {
+          into[pair.0] = true
+        }
+        match (pair.0, pair.1) {
+          ("@id", JsonValue::String(word)) =>
+            if nq_term_is_bnode(word) {
+              into[word] = true
+            }
+          ("@type", JsonValue::Array(items)) =>
+            for item in items {
+              match item {
+                JsonValue::String(word) =>
+                  if nq_term_is_bnode(word) {
+                    into[word] = true
+                  }
+                _ => ()
+              }
+            }
+          _ => ()
+        }
+        jv_bnode_labels(pair.1, into)
+      }
+    JsonValue::Array(items) =>
+      for item in items {
+        jv_bnode_labels(item, into)
+      }
+    _ => ()
+  }
+}
+
+///|
+/// bnode 词面重标（三钉位替换——与收集位对称；mapping 只含 bnode 词面，
+/// 命中即换、未命中保留原形）
+fn jv_relabel_bnodes(
+  value : JsonValue,
+  mapping : Map[String, String],
+) -> JsonValue {
+  match value {
+    JsonValue::Object(pairs) => {
+      let out : Array[(String, JsonValue)] = []
+      for pair in pairs {
+        let key = match mapping.get(pair.0) {
+          Some(relabeled) => relabeled
+          None => pair.0
+        }
+        let value_out = match (pair.0, pair.1) {
+          ("@id", JsonValue::String(word)) =>
+            match mapping.get(word) {
+              Some(relabeled) => JsonValue::String(relabeled)
+              None => pair.1
+            }
+          ("@type", JsonValue::Array(items)) =>
+            JsonValue::Array(
+              items.map(fn(item) {
+                match item {
+                  JsonValue::String(word) =>
+                    match mapping.get(word) {
+                      Some(relabeled) => JsonValue::String(relabeled)
+                      None => item
+                    }
+                  _ => item
+                }
+              }),
+            )
+          _ => jv_relabel_bnodes(pair.1, mapping)
+        }
+        out.push((key, value_out))
+      }
+      JsonValue::Object(out)
+    }
+    JsonValue::Array(items) =>
+      JsonValue::Array(items.map(fn(item) { jv_relabel_bnodes(item, mapping) }))
+    other => other
+  }
+}
+
+///|
+/// 标签双射回溯（left 逐个向 right 未用词面派位；满位即重标对拍——
+/// mapping 同位覆写无需撤销，used 撤销保双射）
+fn jv_bnode_assign(
+  left : Array[String],
+  right : Array[String],
+  depth : Int,
+  mapping : Map[String, String],
+  used : Map[String, Bool],
+  ours : JsonValue,
+  expected_canon : String,
+) -> Bool {
+  if depth == left.length() {
+    let relabeled = jv_relabel_bnodes(ours, mapping)
+    return jv_render(canonical_for_suite(relabeled)) == expected_canon
+  }
+  for j in 0..<right.length() {
+    if !used.contains(right[j]) {
+      used[right[j]] = true
+      mapping[left[depth]] = right[j]
+      if jv_bnode_assign(
+          left,
+          right,
+          depth + 1,
+          mapping,
+          used,
+          ours,
+          expected_canon,
+        ) {
+        return true
+      }
+      used.remove(right[j])
+    }
+  }
+  false
+}
+
+///|
+/// flatten 状态（J5——spec §8.40 作用域模型）：bnode 序号 / 成员账
+/// （scope → 成员对列表——"" = 顶层/default，"g:词面" = 具名图作用域）/
+/// 注册账（scope|term——同作用域同 id 只注册一次）/ 作用域防环账
+priv struct FlattenState {
+  mut counter : Int
+  visited : Map[String, Bool]
+  members : Map[String, Array[Array[(String, JsonValue)]]]
+  scopes : Map[String, Bool]
+  reserved : Map[String, Bool]
+}
+
+///|
+/// flatten 主体词面：有词面恒保留（#t0046 oracle：@base null 下相对 IRI
+/// "0"/"" 恒词面——base 解析已在 expansion 全链完成，此处无第二次解析面；
+/// bnode/绝对 IRI 自然在内）；无 id ⇒ 新生 "_:bN" 并回写
+fn flatten_term(state : FlattenState, node : ExpandedNode) -> String {
+  match node.id {
+    Some(id) => id
+    None => {
+      let t = flatten_fresh_bnode(state)
+      node.id = Some(t)
+      t
+    }
+  }
+}
+
+///|
+/// 新生 bnode（序号跳过**输入在册标签**——#t0045 oracle：输入明写 "_:b0" 与
+/// 新生 "_:b0" 撞号 ⇒ 注入错体；reserved 预扫防）
+fn flatten_fresh_bnode(state : FlattenState) -> String {
+  let mut t = "_:b\{state.counter}"
+  state.counter += 1
+  while state.reserved.contains(t) {
+    t = "_:b\{state.counter}"
+    state.counter += 1
+  }
+  t
+}
+
+///|
+/// bnode 标签预扫收集（ExpandedValue 树全走——#t0045 oracle）
+fn flatten_reserve(value : ExpandedValue, into : Map[String, Bool]) -> Unit {
+  match value {
+    ExpandedValue::Node(node) => {
+      match node.id {
+        Some(id) => if nq_term_is_bnode(id) { into[id] = true }
+        None => ()
+      }
+      for pair in node.properties {
+        for v in pair.1 {
+          flatten_reserve(v, into)
+        }
+      }
+      for pair in node.reverse_props {
+        for v in pair.1 {
+          flatten_reserve(v, into)
+        }
+      }
+      match node.graph {
+        Some(items) =>
+          for it in items {
+            flatten_reserve(it, into)
+          }
+        None => ()
+      }
+      match node.included {
+        Some(incs) =>
+          for inc in incs {
+            flatten_reserve(ExpandedValue::Node(inc), into)
+          }
+        None => ()
+      }
+    }
+    ExpandedValue::List(items) =>
+      for it in items {
+        flatten_reserve(it, into)
+      }
+    ExpandedValue::Value(_) => ()
+  }
+}
+
+///|
+/// JsonValue 渲染（去重键用——主包侧无 diag_json_str，测试包件不可见）
+fn jv_render(value : JsonValue) -> String {
+  match value {
+    JsonValue::Null => "null"
+    JsonValue::Bool(b) => if b { "true" } else { "false" }
+    JsonValue::Number(nv) => "\{nv}"
+    JsonValue::String(sv) => "\"" + sv + "\""
+    JsonValue::Array(items) => {
+      let parts = StringBuilder()
+      parts.write_string("[")
+      for i, item in items {
+        if i > 0 {
+          parts.write_string(",")
+        }
+        parts.write_string(jv_render(item))
+      }
+      parts.write_string("]")
+      parts.to_string()
+    }
+    JsonValue::Object(pairs) => {
+      let parts = StringBuilder()
+      parts.write_string("{")
+      for i, pair in pairs {
+        if i > 0 {
+          parts.write_string(",")
+        }
+        parts.write_string(jv_render(JsonValue::String(pair.0)))
+        parts.write_string(":")
+        parts.write_string(jv_render(pair.1))
+      }
+      parts.write_string("}")
+      parts.to_string()
+    }
+  }
+}
+
+///|
+/// 属性值行走分发（节点 → 词面引用 + 作用域注册；字面量/列表 → 词面对象）。
+/// None = null 条目弃。
+fn flatten_walk_value(
+  state : FlattenState,
+  value : ExpandedValue,
+  scope : String,
+) -> JsonValue? {
+  match value {
+    ExpandedValue::Node(child) => {
+      let term = flatten_walk_node(state, child, scope)
+      Some(JsonValue::Object([("@id", JsonValue::String(term))]))
+    }
+    ExpandedValue::Value(l) => Some(serialize_value(ExpandedValue::Value(l)))
+    ExpandedValue::List(items) => {
+      // @list 保序保重复（#t0027 oracle：list 2,2 保留）
+      let arr : Array[JsonValue] = []
+      for it in items {
+        match flatten_walk_value(state, it, scope) {
+          Some(jv) => arr.push(jv)
+          None => ()
+        }
+      }
+      Some(JsonValue::Object([("@list", JsonValue::Array(arr))]))
+    }
+  }
+}
+
+///|
+/// 属性值数组组装（**非 @list 值去重**——RDF 集合语义：#t0027 myset 2,2,3 →
+/// 1,2,3；@list 值对象为单值不受影响）
+fn flatten_vals(
+  state : FlattenState,
+  values : Array[ExpandedValue],
+  scope : String,
+) -> Array[JsonValue] {
+  let vals : Array[JsonValue] = []
+  let seen : Map[String, Bool] = Map([])
+  for v in values {
+    match v {
+      ExpandedValue::List(_) =>
+        match flatten_walk_value(state, v, scope) {
+          Some(jv) => vals.push(jv)
+          None => ()
+        }
+      _ =>
+        match flatten_walk_value(state, v, scope) {
+          Some(jv) => {
+            let key = jv_render(jv)
+            if !seen.contains(key) {
+              seen[key] = true
+              vals.push(jv)
+            }
+          }
+          None => ()
+        }
+    }
+  }
+  vals
+}
+
+///|
+/// 同 id 节点图载体判定（@graph 在场——图载体恒顶层成员，#t0021 oracle）
+fn nq_has_graph(node : ExpandedNode) -> Bool {
+  node.graph is Some(_)
+}
+
+///|
+/// 节点行走 + 作用域成员注册（返回主体词面）：
+/// - **图载体节点（@graph 在场）= 恒顶层 "" 成员**（#t0021 oracle：_:b0/_:b1
+///   恒顶层；其 @graph 内容 = 新具名作用域 "g:词面" 的成员——book 提升入
+///   图内、chapters 内联 _:b1）；自身属性值节点行走于 ""。
+/// - 普通节点 = 当前作用域成员（嵌套节点提升入所在图——#t0021 book；
+///   同作用域同 id 一次——#flatten-0005 oracle：裸引用不实体化）。
+/// - **@reverse 反转注入**（#t0037/#t0045/#t0046 oracle——flatten 为反转形，
+///   与 expand t0042 保形分叉）：reverse 值节点作主体、注入 (pred, 本体引用)
+///   至其成员对列表。
+fn flatten_walk_node(
+  state : FlattenState,
+  node : ExpandedNode,
+  scope : String,
+) -> String {
+  let term = flatten_term(state, node)
+  let visit_key = "\{scope}|\{term}"
+  let is_graph = nq_has_graph(node)
+  if state.visited.contains(visit_key) {
+    return term
+  }
+  state.visited[visit_key] = true
+  let own_scope = if is_graph {
+    "" // 图载体恒顶层成员（#t0021 oracle）
+  } else {
+    scope
+  }
+  // included：同作用域成员行走（#tin01 oracle——flatten 不渲染 @included 键，
+  // included 节点提升为所在作用域成员；in01 键渲染保形是 expand 套件面）
+  match node.included {
+    Some(incs) =>
+      for inc in incs {
+        let _ = flatten_walk_node(state, inc, own_scope)
+      }
+    None => ()
+  }
+  // 同谓词跨对合并（F2 拼接产生同名多对——#t0038 oracle：types/props 去重）
+  let prop_map : Map[String, Array[ExpandedValue]] = Map([])
+  let prop_order : Array[String] = []
+  for pair in node.properties {
+    match prop_map.get(pair.0) {
+      Some(existing) =>
+        for v in pair.1 {
+          existing.push(v)
+        }
+      None => {
+        let vals : Array[ExpandedValue] = []
+        for v in pair.1 {
+          vals.push(v)
+        }
+        prop_map[pair.0] = vals
+        prop_order.push(pair.0)
+      }
+    }
+  }
+  let pairs : Array[(String, JsonValue)] = [("@id", JsonValue::String(term))]
+  // @type（去重）
+  if node.types.length() > 0 {
+    let seen_t : Map[String, Bool] = Map([])
+    let types : Array[JsonValue] = []
+    for t in node.types {
+      if !seen_t.contains(t) {
+        seen_t[t] = true
+        types.push(JsonValue::String(t))
+      }
+    }
+    pairs.push(("@type", JsonValue::Array(types)))
+  }
+  // 属性（值去重经 flatten_vals）
+  for pred in prop_order {
+    match prop_map.get(pred) {
+      Some(vals) =>
+        pairs.push(
+          (pred, JsonValue::Array(flatten_vals(state, vals, own_scope))),
+        )
+      None => ()
+    }
+  }
+  // @index
+  match node.index {
+    Some(ix) => pairs.push(("@index", JsonValue::String(ix)))
+    None => ()
+  }
+  // 图内容：新作用域续走（成员入 "g:词面"）+ @graph 成员装配（内联——
+  // #flatten-0020-out 实证）
+  match node.graph {
+    Some(items) => {
+      let graph_scope = "g:" + term
+      if !state.scopes.contains(graph_scope) {
+        state.scopes[graph_scope] = true
+        state.members[graph_scope] = []
+        for it in items {
+          let _ = flatten_walk_value(state, it, graph_scope)
+        }
+      }
+      let graph_arr : Array[JsonValue] = []
+      match state.members.get(graph_scope) {
+        Some(member_lists) =>
+          for mentry in member_lists {
+            graph_arr.push(JsonValue::Object(mentry))
+          }
+        None => ()
+      }
+      pairs.push(("@graph", JsonValue::Array(graph_arr)))
+    }
+    None => ()
+  }
+  // 裸 {@id} 引用不实体化（#flatten-0005/#t0020 oracle）——引用即词面；
+  // 带 reverse 者例外（反转注入使其非裸）
+  if pairs.length() == 1 && node.reverse_props.length() == 0 {
+    return term
+  }
+  // 注册成员对列表（reverse 注入可寻址——数组引用原地变异）
+  match state.members.get(own_scope) {
+    Some(lists) => lists.push(pairs)
+    None => {
+      let lists : Array[Array[(String, JsonValue)]] = []
+      lists.push(pairs)
+      state.members[own_scope] = lists
+    }
+  }
+  // @reverse 反转注入（flatten 为反转形——#t0037/#t0045/#t0046 oracle，
+  // 与 expand t0042 保形分叉）：值节点作主体，注入 (pred, 本体引用)；
+  // 裸跳过者 ensure {@id} 占位成员
+  for pair in node.reverse_props {
+    for v in pair.1 {
+      match v {
+        ExpandedValue::Node(child) => {
+          let ct = flatten_term(state, child)
+          let ckey = "\{own_scope}|\{ct}"
+          if !state.visited.contains(ckey) {
+            let _ = flatten_walk_node(state, child, own_scope)
+          }
+          let mut found : Array[(String, JsonValue)]? = None
+          match state.members.get(own_scope) {
+            Some(lists) =>
+              for target in lists {
+                if found is None && target.length() > 0 {
+                  match target[0].1 {
+                    JsonValue::String(id_term) =>
+                      if id_term == ct {
+                        found = Some(target)
+                      }
+                    _ => ()
+                  }
+                }
+              }
+            None => ()
+          }
+          // 注入目标 = child 成员对列表（**并入既有同谓词对**——#t0037/#t0039
+          // oracle：@reverse 注入与显式 knows 同值只留一份，RDF 集合语义）
+          let value_obj = JsonValue::Object([("@id", JsonValue::String(term))])
+          let value_key = jv_render(value_obj)
+          let child_pairs : Array[(String, JsonValue)] = match found {
+            Some(target) => target
+            None => {
+              let fresh : Array[(String, JsonValue)] = [
+                ("@id", JsonValue::String(ct)),
+              ]
+              state.members[own_scope].push(fresh)
+              fresh
+            }
+          }
+          let mut merged = false
+          for i in 0..<child_pairs.length() {
+            if child_pairs[i].0 == pair.0 {
+              match child_pairs[i].1 {
+                JsonValue::Array(vals) => {
+                  let mut dup = false
+                  for existing in vals {
+                    if jv_render(existing) == value_key {
+                      dup = true
+                    }
+                  }
+                  if !dup {
+                    vals.push(value_obj)
+                  }
+                  merged = true
+                }
+                _ => ()
+              }
+            }
+          }
+          if !merged {
+            child_pairs.push((pair.0, JsonValue::Array([value_obj])))
+          }
+        }
+        _ => ()
+      }
+    }
+  }
+  // 收账：reverse 注入成员（child_pairs 引用已在 members 中——此处按词面收）
+  term
+}
+
+///|
+/// flatten 文档入口（J5——spec §8.40）：JSON 文本 → 展开全链 → F2 同 id
+/// 预合并 → 作用域成员注册 → 顶层作用域枚举。负例 = 任一段 Err。
+pub fn flatten_document(
+  text : String,
+  options : JsonLdOptions,
+) -> Result[JsonValue, JsonLdError] {
+  let values = match expand_top_values(text, options) {
+    Ok(v) => v
+    Err(e) => return Err(e)
+  }
+  // F2 同 id 预合并复用：同一 ctx 贯穿全值（跨值同 id 对象并集到首见）；
+  // @index 冲突同点检出（#te001 oracle——同 id 双 @index 不等 = colliding
+  // indexes 错，REC Generate Node Map 合并面）
+  let merge_ctx : MergeCtx = { anon: 0, seen: Map([]), }
+  for value in values {
+    match nq_merge_same_id(value, merge_ctx, "") {
+      Err(e) => return Err(e)
+      Ok(_) => ()
+    }
+  }
+  let state : FlattenState = {
+    counter: 0,
+    visited: Map([]),
+    members: Map([("", [])]),
+    scopes: Map([("", true)]),
+    reserved: Map([]),
+  }
+  // bnode 标签预扫（#t0045 oracle——新生序号避开输入在册标签；全值一遍）
+  for value in values {
+    flatten_reserve(value, state.reserved)
+  }
+  for value in values {
+    let _ = flatten_walk_value(state, value, "")
+  }
+  let top = match state.members.get("") {
+    Some(arr) => arr
+    None => []
+  }
+  let out : Array[JsonValue] = []
+  for pairs in top {
+    out.push(JsonValue::Object(pairs))
+  }
+  Ok(JsonValue::Array(out))
 }
