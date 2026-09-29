@@ -628,7 +628,7 @@ expand_standard/to_rdf 手写钩子），**不是模型 vs 引擎**——J2/J3 �
 |---|---|---|---|
 | expansion | 385（正 276 / 负 109） | ✅ **385/385 全 plain** | suite_expand_test pin（deferred=0）+ 值级对拍 |
 | toRDF | 467（正 345 / 负 106 / 句法 16） | ✅ **467/467 全 plain** | suite_tordf_test pin + 判定器（迷你 N-Quads 解析 + 集合同构） |
-| compact | 246（正 229 / 负 17） | 🚧 **206/246 plain**（正 191 + 负 15）/ deferred 40 在册 | suite_compact_test pin（deferred=40）+ canonical_for_suite 直比 + bnode 双射兜底 |
+| compact | 246（正 229 / 负 17） | 🚧 **208/246 plain**（正 193 + 负 15）/ deferred 38 在册 | suite_compact_test pin（deferred=38）+ canonical_for_suite 直比 + bnode 双射兜底 |
 | flatten | 58（正 57 / 负 1） | ✅ **56/58 plain**（正 55 + 负 1）/ deferred 2 在册 | suite_flatten_test pin（deferred=2）+ canonical_for_suite 直比 + bnode 双射兜底（isomorphic_for_suite——判定器自检四钉） |
 | fromRdf | 54 | ❌ 未实现 | ——（§8.39） |
 | html | 50 | ❌ 未实现 | ——（§8.39） |
@@ -642,9 +642,9 @@ expand_standard/to_rdf 手写钩子），**不是模型 vs 引擎**——J2/J3 �
 
 ### 8.39 缺口解释表（三分类钉——零 deferred ≠ 零缺口；2026-09-29）
 **「设计如此」**（范围/兼容性裁决，注出处）：
-1. compact 246 例——**已立案开工中**（2026-09-29 十五役 206/246 plain——
-   开工钉 §8.41 + 首波 §8.42 + 役2-15 实录 §8.43-§8.56；收官清点 §8.51
-   后 graph 簇 + scoped 边界 + 分选精化续批清空 37 例；deferred 40 逐簇在册）
+1. compact 246 例——**已立案开工中**（2026-09-29 十六役 208/246 plain——
+   开工钉 §8.41 + 首波 §8.42 + 役2-16 实录 §8.43-§8.58；收官清点 §8.51
+   后 graph 簇 + scoped 边界 + 分选精化续批清空 39 例；deferred 38 逐簇在册）
 2. @reverse 展开保形（非 REC 反转）——t0042 套件 oracle（同形异判表
    「oracle > 规范字面」族）
 3. JCS 键序码点序（非 RFC 字面 UTF-16 码元序）——#tjs13 套件 oracle（同族）
@@ -811,7 +811,10 @@ expand_standard/to_rdf 手写钩子），**不是模型 vs 引擎**——J2/J3 �
      只作键名 / property-scoped 全参与（#tc009 vs #tc013 同形异判对，入
      同形异判表「scoped 来源分叉族」）；outer 同名全权、scoped-only 剥成形
      属性保 local_context；@vocab 型塌缩 vocab 旗
-  11. **数值/布尔语言免注**（役8——#t0015/#t0018 oracle）：raw 保形体
+  11. **type-scoped 逆序套用**（役15——详录 §8.56；scoped 双链分立同族，
+     §8.44）：@type 数组**倒序**逐个套 type-scoped context，先位类型后手
+     胜（REC §6.1.2 步 12.8.1；#tc017 [Foo,Bar] Foo 胜 oracle）
+  12. **数值/布尔语言免注**（役8——#t0015/#t0018 oracle）：raw 保形体
      （number/bool）不受缺省语言/方向注入——裸形判据只对串值做语言态/方向
      态对齐（串重展开会被注回，数值原样往返）；language 吸收 Null 臂
      render 侧同批补齐（bare_fit 有 render 无——判定树 Q1 钉不完整）
@@ -1218,3 +1221,33 @@ expand_standard/to_rdf 手写钩子），**不是模型 vs 引擎**——J2/J3 �
   多链）/tc018（nullification+多链交叉——[null,{prop}] 形）
 - **deferred 40 在册**：tc 深层（base 子树传导/@propagate）、t 系残余、
   te002/tpr03
+
+### 8.57 t 系残余清点钉（2026-09-29 役16 前置——分组判据成文，禁凭感觉分组）
+
+**分组判据**（逐例先归组再动手）：
+- **可成批**：≥3 例同根因（同一 fit 判据位 / 同一 emit 位 / 同一闸）——
+  一修多例，批立案（附同根证据：各例 diff 指向同一代码位）。
+- **个案**：单例且根因独立（无同族可共享修法）——逐例立案，排期随缘，
+  禁为凑批硬合。
+- **依赖别的批**：根因落在另一主面（IRI 词形 / scoped 深层 /
+  nullification REC）——挂靠主批账下，本批不动；挂靠关系必须显式
+  （引主面 §节）。
+
+### 8.58 t 系残余清点首波落成（2026-09-29 役16；206 → 208/246 plain，零回退）
+- **分组清点**（§8.57 判据执行）：
+  - **可成批 ✓**：@id/@vocab 双 term 值分选偏好（t0044/t0057/t0061 同根）
+    ——**最短词形排名**（pass-1 多候选同 bare-fit 取塌缩词最短：exact 词 <
+    base 相对 < 全 IRI）；t0089/t0026（无语言值辖域——language-null term
+    确定性胜出，pre-map 扫描限定无语言值）
+  - **个案**：t0007（id-term 键面 this-is-not-an-IRI——@vocab 无链值位的
+    base 逃逸深研）、t0029/t0030（@index 图与数组出形逐字符 diff 定位——
+    可见形全同差异在深层）、t0066/0110（base 文档位多形态——目录/文件/
+    query/fragment 各归各）、t0089 已收、t0106 已收
+  - **依赖别的批**：tc007/011/015/016/020/024/026（scoped 深层——base 子树
+    传导/@propagate）、te002/tpr03（影响类纪律）、tjs07/09（@json 判定）、
+    tn006-009（nest×容器）、ts001/002（数组容器出形）、ttn01-03（type-scoped
+    值成形序）、tla01（语言敏感 list）、tm007（type map scoped 值链）、
+    tpr03（保护重定义交叉）
+- **转正 2 例**：t0089（无语言值辖域）+ t0027 复核；最短词形排名转正
+  t0057/t0061/t0044 部分
+- **deferred 38 在册**
