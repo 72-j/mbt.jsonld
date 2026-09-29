@@ -66,6 +66,11 @@ pub(all) struct TermDefinition {
   /// @prefix=true、展开 map 形缺省 false——压缩前缀资格判据；#tp001 oracle：
   /// map 形 "ex":{"@id":…} 不作前缀）
   simple_form : Bool
+  /// graph 组合容器 @set 保形位（J6 役8——[@graph,@set] 与裸 @graph 压缩
+  /// 出形分叉：前者数组恒保 #t0078 / 后者 @included 包裹 #t0109；展开期
+  /// 「@set 不占次级」丢此位——判定树 Q1 钉不完整补存储，增量字段展开
+  /// 不读、零行为面）
+  graph_set : Bool
 }
 
 ///|

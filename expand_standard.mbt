@@ -3395,6 +3395,7 @@ impl ContextProcessor for StandardExpander with fn process_context(
                       is_prefix: None,
                       nest: None,
                       simple_form: true,
+                    graph_set: false,
                     },
                     flags.override_protected,
                   ) {
@@ -3426,6 +3427,7 @@ impl ContextProcessor for StandardExpander with fn process_context(
                       is_prefix: None,
                       nest: None,
                       simple_form: false,
+                    graph_set: false,
                     },
                     flags.override_protected,
                   ) {
@@ -3502,6 +3504,7 @@ fn StandardExpander::process_expanded_term_definition(
   let mut td_container : ContainerType? = None
   let mut td_reverse : String? = None
   let mut td_graph_secondary : ContainerType? = None
+  let mut td_graph_set = false
   let mut td_prefix = false
   let mut td_nest : String? = None
   let mut td_is_prefix : Bool? = None
@@ -3657,7 +3660,10 @@ fn StandardExpander::process_expanded_term_definition(
                       secondary = Some(ContainerType::Id)
                     JsonValue::String("@index") =>
                       secondary = Some(ContainerType::Index)
-                    _ => () // @set 不占次级（展开形态与裸 @graph 同——#t0080）
+                    // @set 不占次级但置保形位（展开形态与裸 @graph 同
+                    // ——#t0080；压缩侧出形分叉靠 graph_set——#t0078/#t0109）
+                    JsonValue::String("@set") => td_graph_set = true
+                    _ => ()
                   }
                 }
                 if has_graph {
@@ -3989,6 +3995,7 @@ fn StandardExpander::process_expanded_term_definition(
           is_prefix: None,
           nest: td_nest,
           simple_form: false,
+        graph_set: false,
         },
         flags.override_protected,
       ) {
@@ -4064,6 +4071,7 @@ fn StandardExpander::process_expanded_term_definition(
       is_prefix: td_is_prefix,
       nest: td_nest,
       simple_form: td_simple,
+      graph_set: td_graph_set,
     },
     flags.override_protected,
   )

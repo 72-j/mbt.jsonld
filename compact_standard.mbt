@@ -379,8 +379,9 @@ fn compact_value_jv(
     Some(lang) => lang == active.default_language.unwrap_or("")
     None => active.default_language is None
   }
+  let scalar_language_immune = literal.raw is Some(_)
   if bare_datatype &&
-    language_aligned &&
+    (scalar_language_immune || language_aligned) &&
     literal.direction is None &&
     literal.index is None {
     return match literal.raw {
@@ -388,6 +389,7 @@ fn compact_value_jv(
       None => JsonValue::String(literal.value)
     }
   }
+
   let pairs : Array[(String, JsonValue)] = [
     (
       "@value",
@@ -410,6 +412,16 @@ fn compact_value_jv(
       }
     None => ()
   }
+  let tdlm_str = match td_opt {
+    Some(t) =>
+      match t.language_mapping {
+        Some(Set(l)) => "Set:" + l
+        Some(Null) => "Null"
+        None => "None"
+      }
+    None => "notd"
+  }
+  debug("JV-VAL v=\{literal.value} tdlm=\{tdlm_str}")
   // @language/@direction 走别名键（#tdi02 oracle——"direction":"@direction"
   // → 键 "direction"；无别名回落关键字字面）
   let lang_key = compact_iri_word("@language", true, false, active, options)
@@ -480,12 +492,13 @@ fn compact_value_item(
                         compact_iri_word(id, false, false, active, options),
                       ),
                     )
-                  // @vocab 型塌缩走 vocab 相对词（#tc013 oracle："buzz"；
-                  // 重展开 vocab 拼回同形）
+                  // @vocab 型塌缩 exact 开 + vocab 相对词（#t0054 oracle——
+                  // "enum" 词表命中；#tc013 oracle——"buzz" vocab 相对；
+                  // @vocab 值位词表门 = 开，重展开同形）
                   Some("@vocab") =>
                     return Ok(
                       JsonValue::String(
-                        compact_iri_word(id, false, true, active, options),
+                        compact_iri_word(id, true, true, active, options),
                       ),
                     )
                   _ => ()
@@ -651,16 +664,26 @@ fn compact_node_jv(
     None => ()
   }
   if node.types.length() > 0 {
+    // @type 键走 term 词形（关键字别名——#t0022 oracle："type":"@type" →
+    // "type" 作键；无别名回落 "@type" 字面）
+    let type_key = compact_iri_word("@type", true, false, scoped, options)
     let types : Array[JsonValue] = []
     for t in node.types {
+      // @type 值渲染走 outer 链（#tc014 oracle——nullification 后 vocab
+      // 存续；type-scoped 只管键选择，值词形随外层——双链分立同款）
       types.push(
         JsonValue::String(compact_iri_word(t, true, true, active, options)),
       )
     }
-    if options.compact_arrays && types.length() == 1 {
-      pairs.push(("@type", types[0]))
+    // 别名 term 带 @container @set ⇒ 恒数组（#t0105 oracle）
+    let type_set = match scoped.terms.get(type_key) {
+      Some(td) => td.container is Some(Set)
+      None => false
+    }
+    if options.compact_arrays && types.length() == 1 && !type_set {
+      pairs.push((type_key, types[0]))
     } else {
-      pairs.push(("@type", JsonValue::Array(types)))
+      pairs.push((type_key, JsonValue::Array(types)))
     }
   }
   // @nest 归组账（td.nest → 组内 pairs——#tn001 oracle："p2":{"@nest":
@@ -828,6 +851,7 @@ fn compact_node_jv(
               is_prefix: td_scoped.is_prefix,
               nest: td_scoped.nest,
               simple_form: td_scoped.simple_form,
+              graph_set: td_scoped.graph_set,
               iri: td_scoped.iri,
             }
           }
@@ -893,12 +917,34 @@ fn compact_node_jv(
           }
           pairs.push((gname, JsonValue::Object(sub_pairs)))
         } else if graph_bares.length() > 0 {
-          let out = if graph_bares.length() == 1 {
-            graph_bares[0]
-          } else {
-            JsonValue::Array(graph_bares)
+          let content : Array[JsonValue] = []
+          for gv in graph_bares {
+            match gv {
+              JsonValue::Array(items) =>
+                for it in items {
+                  content.push(it)
+                }
+              other => content.push(other)
+            }
           }
-          pairs.push((gname, out))
+          // 出形分叉（§8.45 补钉——graph_set 位）：[@graph,@set] 数组恒保
+          // （#t0078）；裸 @graph = @included 包裹（#t0109；别名感知）
+          let gset = gtd.graph_set
+          if gset {
+            pairs.push((gname, JsonValue::Array(content)))
+          } else {
+            let included_key = compact_iri_word(
+              "@included",
+              true,
+              false,
+              active,
+              options,
+            )
+            pairs.push((
+              gname,
+              JsonValue::Object([(included_key, JsonValue::Array(content))]),
+            ))
+          }
         }
         let _ = gtd
       }
@@ -1043,14 +1089,63 @@ fn compact_node_jv(
     None => ()
   }
   // @reverse 正向提升（#t0033/#t0050 oracle——reverse term 匹配 → 普通属性；
-  // 无匹配 → "@reverse" 包裹形保真）
+  // 无匹配 → "@reverse" 包裹形保真）；映射容器 reverse 走归组账
+  let rev_map_names : Array[String] = []
+  let rev_map_subs : Map[String, Array[(String, JsonValue)]] = Map([])
   let rev_pairs : Array[(String, JsonValue)] = []
   for pair in node.reverse_props {
     let cands = compact_term_candidates(pair.0, true, active)
     if cands.length() > 0 {
-      match compact_property_pair(pair.0, true, pair.1, active, options) {
-        Ok(pair_out) => pairs.push(pair_out)
-        Err(e) => return Err(e)
+      let rev_name = cands[0]
+      let rev_td : TermDefinition? = match active.terms.get(rev_name) {
+        Some(t) => Some(t)
+        None => None
+      }
+      // reverse term 带映射容器 ⇒ 反转值走映射归组（#t0036 oracle——
+      // @reverse + @container @index → 键化出形）
+      let rev_is_map = match rev_td {
+        Some(t) =>
+          match t.container {
+            Some(Id) | Some(Type) | Some(Index) | Some(Language) => true
+            _ => false
+          }
+        None => false
+      }
+      if rev_is_map {
+        match rev_td {
+          Some(t) =>
+            for v in pair.1 {
+              match compact_map_entry(v, t, active, options) {
+                Some((subkey, rendered)) => {
+                  let existed = rev_map_subs.contains(rev_name)
+                  match rev_map_subs.get(rev_name) {
+                    Some(arr) => arr.push((subkey, rendered))
+                    None => rev_map_subs[rev_name] = [(subkey, rendered)]
+                  }
+                  if !existed {
+                    rev_map_names.push(rev_name)
+                  }
+                }
+                None =>
+                  match compact_property_pair(
+                    pair.0,
+                    true,
+                    [v],
+                    active,
+                    options,
+                  ) {
+                    Ok(pair_out) => pairs.push(pair_out)
+                    Err(e) => return Err(e)
+                  }
+              }
+            }
+          None => ()
+        }
+      } else {
+        match compact_property_pair(pair.0, true, pair.1, active, options) {
+          Ok(pair_out) => pairs.push(pair_out)
+          Err(e) => return Err(e)
+        }
       }
     } else {
       match compact_property_pair(pair.0, false, pair.1, active, options) {
@@ -1061,6 +1156,40 @@ fn compact_node_jv(
   }
   if rev_pairs.length() > 0 {
     pairs.push(("@reverse", JsonValue::Object(rev_pairs)))
+  }
+  // reverse 映射组出键（#t0036——子键归并，组内单值塌缩随 compactArrays）
+  for name in rev_map_names {
+    match rev_map_subs.get(name) {
+      Some(entries) => {
+        let sub_pairs : Array[(String, JsonValue)] = []
+        let sub_keys : Array[String] = []
+        let sub_vals : Map[String, Array[JsonValue]] = Map([])
+        for entry in entries {
+          match sub_vals.get(entry.0) {
+            Some(arr) => arr.push(entry.1)
+            None => {
+              sub_vals[entry.0] = [entry.1]
+              sub_keys.push(entry.0)
+            }
+          }
+        }
+        for sub in sub_keys {
+          match sub_vals.get(sub) {
+            Some(arr) => {
+              let out = if options.compact_arrays && arr.length() == 1 {
+                arr[0]
+              } else {
+                JsonValue::Array(arr)
+              }
+              sub_pairs.push((sub, out))
+            }
+            None => ()
+          }
+        }
+        pairs.push((name, JsonValue::Object(sub_pairs)))
+      }
+      None => ()
+    }
   }
   Ok(JsonValue::Object(pairs))
 }
@@ -1394,7 +1523,9 @@ fn compact_map_entry(
                 None => active.default_direction is None
               }
           }
-          if !dir_ok {
+          // index 闸（#t0065 oracle——带 @index 的值不入语言图，落残余
+          // 兜底键全 IRI 值对象形）
+          if !dir_ok || lit.index is Some(_) {
             return None
           }
           // 串值裸形（语言键化即剥——#tm012 oracle）；无语言 → @none
