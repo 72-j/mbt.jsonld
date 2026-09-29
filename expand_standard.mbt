@@ -3395,7 +3395,7 @@ impl ContextProcessor for StandardExpander with fn process_context(
                       is_prefix: None,
                       nest: None,
                       simple_form: true,
-                    graph_set: false,
+                      graph_set: false,
                     },
                     flags.override_protected,
                   ) {
@@ -3427,7 +3427,7 @@ impl ContextProcessor for StandardExpander with fn process_context(
                       is_prefix: None,
                       nest: None,
                       simple_form: false,
-                    graph_set: false,
+                      graph_set: false,
                     },
                     flags.override_protected,
                   ) {
@@ -3995,7 +3995,7 @@ fn StandardExpander::process_expanded_term_definition(
           is_prefix: None,
           nest: td_nest,
           simple_form: false,
-        graph_set: false,
+          graph_set: false,
         },
         flags.override_protected,
       ) {

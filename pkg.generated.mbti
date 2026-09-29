@@ -198,6 +198,7 @@ pub(all) struct TermDefinition {
   direction_mapping : LanguageMember?
   nest : String?
   simple_form : Bool
+  graph_set : Bool
 }
 
 // Type aliases

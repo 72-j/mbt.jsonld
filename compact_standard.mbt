@@ -94,20 +94,27 @@ fn compact_iri_word(
           // 缺省 true；map 形缺省 false——#tp001 oracle）
           (
             pair.1.is_prefix is Some(true) ||
-            (pair.1.is_prefix is None &&
-            pair.1.simple_form &&
-            // 映射词尾闸（§8.46 精化——简单形隐式资格受词尾约束；@prefix:true
-            // 显式豁免词尾——#tp003 oracle 落闸 vs #tp005/#tp006 oracle
-            // @prefix:true 过闸：mapping 尾 '-' 照压缩）
-            (match pair.1.iri {
-              Some(pfx_word) =>
-                match pfx_word.get_char(pfx_word.length() - 1) {
-                  Some(':') | Some('/') | Some('?') | Some('#') | Some('[') |
-                  Some(']') | Some('@') => true
-                  _ => false
-                }
-              None => false
-            }))
+            (
+              pair.1.is_prefix is None &&
+              pair.1.simple_form &&
+              // 映射词尾闸（§8.46 精化——简单形隐式资格受词尾约束；@prefix:true
+              // 显式豁免词尾——#tp003 oracle 落闸 vs #tp005/#tp006 oracle
+              // @prefix:true 过闸：mapping 尾 '-' 照压缩）
+              (match pair.1.iri {
+                Some(pfx_word) =>
+                  match pfx_word.get_char(pfx_word.length() - 1) {
+                    Some(':')
+                    | Some('/')
+                    | Some('?')
+                    | Some('#')
+                    | Some('[')
+                    | Some(']')
+                    | Some('@') => true
+                    _ => false
+                  }
+                None => false
+              })
+            )
           ) {
           match best_prefix {
             Some(bp) =>
@@ -176,7 +183,7 @@ fn compact_bare_fit(
   active : ActiveContext,
 ) -> Bool {
   match value {
-    ExpandedValue::List(items) => {
+    ExpandedValue::List(items) =>
       if td.container is Some(List) {
         // 方向感知选择（§8.48——td 带方向映射时首项方向须合：
         // #tdi03 oracle——同 IRI 双 list term 按 ltr/rtl 分选）
@@ -191,7 +198,6 @@ fn compact_bare_fit(
       } else {
         false
       }
-    }
     ExpandedValue::Node(child) => {
       let id_only = child.types.is_empty() &&
         child.properties.is_empty() &&
@@ -306,7 +312,7 @@ fn compact_object_fit(
             None => lit.datatype is Some(_) || lit.language is Some(_)
           }
       }
-      }
+    }
   }
 }
 
@@ -758,11 +764,7 @@ fn compact_node_jv(
                     }
                   }
                   let none_key = compact_iri_word(
-                    "@none",
-                    true,
-                    false,
-                    active,
-                    options,
+                    "@none", true, false, active, options,
                   )
                   match gtd.graph_secondary {
                     Some(Id) => {
@@ -780,7 +782,11 @@ fn compact_node_jv(
                       }
                       graph_subs.push((subkey, content))
                     }
-                    Some(List) | Some(Set) | Some(Language) | Some(Type) | Some(Graph) => ()
+                    Some(List)
+                    | Some(Set)
+                    | Some(Language)
+                    | Some(Type)
+                    | Some(Graph) => ()
                     None => graph_bares.push(JsonValue::Array(content))
                   }
                   graph_done = true
@@ -837,23 +843,24 @@ fn compact_node_jv(
           // 保 local_context（property-scoped 链照走——#tc013 bar）
           let td : TermDefinition = match active.terms.get(name) {
             Some(outer_td) => outer_td
-            None => {
-              datatype: None,
-              container: td_scoped.container,
-              reverse: td_scoped.reverse,
-              local_context: td_scoped.local_context,
-              context_base_url: td_scoped.context_base_url,
-              index_mapping: td_scoped.index_mapping,
-              graph_secondary: td_scoped.graph_secondary,
-              is_protected: td_scoped.is_protected,
-              language_mapping: None,
-              direction_mapping: None,
-              is_prefix: td_scoped.is_prefix,
-              nest: td_scoped.nest,
-              simple_form: td_scoped.simple_form,
-              graph_set: td_scoped.graph_set,
-              iri: td_scoped.iri,
-            }
+            None =>
+              {
+                datatype: None,
+                container: td_scoped.container,
+                reverse: td_scoped.reverse,
+                local_context: td_scoped.local_context,
+                context_base_url: td_scoped.context_base_url,
+                index_mapping: td_scoped.index_mapping,
+                graph_secondary: td_scoped.graph_secondary,
+                is_protected: td_scoped.is_protected,
+                language_mapping: None,
+                direction_mapping: None,
+                is_prefix: td_scoped.is_prefix,
+                nest: td_scoped.nest,
+                simple_form: td_scoped.simple_form,
+                graph_set: td_scoped.graph_set,
+                iri: td_scoped.iri,
+              }
           }
           let jv = match compact_value_item(v, Some(td), active, options) {
             Ok(out) => out
@@ -934,16 +941,14 @@ fn compact_node_jv(
             pairs.push((gname, JsonValue::Array(content)))
           } else {
             let included_key = compact_iri_word(
-              "@included",
-              true,
-              false,
-              active,
-              options,
+              "@included", true, false, active, options,
             )
-            pairs.push((
-              gname,
-              JsonValue::Object([(included_key, JsonValue::Array(content))]),
-            ))
+            pairs.push(
+              (
+                gname,
+                JsonValue::Object([(included_key, JsonValue::Array(content))]),
+              ),
+            )
           }
         }
         let _ = gtd
@@ -1127,13 +1132,8 @@ fn compact_node_jv(
                   }
                 }
                 None =>
-                  match compact_property_pair(
-                    pair.0,
-                    true,
-                    [v],
-                    active,
-                    options,
-                  ) {
+                  match
+                    compact_property_pair(pair.0, true, [v], active, options) {
                     Ok(pair_out) => pairs.push(pair_out)
                     Err(e) => return Err(e)
                   }
@@ -1321,13 +1321,14 @@ fn compact_map_entry(
           // index_mapping 存原始 term 名（展开侧同款——用时期 IRI 展开得
           // 属性 IRI；expand_iri vocab=false/docRel=true 与展开侧 3880 行
           // 同参——@base 随压缩 active 链）
-          let prop_iri = match IriExpander::expand_iri(
-            StandardExpander::{ },
-            active,
-            raw_index_name,
-            false,
-            true,
-          ) {
+          let prop_iri = match
+            IriExpander::expand_iri(
+              StandardExpander::{ },
+              active,
+              raw_index_name,
+              false,
+              true,
+            ) {
             Ok(iri) => iri
             Err(_) => raw_index_name
           }
@@ -1350,7 +1351,9 @@ fn compact_map_entry(
                 Some(ExpandedValue::Value(lit)) => Some(lit.value)
                 Some(ExpandedValue::Node(ref_node)) =>
                   if ref_node.id is Some(_) {
-                    let prop_cands = compact_term_candidates(prop_iri, false, active)
+                    let prop_cands = compact_term_candidates(
+                      prop_iri, false, active,
+                    )
                     let prop_td : TermDefinition? = match prop_cands {
                       pcs if pcs.length() > 0 => active.terms.get(pcs[0])
                       _ => None
@@ -1547,7 +1550,6 @@ fn compact_map_entry(
 fn literal_value_of(lit : ExpandedLiteral) -> String {
   lit.value
 }
-
 
 ///|
 /// type-scoped context 套用（压缩面——tc013/tc006/tc014 族）：节点 types 依次
