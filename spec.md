@@ -628,7 +628,7 @@ expand_standard/to_rdf 手写钩子），**不是模型 vs 引擎**——J2/J3 �
 |---|---|---|---|
 | expansion | 385（正 276 / 负 109） | ✅ **385/385 全 plain** | suite_expand_test pin（deferred=0）+ 值级对拍 |
 | toRDF | 467（正 345 / 负 106 / 句法 16） | ✅ **467/467 全 plain** | suite_tordf_test pin + 判定器（迷你 N-Quads 解析 + 集合同构） |
-| compact | 246（正 229 / 负 17） | 🚧 **195/246 plain**（正 180 + 负 15）/ deferred 51 在册 | suite_compact_test pin（deferred=51）+ canonical_for_suite 直比 + bnode 双射兜底 |
+| compact | 246（正 229 / 负 17） | 🚧 **198/246 plain**（正 183 + 负 15）/ deferred 48 在册 | suite_compact_test pin（deferred=48）+ canonical_for_suite 直比 + bnode 双射兜底 |
 | flatten | 58（正 57 / 负 1） | ✅ **56/58 plain**（正 55 + 负 1）/ deferred 2 在册 | suite_flatten_test pin（deferred=2）+ canonical_for_suite 直比 + bnode 双射兜底（isomorphic_for_suite——判定器自检四钉） |
 | fromRdf | 54 | ❌ 未实现 | ——（§8.39） |
 | html | 50 | ❌ 未实现 | ——（§8.39） |
@@ -642,9 +642,9 @@ expand_standard/to_rdf 手写钩子），**不是模型 vs 引擎**——J2/J3 �
 
 ### 8.39 缺口解释表（三分类钉——零 deferred ≠ 零缺口；2026-09-29）
 **「设计如此」**（范围/兼容性裁决，注出处）：
-1. compact 246 例——**已立案开工中**（2026-09-29 十役 195/246 plain——
-   开工钉 §8.41 + 首波 §8.42 + 役2-10 实录 §8.43-§8.52；收官清点 §8.51
-   后 graph 簇续批清空 26 例；deferred 51 逐簇在册）
+1. compact 246 例——**已立案开工中**（2026-09-29 十一役 198/246 plain——
+   开工钉 §8.41 + 首波 §8.42 + 役2-11 实录 §8.43-§8.53；收官清点 §8.51
+   后 graph 簇 + scoped 边界续批清空 29 例；deferred 48 逐簇在册）
 2. @reverse 展开保形（非 REC 反转）——t0042 套件 oracle（同形异判表
    「oracle > 规范字面」族）
 3. JCS 键序码点序（非 RFC 字面 UTF-16 码元序）——#tjs13 套件 oracle（同族）
@@ -675,8 +675,15 @@ expand_standard/to_rdf 手写钩子），**不是模型 vs 引擎**——J2/J3 �
 11. **依赖外·canonicalization 套件**（2026-09-29 役10 勘定，同 framing
     款条 10 前例）：ffdb326 快照无 RDF Dataset Canonicalization 测试面
     （README 仅 JCS 注记，toRdf 面 nq_jcs 已落）——上游 W3C rdf-canon
-    REC 与套件另立；若做须另引依赖 + 规范驱动自落码双路线评估，
-    立案不排期
+    REC 与套件另立。**双路线判据（2026-09-29 定案，防「留案」滑向
+    无限期拖延）**：**路线 A（引依赖）**——判据 = 依赖物可得（rdf-canon
+    套件引入境测可跑：manifest + SHA256SUMS 齐全、许可兼容）⇒ 套件
+    判定面即立，算法实现直接对拍；**路线 B（自建）**——判据 = 路线 A
+    不可得时的规范驱动自落码，判定面 = **自建对拍双件**（① URDNA2015
+    规范附录验证向量逐例 ② 与已知实现（ruby json-ld/ietf 实现）交叉
+    抽样对拍）——**无自建判定面不得开工**（判据 = 无对拍即无通过口径，
+    违反 J5 缺口三分类「零 deferred ≠ 零缺口」的对账前提）。触发 = 用户
+    令或 VC 需求（优先序原判），两路线择一前须先勘依赖可得性
 12. **依赖外·复现环境三锚勘定（2026-09-29 拆分，三者漂移理由不同）**：
     ① **套件语料锚**——ffdb326 + SHA256SUMS 2626 件（语料变 = 判定语料变，
     单独钉于本节头）；② **mooncakes 依赖钉**——moon.mod import 版本行
@@ -1113,3 +1120,34 @@ expand_standard/to_rdf 手写钩子），**不是模型 vs 引擎**——J2/J3 �
 - **过程**：映射出键/reverse 出键两块被段切片手术误删（探针全量红名单 +
   三例空 {} 症状定位即建）——「段切片必须圈定唯一锚 + 落盘后 grep 出键块
   在场」教训入册；同名探针文件覆写循环两次——探针文件改名隔离（FINAL 独立件）
+
+### 8.53 tc scoped 残余批开工钉（2026-09-29 役11 前置——与役3 的关系界定）
+
+**定性 = 役3 双链分立机制的「边界延伸」，非新机制**：
+- **延续面**：键选择链（scoped）/ 值成形链（outer + shaping td 裁量）双链
+  架构照用（§8.44）；本批不新增链。
+- **边界（役3 未达的残余形）**：役3 落地时只覆盖「节点 types 命中 term 带
+  local_context」的单层 type-scoped 与「值 term 的 local_context」单层
+  property-scoped；残余 14 例 = **多层链**（type-scoped 内再套
+  property-scoped 的链式套用序 tc012/015/016）、**nullification 交叉**
+  （[null] 空化与保护位同现 tc018/020/022-026）、**scoped 内容器/方向态
+  与 役2/役7 机制的交叉**（tc004/007/011）——都是「同一双链在更深的组合
+  下暴露的边界」，修法 = 链上补序/补旗，不另起机制。
+- **nullification 纪律**（§8.44 更正版）：涉 [null] 臂共享面仍走影响类
+  流程（REC 字面核对 + 单独立批）；本批只收「双链边界」可就地修的例。
+
+#### 8.53.1 tc 残余批首波落成（2026-09-29 役11；195 → 198/246 plain，+29 累计零回退）
+- **落码**（§8.53 钉的边界延伸两件）：
+  1. **shaping 裁量精化**（#tc007/#tc012/#tc022/#tc023 oracle）：scoped-only
+     td 的 datatype **@id 型保**（全 IRI 塌缩词重展开同形）、**带
+     local_context 者保**（property-scoped 链定塌缩词——tc022 "Bar" 经链内
+     exact）、其余剥（#tc009 @vocab 无链不塌——双链分立不破）
+  2. **base 片段相对优先**（#tc015 部分——base 无尾 '/' 且 iri = base + "#…"
+     ⇒ "#…" 形，先于目录位判定；嵌套节点层已闭合，**p 节点属值位的
+     base 子树传导仍红**——双链分立的 base 传导边界，deferred 注记）
+- **canonicalization 双路线判据**（§8.39 条 11 扩）：路线 A（引依赖）判据 =
+  依赖物可得（manifest+SHA256SUMS+许可）；路线 B（自建）判据 = 自建对拍
+  双件（规范验证向量 + 已知实现交叉抽样）——**无自建判定面不得开工**
+- **deferred 48 在册**：tc011/015/016/017/018/020/024/026（多层链/
+  @propagate 传导/base 子树传导——scoped 面深层，役11+ 续）、nullification
+  族、te002/tpr03、t 系分选精化族
