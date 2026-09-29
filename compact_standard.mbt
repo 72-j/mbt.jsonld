@@ -938,6 +938,44 @@ active, options,
       }
       // 映射归组优先（§8.43——值 fit 映射容器即归组；不适值照旧分选）
       let mut map_done = false
+      // non-map bare-fit 前置扫描（#t0089/#t0026 双 oracle 合流判据——
+      // **无语言值**归 language-null term（确定性辖域），language 图
+      // @none 不抢；**有语言值**仍归语言图按语言键归组）
+      let no_lang_value = match v {
+        ExpandedValue::Value(lit) => lit.language is None
+        _ => false
+      }
+      if map_tds.length() > 0 && no_lang_value {
+        for entry in cand_tds {
+          let is_map = match entry.1.container {
+            Some(Id) | Some(Type) | Some(Index) | Some(Language) => true
+            _ => false
+          }
+          if !is_map && compact_bare_fit(v, entry.1, active) {
+            let jv = match compact_value_item(v, Some(entry.1), active, options) {
+              Ok(out) => out
+              Err(e) => return Err(e)
+            }
+            match group_vals.get(entry.0) {
+              Some(arr) => arr.push(jv)
+              None => {
+                group_vals[entry.0] = [jv]
+                group_keys.push(entry.0)
+                group_tds[entry.0] = entry.1
+                group_array[entry.0] = match entry.1.container {
+                  Some(Set) | Some(List) => true
+                  _ => !options.compact_arrays
+                }
+              }
+            }
+            map_done = true
+            break
+          }
+        }
+        if map_done {
+          continue
+        }
+      }
       for entry in map_tds {
         match compact_map_entry(v, entry.1, active, options) {
           Some((subkey, rendered)) => {
@@ -954,9 +992,12 @@ active, options,
       if map_done {
         continue
       }
-      // 两遍选 term：bare_fit 优先（吸收成裸形），object_fit 次之
+      // 两遍选 term：bare_fit 优先（吸收成裸形），object_fit 次之；
+      // pass-1 多候选同 fit ⇒ **最短词形**排名（#t0057/#t0061/#t0044
+      // oracle——exact 词 < base 相对 < 全 IRI）
       let mut chosen : (String, TermDefinition, Bool)? = None
       for pass_bare in [true, false] {
+        let mut best : (String, TermDefinition, Int)? = None
         for entry in cand_tds {
           let fits = if pass_bare {
             compact_bare_fit(v, entry.1, active)
@@ -964,13 +1005,28 @@ active, options,
             compact_object_fit(v, entry.1, active)
           }
           if fits {
-            chosen = Some((entry.0, entry.1, pass_bare))
-            break
+            let word_len = match compact_value_item(v, Some(entry.1), active, options) {
+              Ok(jv) => jv_render(jv).length()
+              Err(_) => 999999
+            }
+            let better = match best {
+              Some((_, _, bl)) => word_len < bl
+              None => true
+            }
+            if better {
+              best = Some((entry.0, entry.1, word_len))
+            }
           }
+        }
+        match best {
+          Some((name, td, _)) => {
+            chosen = Some((name, td, pass_bare))
+          }
+          None => ()
         }
         if chosen is Some(_) {
           break
-        }
+      }
       }
       match chosen {
         Some((name, td_scoped, is_bare)) => {
