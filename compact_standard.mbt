@@ -1372,6 +1372,7 @@ active, options,
   let rev_map_names : Array[String] = []
   let rev_map_subs : Map[String, Array[(String, JsonValue)]] = Map([])
   let rev_pairs : Array[(String, JsonValue)] = []
+  let rev_split : Map[String, Array[JsonValue]] = Map([])
   for pair in node.reverse_props {
     let cands = compact_term_candidates(pair.0, true, active)
     if cands.length() > 0 {
@@ -1416,9 +1417,68 @@ active, options,
           None => ()
         }
       } else {
-        match compact_property_pair(pair.0, true, pair.1, active, options) {
-          Ok(pair_out) => pairs.push(pair_out)
-          Err(e) => return Err(e)
+        // 值级最短词形排名分键（#t0044 oracle——dave→knows 全词、
+        // DefinedTerm→knowsVocab exact 词；同 IRI 双 term 按值拆键）
+        for v in pair.1 {
+          let mut best : (String, TermDefinition, Int)? = None
+          for name in cands {
+            match active.terms.get(name) {
+              Some(td) => {
+                let fits = compact_bare_fit(v, td, active)
+                if fits {
+                  let word_len = match compact_value_item(v, Some(td), active, options) {
+                    Ok(jv) => jv_render(jv).length()
+                    Err(_) => 999999
+                  }
+                  let better = match best {
+                    Some((_, _, bl)) => word_len < bl
+                    None => true
+                  }
+                  if better {
+                    best = Some((name, td, word_len))
+                  }
+                }
+              }
+              None => ()
+            }
+          }
+          match best {
+            Some((name, td, _)) => {
+              let jv = match compact_value_item(v, Some(td), active, options) {
+                Ok(out) => out
+                Err(e) => return Err(e)
+              }
+              match rev_split.get(name) {
+                Some(arr) => arr.push(jv)
+                None => rev_split[name] = [jv]
+              }
+            }
+            None => {
+              match compact_property_pair(pair.0, true, [v], active, options) {
+                Ok(pair_out) => {
+                  // 同键并值（多值同落一词形——恒追加）
+                  match rev_split.get(pair_out.0) {
+                    Some(arr) => arr.push(pair_out.1)
+                    None => rev_split[pair_out.0] = [pair_out.1]
+                  }
+                }
+                Err(e) => return Err(e)
+              }
+            }
+          }
+        }
+        for name in rev_split.keys().collect() {
+          match rev_split.get(name) {
+            Some(arr) => {
+              let out = if options.compact_arrays && arr.length() == 1 {
+                arr[0]
+              } else {
+                JsonValue::Array(arr)
+              }
+              pairs.push((name, out))
+            }
+            None => ()
+          }
         }
       }
     } else {
