@@ -116,11 +116,12 @@ expand_top_values 全链，修正单点落共享函数，385+416 两面同批受
 
 ### 同形异判实例（J2 语义分叉地图；2026-09-26 立节，持续收录）
 「输入相似/相同而判定不同」的 oracle 对——**禁止单一规则覆盖整族**，逐对勘定
-分叉轴后再落码；新增分叉对入本表：
+分叉轴后再落码；新增分叉对入本表。**族的归族维度统一入册**（每族一轴——
+族头括注；行级「分叉维度」列 = 轴内的具体分叉点）：
 | 实例对 | 分叉维度 | 分叉轴 | 判定差异 |
 | #t0003 vs #t0004 | 形态分叉 | 值形态（null vs 空数组字面值） | null 值属性整体丢弃；空数组字面值属性保留（"set1": []——同文档两组键并存） |
 | #tli01 vs #ter24/#ter32 | specVersion 分叉 | processingMode/specVersion | 同输入（@list 嵌套）：1.1 允许保留 / 1.0 list of lists 禁止 |
-| **@vocab 分叉族**（三对归组） | | |
+| **@vocab 分叉族**（三对归组；族维度 = **specVersion/处理模式**） | | |
 | #t0092 vs #t0115/#t0116 | specVersion 分叉 | processingMode | @vocab 相对/空串：1.1 base raw 拼接有效 / 1.0 invalid vocab mapping（校验先于 base 解析） |
 | #t0110 vs #t0111 | @vocab 相对值两形态（**前导字符分叉**） | "/relative"（前导 /）= authority 路径替换 → http://example.com/relative；"./rel2#"（前导 .）= **拼接现有 vocab**（prev + 值）——两者均不消点段 |
 | #ter23 vs #t0029 | 位置分叉 | 展开位置（td 定义值 vs 文档值位） | td @type 相对值不落 base（invalid type mapping）；文档值位相对 IRI 落 base 解析（含 fragment/query/scheme 相对） |
@@ -131,7 +132,7 @@ expand_top_values 全链，修正单点落共享函数，385+416 两面同批受
 | #tec02 vs #pr30 | 形态分叉（**关键字 term 的 td 值**） | `{"@container":"@set"}`/`{"@protected":…}` 的有无 | "only either **or both of** following entries" ⇒ 须**至少一条**：`{"@type": {}}` → `keyword redefinition`；`{"@container":"@set","@protected":true}` → 合法（关键字可保护） |
 | #t0003 vs #tjs18/#tjs22 | **@json term 豁免**（形态+成员分叉） | `@value: null`——普通属性整体丢弃；**@json term** 的 null = JSON null 字面量保留（第三组同形异判） |
 | #ter01 vs #t0005/#tpr34~#tpr39 | **@ 前缀 ≠ 关键字**分叉 | "@iri": "@id"（keyword 形态**非真关键字**）定义**忽略不报错**、节点键随之丢弃；"@type": "@id"（**真关键字**映射异关键字）→ keyword redefinition。同族判据：@ 前缀 + 非关键字形态的键 → 忽略不产出属性（#t0119/#tpr34/#tpr36） |
-| **@value:null 分叉族**（三对归组；2026-09-28 并入 #t0014 辖域行） | | | |
+| **@value:null 分叉族**（三对归组；族维度 = **值形态/辖域**；2026-09-28 并入 #t0014 辖域行） | | | |
 | #t0019 vs #t0004 | 值形态（**@value:null 值对象** vs 空数组字面值） | @value:null 值对象 ⇒ 属性**整体丢弃**（预扫描）；空数组字面值属性保留（"set3": []）——同文档两形态并存（t0019/t0004 oracle） |
 | #t0008 vs #t0022 系 | 值对象成员完备性 | 仅 @language/@direction 无 @value ⇒ 值对象**丢弃**（language-only 不产出）；有 @value ⇒ 正常展开 |
 | #tjs18/#tjs22 vs #t0019 | **@json term 豁免** | @type:@json 值对象的 null = JSON null 字面量**保留**（预扫描豁免）；无 @json 语义的 null 值对象丢弃 |
@@ -147,11 +148,11 @@ expand_top_values 全链，修正单点落共享函数，385+416 两面同批受
 | #t0122 vs #t0119/#tpr34 | **@ 形同位异判**（`@1*ALPHA` keyword 形非关键字） | 值位 vs 键位 | @id **值**位：REC §5.2 IRI 展开返回 null ⇒ 节点保留、id 位**字面 `{"@id": null}`**（#t0122）；**键**位：忽略不产出属性（#t0119/#tpr34/#tpr36） |
 | #t0060 vs #ter48 | **相对 IRI 位置分叉** | term 名位 vs @id 值位 | term 名相对路径（`.` 开头）⇒ context 处理期 invalid IRI mapping（#ter48）；@id **值**位无绝对性校验——base 无时**原样保留相对**（#t0060 `@base:null` 后 "../document-relative" 保相对） |
 | #t0014 vs #t0019 | 辖域分叉（**@set 数组元素级**，别名键形态） | null 值对象的挂载层级 | 直挂属性值 ⇒ 属性**整体丢弃**（#t0019 预扫描辖域）；@set（含别名 "set"）数组元素级 ⇒ 属性**保空数组**（预扫描不误伤——#t0014）；副产品：别名键归一先于 set/list 对象形态判定（vs #t0004 裸键同路） |
-| **oracle > 规范字面 分叉族**（三例归组；2026-09-29 收录两例） | | | |
+| **oracle > 规范字面 分叉族**（三例归组；族维度 = **权威位**——规范字面 vs 套件 oracle；2026-09-29 收录两例） | | | |
 | #tjs13 vs RFC 8785 §3.2.3 字面 | 键序定义分叉 | JCS 键序：套件 oracle = **Unicode 码点序**（U+F8DF < U+1F602）vs RFC 字面「UTF-16 码元序」（D83D < F8DF） | 码点序胜出——nq_key_compare 逐码点自实现（const §5 String::compare 假序同日禁用） |
 | toRdf @reverse vs REC §6.3 反转形 | 展开词形分叉 | 引擎 = **t0042 保形**（@reverse 映射保留）vs REC 字面反转形（node 获反向属性） | 保形胜出——reverse 批 oracle 沿袭；J4 fixture 首写按 REC 记忆错一处实证 |
 | flatten te001 vs free-floating 字面弃置 | 弃置位分叉 | free-floating（@id-only 弃）是否豁免 **@index**：oracle 要求 @id+@index 裸节点**必达合并面**（te001「Conflicting indexes」负例——弃则冲突不可见，负例永不可红） | **@index 豁免胜出**——is_free_floating 增 `index is None` 位；expand/toRdf 套件无此形在册案例（零回归面实测） |
-| **scoped 来源分叉族**（2026-09-29 役3 收录） | | | |
+| **scoped 来源分叉族**（族维度 = **scoped 来源**——type-scoped vs property-scoped；2026-09-29 役3 收录） | | | |
 | #tc009 vs #tc013 | **scoped 来源分叉**（同形异判对——同一定义 `baz:{"@type":"@vocab"}` 分置 type-scoped / property-scoped） | type-scoped 定义的 term **只作键名**、datatype/container/language 不参与值成形（#tc009 值保 `{@id}` 对象形）；property-scoped 全参与值成形（#tc013 @vocab 型塌缩 vocab 相对词 "buzz"） | 双 oracle 各自成立——scoped context 双链分立的实证（机制账 §8.44） |
 | **族判据** | | | **规范字面与套件 oracle 冲突时，套件 oracle 为权威**——规范是解释起点，套件是判定终点；分叉必须在账（两例皆入册），禁静默择一 |
 
@@ -622,7 +623,7 @@ expand_standard/to_rdf 手写钩子），**不是模型 vs 引擎**——J2/J3 �
 |---|---|---|---|
 | expansion | 385（正 276 / 负 109） | ✅ **385/385 全 plain** | suite_expand_test pin（deferred=0）+ 值级对拍 |
 | toRDF | 467（正 345 / 负 106 / 句法 16） | ✅ **467/467 全 plain** | suite_tordf_test pin + 判定器（迷你 N-Quads 解析 + 集合同构） |
-| compact | 246（正 229 / 负 17） | 🚧 **145/246 plain**（正 130 + 负 15）/ deferred 101 在册 | suite_compact_test pin（deferred=101）+ canonical_for_suite 直比 + bnode 双射兜底 |
+| compact | 246（正 229 / 负 17） | 🚧 **146/246 plain**（正 131 + 负 15）/ deferred 100 在册 | suite_compact_test pin（deferred=100）+ canonical_for_suite 直比 + bnode 双射兜底 |
 | flatten | 58（正 57 / 负 1） | ✅ **56/58 plain**（正 55 + 负 1）/ deferred 2 在册 | suite_flatten_test pin（deferred=2）+ canonical_for_suite 直比 + bnode 双射兜底（isomorphic_for_suite——判定器自检四钉） |
 | fromRdf | 54 | ❌ 未实现 | ——（§8.39） |
 | html | 50 | ❌ 未实现 | ——（§8.39） |
@@ -825,7 +826,7 @@ expand_standard/to_rdf 手写钩子），**不是模型 vs 引擎**——J2/J3 �
 | 容器 | 子键来源 | 值剥离 | oracle |
 |---|---|---|---|
 | @id | 值节点的 @id（压缩词形） | **@id 整剥**（键即身份——tm001/002 值无 @id） | #tm001/#tm002/#tm005 |
-| @type | 值的**首个** @type（压缩词形） | **首 type 剥、残余留**（tm004 值仍带 @type bar） | #tm003/#tm004 |
+| @type | 值的**首个** @type（压缩词形） | **首 type 剥、残余留**（tm004 值仍带 @type bar）；**剥后 id-only ⇒ 串塌缩无条件**（vocab 旗随 td——tm020 base 相对 / tm022 vocab 相对）【役4 补全沿革：役2 钉未列此形——非漏实现已钉行为，系钉本身不完整，役4 随批补钉】 | #tm003/#tm004/#tm020/#tm022 |
 | @index | 值的 @index 原文 | **@index 剥**；无 @index → @none | #tm006 族 |
 | @language | 值语言原文 | **语言剥 → 裸串**；无语言 → @none | #tm012/#tla01 |
 
@@ -915,3 +916,28 @@ expand_standard/to_rdf 手写钩子），**不是模型 vs 引擎**——J2/J3 �
 - **维持 deferred（101 在册）**：tp003（前缀 gen-delim 边界——term 名尾冒号
   的 compact IRI 资格，IRI 压缩面细化）、tpi 属性化索引、tla01 语言敏感
   list、nullification 族（§8.44 定性 = 影响）、te002/tpr03
+
+### 8.46 前缀 gen-delim 边界钉（2026-09-29 役5 前置——与 simple_form 的关系）
+
+**定性 = 两条独立规则、同闸位串联**（非同一条规则的两种形态）：
+- **simple_form 资格闸**（役1——定义形态轴）：哪个 term 可作 prefix **候选**
+  ——简单 string 形缺省可、map 形缺省不可、@prefix 显式定夺。判据对象 =
+  **term 的定义形态**。
+- **gen-delim 词尾闸**（本批——映射词尾轴）：候选 term 的 **IRI mapping 尾
+  字符**须 ∈ gen-delim（`:` `/` `?` `#` `[` `]` `@`，RFC 3986）方可出
+  compact IRI。判据对象 = **mapping 的词尾形态**，与定义形态正交。
+- **证据三件**（#tp003/#tp005/#tp006——首稿「串联」表述经探针精化，沿革
+  如实）：tp003 简单 term mapping 尾 `'-'` → 不压缩（词尾闸约束**简单形
+  隐式资格**）；tp005/tp006 **@prefix:true + mapping 尾 `'-'` → 照压缩**
+  ——@prefix:true 是**显式豁免位**（两闸齐抬）。终版规则：@prefix:true 恒
+  候选；简单形候选受词尾闸；map 形无 @prefix 不候选（#tp001）。
+- **作用面 = 压缩侧 prefix 步**（compact_iri_word），**不动展开侧**
+  expand_compact（compact IRI 解析是另一族规则——te002 挂账另涉）。
+
+#### 8.46.1 gen-delim 闸落成（2026-09-29 役5；145 → 146/246 plain，+1 零回退）
+- **落码**：compact_iri_word 前缀候选加映射词尾闸（mapping 尾 ∈ `: / ? # [ ] @`
+  方可出 compact IRI；@prefix:true 显式豁免——规则终版见 §8.46 证据三件）
+- **转正 3 例**：tp003（简单形落闸）+ tp005/tp006（@prefix:true 豁免——探针
+  首跑回退此二例暴露首稿「串联」表述之误，精化为豁免位后全过）
+- **过程**：match 作 `&&` 操作数须括号化（[3002] 第三度现形）；fmt 重排锚
+  漂移两度——补丁全带 assert 锚 + grep 复核
