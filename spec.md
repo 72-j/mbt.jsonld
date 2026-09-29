@@ -628,7 +628,7 @@ expand_standard/to_rdf 手写钩子），**不是模型 vs 引擎**——J2/J3 �
 |---|---|---|---|
 | expansion | 385（正 276 / 负 109） | ✅ **385/385 全 plain** | suite_expand_test pin（deferred=0）+ 值级对拍 |
 | toRDF | 467（正 345 / 负 106 / 句法 16） | ✅ **467/467 全 plain** | suite_tordf_test pin + 判定器（迷你 N-Quads 解析 + 集合同构） |
-| compact | 246（正 229 / 负 17） | 🚧 **199/246 plain**（正 184 + 负 15）/ deferred 47 在册 | suite_compact_test pin（deferred=47）+ canonical_for_suite 直比 + bnode 双射兜底 |
+| compact | 246（正 229 / 负 17） | 🚧 **201/246 plain**（正 186 + 负 15）/ deferred 45 在册 | suite_compact_test pin（deferred=45）+ canonical_for_suite 直比 + bnode 双射兜底 |
 | flatten | 58（正 57 / 负 1） | ✅ **56/58 plain**（正 55 + 负 1）/ deferred 2 在册 | suite_flatten_test pin（deferred=2）+ canonical_for_suite 直比 + bnode 双射兜底（isomorphic_for_suite——判定器自检四钉） |
 | fromRdf | 54 | ❌ 未实现 | ——（§8.39） |
 | html | 50 | ❌ 未实现 | ——（§8.39） |
@@ -642,9 +642,9 @@ expand_standard/to_rdf 手写钩子），**不是模型 vs 引擎**——J2/J3 �
 
 ### 8.39 缺口解释表（三分类钉——零 deferred ≠ 零缺口；2026-09-29）
 **「设计如此」**（范围/兼容性裁决，注出处）：
-1. compact 246 例——**已立案开工中**（2026-09-29 十二役 199/246 plain——
-   开工钉 §8.41 + 首波 §8.42 + 役2-12 实录 §8.43-§8.54；收官清点 §8.51
-   后 graph 簇 + scoped 边界 + 分选精化续批清空 30 例；deferred 47 逐簇在册）
+1. compact 246 例——**已立案开工中**（2026-09-29 十三役 201/246 plain——
+   开工钉 §8.41 + 首波 §8.42 + 役2-13 实录 §8.43-§8.54；收官清点 §8.51
+   后 graph 簇 + scoped 边界 + 分选精化续批清空 32 例；deferred 45 逐簇在册）
 2. @reverse 展开保形（非 REC 反转）——t0042 套件 oracle（同形异判表
    「oracle > 规范字面」族）
 3. JCS 键序码点序（非 RFC 字面 UTF-16 码元序）——#tjs13 套件 oracle（同族）
@@ -1187,3 +1187,12 @@ expand_standard/to_rdf 手写钩子），**不是模型 vs 引擎**——J2/J3 �
   3. **多值 @set 候选偏好**（#t0027 ✓——多值时 @set term 保形胜出，
      稳定分区前置）
 - **转正 1 例**（t0027）；deferred 47
+
+#### 8.54.2 残层收口（2026-09-29 役13；199 → 201/246 plain，零回退）
+- **空 Set 出形**（#t0004 收口——myset2 [] ：空值属性 + 容器 term ⇒
+  空数组出形，候选首 term 键）
+- **index 闸判据合流**（#t0065/#t0030 双 oracle 合流定案）：@index 值对象
+  的可入性 = **容器在场判**——容器在场（@language 图等，重展开丢/mangle
+  @index）⇒ 两形皆拒落残余；容器缺席（无容器 term 的数组保 @index）⇒
+  放行。首版「Index 容器豁免」为误判（t0030 的 term 本就无容器）
+- **转正 2 例**：t0004/t0065 全收口；deferred 45
