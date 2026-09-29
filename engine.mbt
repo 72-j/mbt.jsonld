@@ -1056,9 +1056,10 @@ pub fn compact_document(
     Ok(context) => context
     Err(e) => return Err(e)
   }
-  // 压缩主体（顶层形三钉）
+  // 压缩主体（顶层形三钉；单节点解包随 compactArrays——#t0091 oracle：
+  // compactArrays=false 时单节点也 @graph 包裹）
   let body_pairs : Array[(String, JsonValue)] = []
-  if values.length() == 1 {
+  if values.length() == 1 && options.compact_arrays {
     match values[0] {
       ExpandedValue::Node(node) =>
         match compact_node_jv(node, active, options) {
@@ -1067,6 +1068,27 @@ pub fn compact_document(
               body_pairs.push(pair)
             }
           Ok(_) => ()
+          Err(e) => return Err(e)
+        }
+      _ => ()
+    }
+  } else if values.length() == 1 {
+    // 单节点未塌缩（compactArrays=false）→ @graph 包裹（REC §9.1 步 9.2——
+    // compact 输出为数组时包 @graph 键；#t0091 oracle）
+    match values[0] {
+      ExpandedValue::Node(node) =>
+        match compact_node_jv(node, active, options) {
+          Ok(jv) => {
+            let graph_key = compact_iri_word(
+              "@graph",
+              true,
+              false,
+              true,
+              active,
+              options,
+            )
+            body_pairs.push((graph_key, JsonValue::Array([jv])))
+          }
           Err(e) => return Err(e)
         }
       _ => ()
@@ -1085,7 +1107,7 @@ pub fn compact_document(
     }
     // @graph 包裹键走 term 词形（关键字别名——#t0014/#t0052 oracle：
     // "data":"@graph"/"graph":"@graph" → 别名作键；无别名回落 "@graph"）
-    let graph_key = compact_iri_word("@graph", true, false, active, options)
+    let graph_key = compact_iri_word("@graph", true, false, true, active, options)
     body_pairs.push((graph_key, JsonValue::Array(arr)))
   }
   // @context 原文发射（context 空 / 主体空均不发射）

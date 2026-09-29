@@ -68,6 +68,7 @@ fn compact_iri_word(
   iri : String,
   allow_exact : Bool,
   allow_vocab : Bool,
+  allow_base : Bool,
   active : ActiveContext,
   options : JsonLdOptions,
 ) -> String {
@@ -154,12 +155,22 @@ fn compact_iri_word(
   // base 相对化（compactToRelative 门——×1 件保绝对词面；段界对齐：base 尾
   // 无 "/" 补一段再对前缀，防 "http://example.com" vs "…/com/foo" 误剥——
   // #tr001 oracle：option base "http://example.org/" → "@id":"a"）
-  if options.compact_to_relative {
+  if options.compact_to_relative && allow_base {
     match active.base {
       Some(base) => {
+        // 边界 = base 目录位：尾 '/' 即用；否则剥最后一段取目录
+        // （#t0076/#t0066 oracle——@base 为文档 URL 时 @id 相对化到同目录）
         let boundary = match base.get_char(base.length() - 1) {
           Some('/') => base
-          _ => base + "/"
+          _ => {
+            let mut cut = 0
+            for i in 0..<base.length() {
+              if base.get_char(i) == Some('/') {
+                cut = i + 1
+              }
+            }
+            base[:cut].to_owned()
+          }
         }
         if boundary.length() < iri.length() && iri.has_prefix(boundary) {
           return iri[boundary.length():].to_owned()
@@ -412,26 +423,16 @@ fn compact_value_jv(
         pairs.push(
           (
             "@type",
-            JsonValue::String(compact_iri_word(dt, true, true, active, options)),
+            JsonValue::String(compact_iri_word(dt, true, true, true, active, options)),
           ),
         )
       }
     None => ()
   }
-  let tdlm_str = match td_opt {
-    Some(t) =>
-      match t.language_mapping {
-        Some(Set(l)) => "Set:" + l
-        Some(Null) => "Null"
-        None => "None"
-      }
-    None => "notd"
-  }
-  debug("JV-VAL v=\{literal.value} tdlm=\{tdlm_str}")
   // @language/@direction 走别名键（#tdi02 oracle——"direction":"@direction"
   // → 键 "direction"；无别名回落关键字字面）
-  let lang_key = compact_iri_word("@language", true, false, active, options)
-  let dir_key = compact_iri_word("@direction", true, false, active, options)
+  let lang_key = compact_iri_word("@language", true, false, true, active, options)
+  let dir_key = compact_iri_word("@direction", true, false, true, active, options)
   match literal.language {
     Some(lang) => pairs.push((lang_key, JsonValue::String(lang)))
     None => ()
@@ -495,18 +496,49 @@ fn compact_value_item(
                   Some("@id") =>
                     return Ok(
                       JsonValue::String(
-                        compact_iri_word(id, false, false, active, options),
+                        compact_iri_word(id, false, false, true, active, options),
                       ),
                     )
-                  // @vocab 型塌缩 exact 开 + vocab 相对词（#t0054 oracle——
-                  // "enum" 词表命中；#tc013 oracle——"buzz" vocab 相对；
-                  // @vocab 值位词表门 = 开，重展开同形）
-                  Some("@vocab") =>
-                    return Ok(
-                      JsonValue::String(
-                        compact_iri_word(id, true, true, active, options),
-                      ),
+                  // @vocab 型塌缩 = exact 命中或 vocab 前缀命中才塌
+                  // （#t0054 "enum" / #tc013 "buzz"）；两者皆不命中保绝对
+                  // ——base 步不参与（#t0062 oracle：绝对 IRI 不因文档
+                  // base 相对化）
+                  Some("@vocab") => {
+                    let exact_hit = compact_term_candidates(
+                      id,
+                      false,
+                      active,
+                    ).length() > 0
+                    let vocab_hit = match active.vocab {
+                      Some(v) => v.length() < id.length() && id.has_prefix(v)
+                      None => false
+                    }
+                    if exact_hit || vocab_hit {
+                      return Ok(
+                        JsonValue::String(
+                          compact_iri_word(
+                            id,
+                            true,
+                            true,
+                            true,
+                            active,
+                            options,
+                          ),
+                        ),
+                      )
+                    }
+                    // 前缀词步仍可（#t0063 oracle——"prefix:suffix"），
+                    // base 步禁（绝对 IRI 不因文档 base 相对化）
+                    let prefix_word = compact_iri_word(
+                      id,
+                      false,
+                      false,
+                      false,
+                      active,
+                      options,
                     )
+                    return Ok(JsonValue::String(prefix_word))
+                  }
                   _ => ()
                 }
               None => ()
@@ -515,12 +547,12 @@ fn compact_value_item(
         }
         // 对象形：{"@id": 压缩词}
         let word = match child.id {
-          Some(id) => compact_iri_word(id, false, false, active, options)
+          Some(id) => compact_iri_word(id, false, false, true, active, options)
           None => ""
         }
         return Ok(JsonValue::Object([("@id", JsonValue::String(word))]))
       }
-      compact_node_jv(child, active, options)
+      compact_node_graph_value_jv(child, active, options)
     }
     ExpandedValue::Value(literal) =>
       Ok(compact_value_jv(literal, td_opt, active, options))
@@ -632,7 +664,7 @@ fn compact_property_pair(
   }
   let key = match cands {
     cs if cs.length() > 0 => cs[0]
-    _ => compact_iri_word(pred, true, true, active, options)
+    _ => compact_iri_word(pred, true, true, true, active, options)
   }
   match compact_property_values(vals, td_opt, active, options) {
     Ok(jv) => Ok((key, jv))
@@ -658,13 +690,13 @@ fn compact_node_jv(
   let pairs : Array[(String, JsonValue)] = []
   // @id 键走 term 词形（关键字别名 term——#t0008 oracle："uri":"@id" →
   // "uri" 作键；无别名回落 "@id" 字面）
-  let id_key = compact_iri_word("@id", true, false, scoped, options)
+  let id_key = compact_iri_word("@id", true, false, true, scoped, options)
   match node.id {
     Some(id) =>
       pairs.push(
         (
           id_key,
-          JsonValue::String(compact_iri_word(id, true, false, active, options)),
+          JsonValue::String(compact_iri_word(id, true, false, true, active, options)),
         ),
       )
     None => ()
@@ -672,13 +704,13 @@ fn compact_node_jv(
   if node.types.length() > 0 {
     // @type 键走 term 词形（关键字别名——#t0022 oracle："type":"@type" →
     // "type" 作键；无别名回落 "@type" 字面）
-    let type_key = compact_iri_word("@type", true, false, scoped, options)
+    let type_key = compact_iri_word("@type", true, false, true, scoped, options)
     let types : Array[JsonValue] = []
     for t in node.types {
       // @type 值渲染走 outer 链（#tc014 oracle——nullification 后 vocab
       // 存续；type-scoped 只管键选择，值词形随外层——双链分立同款）
       types.push(
-        JsonValue::String(compact_iri_word(t, true, true, active, options)),
+        JsonValue::String(compact_iri_word(t, true, true, true, active, options)),
       )
     }
     // 别名 term 带 @container @set ⇒ 恒数组（#t0105 oracle）
@@ -728,7 +760,7 @@ fn compact_node_jv(
       }
     }
     // 图归组账（次级键 → 内容数组；裸次级 → 内容数组直列）
-    let graph_subs : Array[(String, Array[JsonValue])] = []
+    let graph_subs : Array[(String, JsonValue)] = []
     let graph_bares : Array[JsonValue] = []
     // 映射归组账（term 键 → (subkey, 渲染值) 列表；首现序）
     let map_names : Array[String] = []
@@ -747,7 +779,7 @@ fn compact_node_jv(
       // @graph 容器路由优先（§8.45——图载体值；次级定归组键）
       let mut graph_done = false
       match graph_td {
-        Some((_, gtd)) =>
+        Some((gt_name, gtd)) =>
           match v {
             ExpandedValue::Node(child) =>
               match child.graph {
@@ -764,30 +796,81 @@ fn compact_node_jv(
                     }
                   }
                   let none_key = compact_iri_word(
-                    "@none", true, false, active, options,
+                    "@none", true, false, true,
+active, options,
                   )
+                  // shaped（§8.52——单内容节点对象 / 多内容 @included 包裹；
+                  // graph_set 载体恒数组保形——#t0082 族 oracle）
+                  let shaped = if gtd.graph_set {
+                    JsonValue::Array(content)
+                  } else if content.length() == 1 {
+                    content[0]
+                  } else {
+                    let included_key = compact_iri_word(
+                      "@included", true, false, true,
+active, options,
+                    )
+                    JsonValue::Object(
+                      [("@included", JsonValue::Array(content))].map(fn(p) {
+                        if p.0 == "@included" {
+                          (included_key, p.1)
+                        } else {
+                          p
+                        }
+                      }),
+                    )
+                  }
                   match gtd.graph_secondary {
                     Some(Id) => {
                       let subkey = match child.id {
                         Some(id) =>
-                          compact_iri_word(id, false, false, active, options)
+                          compact_iri_word(id, false, false, true, active, options)
                         None => none_key
                       }
-                      graph_subs.push((subkey, content))
+                      graph_subs.push((subkey, shaped))
                     }
                     Some(Index) => {
                       let subkey = match child.index {
                         Some(ix) => ix
                         None => none_key
                       }
-                      graph_subs.push((subkey, content))
+                      // 带 @id 载体 = 载体渲染入 **term 组**（不走映射
+                      // 组——@index 成员自带键信息，#t0083 oracle）；无 id
+                      // = shaped 入映射组（#t0081）
+                      if child.id is Some(_) {
+                        match compact_node_graph_value_jv(child, active, options) {
+                          Ok(jv) =>
+                            match group_vals.get(gt_name) {
+                              Some(arr) => arr.push(jv)
+                              None => {
+                                group_vals[gt_name] = [jv]
+                                group_keys.push(gt_name)
+                                group_tds[gt_name] = gtd
+                                group_array[gt_name] = !options.compact_arrays
+                              }
+                            }
+                          Err(e) => return Err(e)
+                        }
+                      } else {
+                        graph_subs.push((subkey, shaped))
+                      }
                     }
                     Some(List)
                     | Some(Set)
                     | Some(Language)
                     | Some(Type)
                     | Some(Graph) => ()
-                    None => graph_bares.push(JsonValue::Array(content))
+                    // 裸次级：带 @id 载体 = 载体渲染（#t0080 oracle——
+                    // "@id"+"@graph" 随形）；无 id = shaped
+                    None =>
+                      if child.id is Some(_) {
+                        match compact_node_graph_value_jv(child, active, options) {
+                          Ok(jv) => graph_bares.push(jv)
+                          Err(e) => return Err(e)
+                        }
+                      } else {
+                        graph_bares.push(shaped)
+                      }
                   }
                   graph_done = true
                 }
@@ -899,60 +982,75 @@ fn compact_node_jv(
     }
     // @graph 容器出键（§8.45——次级键映射归并内容数组；裸次级数组直出）
     match graph_td {
-      Some((gname, gtd)) => {
+      Some((gname, gtd)) =>
         if graph_subs.length() > 0 {
           let sub_pairs : Array[(String, JsonValue)] = []
           let sub_keys : Array[String] = []
           let sub_vals : Map[String, Array[JsonValue]] = Map([])
           for entry in graph_subs {
             match sub_vals.get(entry.0) {
-              Some(arr) =>
-                for jv in entry.1 {
-                  arr.push(jv)
-                }
+              Some(arr) => arr.push(entry.1)
               None => {
-                sub_vals[entry.0] = entry.1
+                sub_vals[entry.0] = [entry.1]
                 sub_keys.push(entry.0)
               }
             }
           }
           for sub in sub_keys {
             match sub_vals.get(sub) {
-              Some(arr) => sub_pairs.push((sub, JsonValue::Array(arr)))
+              Some(arr) => {
+                // graph_set 组：各载体已数组——摊平恒数组（#t0082 族
+                // oracle——值已数组不再包）；非 graph_set 单值塌缩随
+                // compactArrays
+                let out = if gtd.graph_set {
+                  let flat : Array[JsonValue] = []
+                  for item in arr {
+                    match item {
+                      JsonValue::Array(items) =>
+                        for it in items {
+                          flat.push(it)
+                        }
+                      other => flat.push(other)
+                    }
+                  }
+                  JsonValue::Array(flat)
+                } else if options.compact_arrays && arr.length() == 1 {
+                  arr[0]
+                } else {
+                  JsonValue::Array(arr)
+                }
+                sub_pairs.push((sub, out))
+              }
               None => ()
             }
           }
           pairs.push((gname, JsonValue::Object(sub_pairs)))
         } else if graph_bares.length() > 0 {
-          let content : Array[JsonValue] = []
-          for gv in graph_bares {
-            match gv {
-              JsonValue::Array(items) =>
-                for it in items {
-                  content.push(it)
-                }
-              other => content.push(other)
-            }
-          }
-          // 出形分叉（§8.45 补钉——graph_set 位）：[@graph,@set] 数组恒保
-          // （#t0078）；裸 @graph = @included 包裹（#t0109；别名感知）
+          // 出形分叉（§8.52 shaped 化——graph_set 数组恒列（#t0078）；
+          // 裸次级单图直出 / 多图数组（#t0077/#t0096））
           let gset = gtd.graph_set
           if gset {
+            // graph_set：各图内容摊平恒数组（#t0078——单图单内容 [x] 直列）
+            let content : Array[JsonValue] = []
+            for gv in graph_bares {
+              match gv {
+                JsonValue::Array(items) =>
+                  for it in items {
+                    content.push(it)
+                  }
+                other => content.push(other)
+              }
+            }
             pairs.push((gname, JsonValue::Array(content)))
           } else {
-            let included_key = compact_iri_word(
-              "@included", true, false, active, options,
-            )
-            pairs.push(
-              (
-                gname,
-                JsonValue::Object([(included_key, JsonValue::Array(content))]),
-              ),
-            )
+            let out = if graph_bares.length() == 1 {
+              graph_bares[0]
+            } else {
+              JsonValue::Array(graph_bares)
+            }
+            pairs.push((gname, out))
           }
         }
-        let _ = gtd
-      }
       None => ()
     }
     // 容器逆形映射出键（§8.43——subkey → 值；单值塌缩随 compactArrays）
@@ -1037,6 +1135,7 @@ fn compact_node_jv(
         pair.0,
         false,
         fallback_vocab,
+        true,
         active,
         options,
       )
@@ -1070,9 +1169,21 @@ fn compact_node_jv(
         }
       }
       let included_key = compact_iri_word(
-        "@included", true, false, active, options,
+        "@included", true, false, true,
+active, options,
       )
-      pairs.push((included_key, JsonValue::Array(arr)))
+      // @included 单值解包为对象形（#tin02/#tin04/#tin05 oracle——与
+      // @graph 关键词条恒数组分叉：REC 出形位不同）；别名 term 带
+      // @container @set ⇒ 恒数组（#tin01 oracle）
+      let included_set = match active.terms.get(included_key) {
+        Some(itd) => itd.container is Some(Set)
+        None => false
+      }
+      if options.compact_arrays && arr.length() == 1 && !included_set {
+        pairs.push((included_key, arr[0]))
+      } else {
+        pairs.push((included_key, JsonValue::Array(arr)))
+      }
     }
     None => ()
   }
@@ -1089,6 +1200,9 @@ fn compact_node_jv(
           _ => ()
         }
       }
+      // 节点自身 @graph 关键词条 = as-array 恒真（REC 12.8.5——active
+      // property = @graph 时 as array；#t0016 oracle——成员带 @id 保数组。
+      // 塌缩只发生在值位渲染的数组步——compact_node_graph_value_jv）
       pairs.push(("@graph", JsonValue::Array(arr)))
     }
     None => ()
@@ -1208,16 +1322,16 @@ fn compact_map_entry(
   active : ActiveContext,
   options : JsonLdOptions,
 ) -> (String, JsonValue)? {
-  let none_key = compact_iri_word("@none", true, false, active, options)
+  let none_key = compact_iri_word("@none", true, false, true, active, options)
   match td.container {
     Some(Id) =>
       match value {
         ExpandedValue::Node(child) => {
           let subkey = match child.id {
-            Some(id) => compact_iri_word(id, false, false, active, options)
+            Some(id) => compact_iri_word(id, false, false, true, active, options)
             None => none_key
           }
-          let id_key = compact_iri_word("@id", true, false, active, options)
+          let id_key = compact_iri_word("@id", true, false, true, active, options)
           match compact_node_jv(child, active, options) {
             Ok(JsonValue::Object(pairs)) => {
               let stripped : Array[(String, JsonValue)] = []
@@ -1273,6 +1387,7 @@ fn compact_map_entry(
                       id,
                       false,
                       td.datatype is Some("@vocab"),
+                      true,
                       active,
                       options,
                     ),
@@ -1305,7 +1420,7 @@ fn compact_map_entry(
       match rendered {
         Ok(jv) => {
           let subkey = match first {
-            Some(t) => compact_iri_word(t, true, true, active, options)
+            Some(t) => compact_iri_word(t, true, true, true, active, options)
             None => none_key
           }
           Some((subkey, jv))
@@ -1369,6 +1484,7 @@ fn compact_map_entry(
                                     rid,
                                     false,
                                     ptd.datatype is Some("@vocab"),
+                                    true,
                                     active,
                                     options,
                                   ),
@@ -1586,4 +1702,40 @@ fn compact_apply_type_scoped(
     }
   }
   current
+}
+
+
+///|
+/// 图对象值位渲染（REC 12.8.8.4——节点渲染后，@graph 键（含别名）单内容
+/// 塌缩为对象形；关键字词条 as-array 恒真不在此路——#t0092/#t0094/#t0080
+/// /#t0083 oracle 值位塌缩，#t0016 关键词条保数组）
+fn compact_node_graph_value_jv(
+  node : ExpandedNode,
+  active : ActiveContext,
+  options : JsonLdOptions,
+) -> Result[JsonValue, JsonLdError] {
+  let jv = compact_node_jv(node, active, options)
+  match jv {
+    Ok(JsonValue::Object(pairs)) => {
+      let graph_key = compact_iri_word("@graph", true, false, true, active, options)
+      let out : Array[(String, JsonValue)] = []
+      for p in pairs {
+        if p.0 == graph_key {
+          match p.1 {
+            JsonValue::Array(items) =>
+              if options.compact_arrays && items.length() == 1 {
+                out.push((p.0, items[0]))
+              } else {
+                out.push(p)
+              }
+            _ => out.push(p)
+          }
+        } else {
+          out.push(p)
+        }
+      }
+      Ok(JsonValue::Object(out))
+    }
+    _ => jv
+  }
 }
