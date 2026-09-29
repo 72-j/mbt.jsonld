@@ -1752,7 +1752,10 @@ fn compact_apply_type_scoped(
   options : JsonLdOptions,
 ) -> ActiveContext {
   let mut current = active
-  for t in types {
+  // 逆序套用（REC §6.1.2 步 12.8.1——@type 数组倒序逐个套 type-scoped
+  // context，先位类型后手胜——#tc017 oracle：[Foo,Bar] Foo 的 prop 胜出）
+  for i in 0..<types.length() {
+    let t = types[types.length() - 1 - i]
     for name in compact_term_candidates(t, false, active) {
       match active.terms.get(name) {
         Some(td) =>
