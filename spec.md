@@ -628,7 +628,7 @@ expand_standard/to_rdf 手写钩子），**不是模型 vs 引擎**——J2/J3 �
 |---|---|---|---|
 | expansion | 385（正 276 / 负 109） | ✅ **385/385 全 plain** | suite_expand_test pin（deferred=0）+ 值级对拍 |
 | toRDF | 467（正 345 / 负 106 / 句法 16） | ✅ **467/467 全 plain** | suite_tordf_test pin + 判定器（迷你 N-Quads 解析 + 集合同构） |
-| compact | 246（正 229 / 负 17） | 🚧 **156/246 plain**（正 141 + 负 15）/ deferred 90 在册 | suite_compact_test pin（deferred=90）+ canonical_for_suite 直比 + bnode 双射兜底 |
+| compact | 246（正 229 / 负 17） | 🚧 **169/246 plain**（正 154 + 负 15）/ deferred 77 在册 | suite_compact_test pin（deferred=77）+ canonical_for_suite 直比 + bnode 双射兜底 |
 | flatten | 58（正 57 / 负 1） | ✅ **56/58 plain**（正 55 + 负 1）/ deferred 2 在册 | suite_flatten_test pin（deferred=2）+ canonical_for_suite 直比 + bnode 双射兜底（isomorphic_for_suite——判定器自检四钉） |
 | fromRdf | 54 | ❌ 未实现 | ——（§8.39） |
 | html | 50 | ❌ 未实现 | ——（§8.39） |
@@ -1016,3 +1016,24 @@ expand_standard/to_rdf 手写钩子），**不是模型 vs 引擎**——J2/J3 �
 - **转正 3 例**：tdi02/03/07（tdi01/04/05/06 随方向闸早批已过）
 - **过程**：object_fit 缺方向闸一度让不适值成组（探针打点实证 fallback 未
   触发即组内出形——「打点定位 + 撤点收尾」标准动作复用）
+
+### 8.49 杂族清点批落成（2026-09-29 役8；156 → 169/246 plain，+13 零回退）
+- **七系统性点清点落码**（剩余 90 deferred 逐例 diff 勘定）：
+  1. **数值/布尔语言免注**（#t0015/#t0018 oracle——raw 保形体不受缺省
+     语言/方向注入，探针打点定位：JV-NOBARE 数值撞 @language 缺省）
+  2. **language 吸收 Null 臂补 render 侧**（#t0015 term5——bare_fit 有
+     render 无，「钉不完整」判定树 Q1 定类补齐）
+  3. **@type 键别名路由 + @set 容器旗**（#t0022 "type" 键 / #t0105 恒数组）
+  4. **@vocab 型塌缩 exact 开**（#t0054——"enum" 词表命中；@vocab 值位
+     词表门开）
+  5. **Language map index 闸**（#t0065——带 @index 值不入语言图落残余）
+  6. **reverse 映射容器**（#t0036——@reverse + @container @index 键化出形）
+  7. **@graph_set 保形位**（判定树 Q1 定类：[@graph,@set] 数组恒保 #t0078
+     vs 裸 @graph @included 包裹 #t0109——展开侧「@set 不占次级」丢位，
+     TermDefinition +graph_set 增量字段展开不读零行为面）
+  8. **@type 值渲染走 outer 链**（#tc014——nullification 后 vocab 存续；
+     type-scoped 只管键选择——双链分立同款；tc014 因此收复转正）
+- **转正 13 例**：t0036/0054/0055/0056/0059/0073/0078/0104/0105/0109/0114/
+  tc008/tc014/tc021（含两回退件收复）
+- **deferred 77 在册**：nullification 族（tc014 已收复；tc018 等残余）/
+  te002/tpr03/t0093（多顶层节点分裂面）/t 系杂族残余
