@@ -628,7 +628,7 @@ expand_standard/to_rdf 手写钩子），**不是模型 vs 引擎**——J2/J3 �
 |---|---|---|---|
 | expansion | 385（正 276 / 负 109） | ✅ **385/385 全 plain** | suite_expand_test pin（deferred=0）+ 值级对拍 |
 | toRDF | 467（正 345 / 负 106 / 句法 16） | ✅ **467/467 全 plain** | suite_tordf_test pin + 判定器（迷你 N-Quads 解析 + 集合同构） |
-| compact | 246（正 229 / 负 17） | 🚧 **169/246 plain**（正 154 + 负 15）/ deferred 77 在册 | suite_compact_test pin（deferred=77）+ canonical_for_suite 直比 + bnode 双射兜底 |
+| compact | 246（正 229 / 负 17） | 🚧 **195/246 plain**（正 180 + 负 15）/ deferred 51 在册 | suite_compact_test pin（deferred=51）+ canonical_for_suite 直比 + bnode 双射兜底 |
 | flatten | 58（正 57 / 负 1） | ✅ **56/58 plain**（正 55 + 负 1）/ deferred 2 在册 | suite_flatten_test pin（deferred=2）+ canonical_for_suite 直比 + bnode 双射兜底（isomorphic_for_suite——判定器自检四钉） |
 | fromRdf | 54 | ❌ 未实现 | ——（§8.39） |
 | html | 50 | ❌ 未实现 | ——（§8.39） |
@@ -642,9 +642,9 @@ expand_standard/to_rdf 手写钩子），**不是模型 vs 引擎**——J2/J3 �
 
 ### 8.39 缺口解释表（三分类钉——零 deferred ≠ 零缺口；2026-09-29）
 **「设计如此」**（范围/兼容性裁决，注出处）：
-1. compact 246 例——**已立案开工中**（2026-09-29 八役 169/246 plain——
-   开工钉 §8.41 + 首波 §8.42 + 役2-8 实录 §8.43-§8.49；收官清点终账
-   §8.51：77 deferred 全未实现逐簇在册，零设计如此/零依赖外）
+1. compact 246 例——**已立案开工中**（2026-09-29 十役 195/246 plain——
+   开工钉 §8.41 + 首波 §8.42 + 役2-10 实录 §8.43-§8.52；收官清点 §8.51
+   后 graph 簇续批清空 26 例；deferred 51 逐簇在册）
 2. @reverse 展开保形（非 REC 反转）——t0042 套件 oracle（同形异判表
    「oracle > 规范字面」族）
 3. JCS 键序码点序（非 RFC 字面 UTF-16 码元序）——#tjs13 套件 oracle（同族）
@@ -672,7 +672,12 @@ expand_standard/to_rdf 手写钩子），**不是模型 vs 引擎**——J2/J3 �
     仅保留 flattening/framing 的比对注记）——framing 上游另立 REC 与套件。
     非拉取范围问题；若做 framing 须另引 json-ld-framing 独立套件（依赖外
     新增，立案不排期）
-11. **依赖外·复现环境三锚勘定（2026-09-29 拆分，三者漂移理由不同）**：
+11. **依赖外·canonicalization 套件**（2026-09-29 役10 勘定，同 framing
+    款条 10 前例）：ffdb326 快照无 RDF Dataset Canonicalization 测试面
+    （README 仅 JCS 注记，toRdf 面 nq_jcs 已落）——上游 W3C rdf-canon
+    REC 与套件另立；若做须另引依赖 + 规范驱动自落码双路线评估，
+    立案不排期
+12. **依赖外·复现环境三锚勘定（2026-09-29 拆分，三者漂移理由不同）**：
     ① **套件语料锚**——ffdb326 + SHA256SUMS 2626 件（语料变 = 判定语料变，
     单独钉于本节头）；② **mooncakes 依赖钉**——moon.mod import 版本行
     （本实现面实际 import：moonbitlang/async@0.21.0 + core（工具链捆绑）+
@@ -1079,3 +1084,32 @@ expand_standard/to_rdf 手写钩子），**不是模型 vs 引擎**——J2/J3 �
 
 **账面闭环**：246 = 169 plain（正 154 + 负 15）+ 77 deferred（全部未实现、
 逐簇在册）——零无类缺口、零凭感觉分类（§8.50 判据管辖）。
+
+### 8.52 graph shaped 续批落成 + canonicalization 立案（2026-09-29 役10；169 → 195/246 plain，+26 零回退）
+- **REC 判据入钉**（规范字面取证：JSON-LD 1.1 API §6.1.2 步 12.8.5/12.8.8 +
+  §9.1 步 9.2——用户令 webReader 全文取回勘定）：
+  1. **节点自身 @graph 关键词条 = as-array 恒真**（active property = @graph
+     路不塌缩——#t0016 oracle 守卫；首版「单内容解包」误钉回退）
+  2. **塌缩只在值位数组步**（single + compactArrays + 属性非 @graph/@set）——
+     值位薄包装件 compact_node_graph_value_jv（#t0092/#t0094/#t0080/#t0083）
+  3. **顶层级**：compact 输出数组（compactArrays=false 未塌）→ 包 @graph 键
+     （§9.1 步 9.2——#t0091 oracle；首版空 {} 根因 = 分支缺口）
+  4. **graph shaped 出形**：单内容节点对象 / 多内容 @included 包裹（容器直出
+     简形——12.8.8.3，#t0077/#t0096/#t0109）；映射值路多内容保数组
+  5. **graph_set 键化/裸出形恒数组**（#t0078/#t0082/86/87/99/101/tm017——
+     @set 组合载体值已数组不再包，键化摊平）
+  6. **@included 单值解包**（#tin02/04/05）+ 别名 @set 保形（#tin01）
+  7. **allow_base 旗三剖**（IRI 压缩第四旗）：@vocab 型塌缩 = exact/vocab
+     命中塌 + 前缀词步可 + **base 步禁**（#t0062/#t0063 oracle——绝对 IRI
+     不因文档 base 相对化、"prefix:suffix" 前缀词可用）；@id 位 base 可
+     （#t0066/#t0076——base 目录位边界）
+- **转正 26 例**（零回退）：graph 簇 18 例全谱（t0076-0100 系）+ t0037/
+  t0070/tc004/tc025/tin02/04/05/tm018/019/t0110
+- **canonicalization 立案——依赖外（§8.50 判据，依赖物具名）**：ffdb326
+  快照无 RDF Dataset Canonicalization 套件（目录/清单全无；README 仅 JCS
+  注记——toRdf 面 nq_jcs 已落 J3.3）。上游另立 W3C rdf-canon REC 与套件
+  （同 framing 款，§8.39 条 10 前例）；若做须另引依赖 + 算法面规范驱动
+  自落码双路线评估，立案不排期
+- **过程**：映射出键/reverse 出键两块被段切片手术误删（探针全量红名单 +
+  三例空 {} 症状定位即建）——「段切片必须圈定唯一锚 + 落盘后 grep 出键块
+  在场」教训入册；同名探针文件覆写循环两次——探针文件改名隔离（FINAL 独立件）
