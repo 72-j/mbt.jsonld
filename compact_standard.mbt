@@ -158,6 +158,14 @@ fn compact_iri_word(
   if options.compact_to_relative && allow_base {
     match active.base {
       Some(base) => {
+        // 片段相对优先（#tc015 oracle——base 无尾 '/' 且 iri = base + "#…"
+        // ⇒ "#…" 形，先于目录位判定）
+        if iri.has_prefix(base) {
+          let rest = iri[base.length():].to_owned()
+          if rest.has_prefix("#") {
+            return rest
+          }
+        }
         // 边界 = base 目录位：尾 '/' 即用；否则剥最后一段取目录
         // （#t0076/#t0066 oracle——@base 为文档 URL 时 @id 相对化到同目录）
         let boundary = match base.get_char(base.length() - 1) {
@@ -928,7 +936,12 @@ active, options,
             Some(outer_td) => outer_td
             None =>
               {
-                datatype: None,
+                datatype: if td_scoped.datatype == Some("@id") ||
+                  td_scoped.local_context is Some(_) {
+                  td_scoped.datatype
+                } else {
+                  None
+                },
                 container: td_scoped.container,
                 reverse: td_scoped.reverse,
                 local_context: td_scoped.local_context,
