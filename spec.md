@@ -628,7 +628,7 @@ expand_standard/to_rdf 手写钩子），**不是模型 vs 引擎**——J2/J3 �
 |---|---|---|---|
 | expansion | 385（正 276 / 负 109） | ✅ **385/385 全 plain** | suite_expand_test pin（deferred=0）+ 值级对拍 |
 | toRDF | 467（正 345 / 负 106 / 句法 16） | ✅ **467/467 全 plain** | suite_tordf_test pin + 判定器（迷你 N-Quads 解析 + 集合同构） |
-| compact | 246（正 229 / 负 17） | 🚧 **208/246 plain**（正 193 + 负 15）/ deferred 38 在册 | suite_compact_test pin（deferred=38）+ canonical_for_suite 直比 + bnode 双射兜底 |
+| compact | 246（正 229 / 负 17） | 🚧 **210/246 plain**（正 195 + 负 15）/ deferred 36 在册 | suite_compact_test pin（deferred=36）+ canonical_for_suite 直比 + bnode 双射兜底 |
 | flatten | 58（正 57 / 负 1） | ✅ **56/58 plain**（正 55 + 负 1）/ deferred 2 在册 | suite_flatten_test pin（deferred=2）+ canonical_for_suite 直比 + bnode 双射兜底（isomorphic_for_suite——判定器自检四钉） |
 | fromRdf | 54 | ❌ 未实现 | ——（§8.39） |
 | html | 50 | ❌ 未实现 | ——（§8.39） |
@@ -642,9 +642,9 @@ expand_standard/to_rdf 手写钩子），**不是模型 vs 引擎**——J2/J3 �
 
 ### 8.39 缺口解释表（三分类钉——零 deferred ≠ 零缺口；2026-09-29）
 **「设计如此」**（范围/兼容性裁决，注出处）：
-1. compact 246 例——**已立案开工中**（2026-09-29 十六役 208/246 plain——
-   开工钉 §8.41 + 首波 §8.42 + 役2-16 实录 §8.43-§8.58；收官清点 §8.51
-   后 graph 簇 + scoped 边界 + 分选精化续批清空 39 例；deferred 38 逐簇在册）
+1. compact 246 例——**已立案开工中**（2026-09-29 十九役 210/246 plain——
+   开工钉 §8.41 + 首波 §8.42 + 役2-19 实录 §8.43-§8.59；收官清点 §8.51
+   后 graph 簇 + scoped 边界 + 分选精化续批清空 41 例；deferred 36 逐簇在册）
 2. @reverse 展开保形（非 REC 反转）——t0042 套件 oracle（同形异判表
    「oracle > 规范字面」族）
 3. JCS 键序码点序（非 RFC 字面 UTF-16 码元序）——#tjs13 套件 oracle（同族）
@@ -1279,3 +1279,12 @@ expand_standard/to_rdf 手写钩子），**不是模型 vs 引擎**——J2/J3 �
   排名**（IRI 面深层），deferred 注记
 - **净中性定性**：套件 208 持平零回退——base 轨为正确性补全（tc015
   部分改善），无 oracle 反证
+
+#### 8.54.3 Null 吸收臂回补（2026-09-29 役19；208 → 210/246 plain，零回退）
+- **根因**：役12 补的 language 吸收 **Null 臂被役13-18 间某次区段手术吞掉**
+  （Set 臂在 Null 臂失——「段切片误删相邻块」⑦ 的变体：非相邻块、是
+  **同段内的并列臂**）；bare_fit 侧 Null 判据在、render 侧吸收臂失 ⇒
+  选得出 bare 渲不出裸形（t0089 s 值对象形）
+- **回补**：Null 臂（language None + dir 合 ⇒ 裸串）；t0089 ✓ 全收口
+- **deferred 36**：t0089 已收；余 = tc 深层（base 多候选/@propagate）、
+  t 系值分选残余、te002/tpr03
