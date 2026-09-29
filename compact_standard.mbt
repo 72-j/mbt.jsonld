@@ -196,6 +196,15 @@ fn compact_iri_word(
 }
 
 ///|
+/// 值 datatype 取形（排名特异性用——Value 取其 datatype、他形 None）
+fn literal_datatype_of(v : ExpandedValue) -> String? {
+  match v {
+    ExpandedValue::Value(lit) => lit.datatype
+    _ => None
+  }
+}
+
+///|
 /// 标量免注判定（#t0048——number/bool raw 保形体）
 fn literal_raw_is_scalar(lit : ExpandedLiteral) -> Bool {
   lit.raw is Some(_)
@@ -1072,7 +1081,9 @@ active, options,
       // oracle——exact 词 < base 相对 < 全 IRI）
       let mut chosen : (String, TermDefinition, Bool)? = None
       for pass_bare in [true, false] {
-        let mut best : (String, TermDefinition, Int)? = None
+        // 排名键 = (词长, 特异性位降序)：同长时 Set/Null 精确映射 > None
+        // 缺省对齐（#t0018/#t0024 oracle——en 项归 termLL1 非 termLL0）
+        let mut best : (String, TermDefinition, Int, Int)? = None
         for entry in cand_tds {
           let fits = if pass_bare {
             compact_bare_fit(v, entry.1, active)
@@ -1084,17 +1095,24 @@ active, options,
               Ok(jv) => jv_render(jv).length()
               Err(_) => 999999
             }
+            // 特异性仅对纯串计（无 datatype）——language-mapping term
+            // 不得抢 typed 值（#t0015 oracle——v2(datatype t2) 归 term2
+            // 非 term5）
+            let specificity = match (entry.1.language_mapping, literal_datatype_of(v)) {
+              (Some(_), None) => 1
+              _ => 0
+            }
             let better = match best {
-              Some((_, _, bl)) => word_len < bl
+              Some((_, _, bl, bs)) => word_len < bl || (word_len == bl && specificity > bs)
               None => true
             }
             if better {
-              best = Some((entry.0, entry.1, word_len))
+              best = Some((entry.0, entry.1, word_len, specificity))
             }
           }
         }
         match best {
-          Some((name, td, _)) => {
+          Some((name, td, _, _)) => {
             chosen = Some((name, td, pass_bare))
           }
           None => ()
