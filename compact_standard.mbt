@@ -1094,7 +1094,15 @@ active, options,
           // scoped-only term 剥 datatype/container/language（不作值成形）、
           // 保 local_context（property-scoped 链照走——#tc013 bar）
           let td : TermDefinition = match active.terms.get(name) {
-            Some(outer_td) => outer_td
+            Some(outer_td) =>
+              // 双定义取舍（#tc007 oracle——scoped @id 压过 outer 同名：
+              // type-scoped 定义对该节点就是全量定义；@vocab 型仍随 outer
+              // ——tc009 不塌裁断不变）
+              if td_scoped.datatype == Some("@id") {
+                td_scoped
+              } else {
+                outer_td
+              }
             None =>
               {
                 datatype: if td_scoped.datatype == Some("@id") ||
