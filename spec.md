@@ -628,7 +628,7 @@ expand_standard/to_rdf 手写钩子），**不是模型 vs 引擎**——J2/J3 �
 |---|---|---|---|
 | expansion | 385（正 276 / 负 109） | ✅ **385/385 全 plain** | suite_expand_test pin（deferred=0）+ 值级对拍 |
 | toRDF | 467（正 345 / 负 106 / 句法 16） | ✅ **467/467 全 plain** | suite_tordf_test pin + 判定器（迷你 N-Quads 解析 + 集合同构） |
-| compact | 246（正 229 / 负 17） | 🚧 **201/246 plain**（正 186 + 负 15）/ deferred 45 在册 | suite_compact_test pin（deferred=45）+ canonical_for_suite 直比 + bnode 双射兜底 |
+| compact | 246（正 229 / 负 17） | 🚧 **203/246 plain**（正 188 + 负 15）/ deferred 43 在册 | suite_compact_test pin（deferred=43）+ canonical_for_suite 直比 + bnode 双射兜底 |
 | flatten | 58（正 57 / 负 1） | ✅ **56/58 plain**（正 55 + 负 1）/ deferred 2 在册 | suite_flatten_test pin（deferred=2）+ canonical_for_suite 直比 + bnode 双射兜底（isomorphic_for_suite——判定器自检四钉） |
 | fromRdf | 54 | ❌ 未实现 | ——（§8.39） |
 | html | 50 | ❌ 未实现 | ——（§8.39） |
@@ -642,9 +642,9 @@ expand_standard/to_rdf 手写钩子），**不是模型 vs 引擎**——J2/J3 �
 
 ### 8.39 缺口解释表（三分类钉——零 deferred ≠ 零缺口；2026-09-29）
 **「设计如此」**（范围/兼容性裁决，注出处）：
-1. compact 246 例——**已立案开工中**（2026-09-29 十三役 201/246 plain——
-   开工钉 §8.41 + 首波 §8.42 + 役2-13 实录 §8.43-§8.54；收官清点 §8.51
-   后 graph 簇 + scoped 边界 + 分选精化续批清空 32 例；deferred 45 逐簇在册）
+1. compact 246 例——**已立案开工中**（2026-09-29 十四役 203/246 plain——
+   开工钉 §8.41 + 首波 §8.42 + 役2-14 实录 §8.43-§8.55；收官清点 §8.51
+   后 graph 簇 + scoped 边界 + 分选精化续批清空 34 例；deferred 43 逐簇在册）
 2. @reverse 展开保形（非 REC 反转）——t0042 套件 oracle（同形异判表
    「oracle > 规范字面」族）
 3. JCS 键序码点序（非 RFC 字面 UTF-16 码元序）——#tjs13 套件 oracle（同族）
@@ -1196,3 +1196,16 @@ expand_standard/to_rdf 手写钩子），**不是模型 vs 引擎**——J2/J3 �
   @index）⇒ 两形皆拒落残余；容器缺席（无容器 term 的数组保 @index）⇒
   放行。首版「Index 容器豁免」为误判（t0030 的 term 本就无容器）
 - **转正 2 例**：t0004/t0065 全收口；deferred 45
+
+### 8.55 分选精化续批落成（2026-09-29 役14；201 → 203/246 plain，零回退）
+- **落码五件**（§8.54 判据细化/偏好序/词形边界三类各中）：
+  1. **vocab 撞词守门**（#t0043——suffix 为在册 term 时重展开撞词，跳过
+     vocab 步保全 IRI；t0043 残余 = 输入双 name 属性的合并面，deferred 细研）
+  2. **标量免注入 bare_fit**（#t0048 部分——number/bool raw 保形体不受
+     缺省语言注入；t0048 残余 = propertyB/NoLang/LanguageNull 三候选同
+     fit 的偏好序，deferred 细研）
+  3. **@-词转义**（#t0111 ✓——"@special" 值位词形 "./" 前缀逃逸）
+  4. **type-@set 1.0 门**（#t0106 ✓——1.0 模式数组塌缩不受 @set 容器约束）
+  5. **单元素数组容器**（#ts001 展开/压缩两侧——["@list"] 等价裸形；
+     ERR 已除，出形残余 deferred）
+- **转正 2 例**（t0111/t0106）；deferred 43（t0043/t0048/ts001 残层注记）
