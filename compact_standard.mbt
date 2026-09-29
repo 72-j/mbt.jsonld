@@ -191,6 +191,12 @@ fn compact_iri_word(
 }
 
 ///|
+/// 标量免注判定（#t0048——number/bool raw 保形体）
+fn literal_raw_is_scalar(lit : ExpandedLiteral) -> Bool {
+  lit.raw is Some(_)
+}
+
+///|
 /// 值适配判定（两遍分选核心——同 IRI 多 term 按值拆键：#t0006 datatype 失配
 /// term 弃用落前缀词、#t0015 五 term 按值归组、#t0002 纯 term 容语言值对象）：
 /// bare_fit = 该 term 可把值吸成裸形（datatype/language 吸收、@list 容器吸收、
@@ -276,10 +282,11 @@ fn compact_bare_fit(
             Some(Null) => lit.language is None
             None =>
               // 纯 term：语言态对齐 = 值语言 == context 缺省语言（裸形重展开
-              // 带回缺省语言——失配即不安全）
+              // 带回缺省语言——失配即不安全）；标量免注（#t0048——number/bool
+              // raw 保形体不受缺省语言注入）
               match lit.language {
                 Some(lang) => lang == active.default_language.unwrap_or("")
-                None => active.default_language is None
+                None => active.default_language is None || literal_raw_is_scalar(lit)
               }
           }
       }
@@ -566,11 +573,13 @@ fn compact_value_item(
             }
           None => ()
         }
-        // 对象形：{"@id": 压缩词}
+        // 对象形：{"@id": 压缩词}；@-词转义（#t0111 oracle——"@special"
+        // 重展开会被当关键字 ⇒ "./" 前缀逃逸）
         let word = match child.id {
           Some(id) => compact_iri_word(id, false, false, true, active, options)
           None => ""
         }
+        let word = if word.has_prefix("@") { "./" + word } else { word }
         return Ok(JsonValue::Object([("@id", JsonValue::String(word))]))
       }
       compact_node_graph_value_jv(child, active, options)
@@ -734,9 +743,10 @@ fn compact_node_jv(
         JsonValue::String(compact_iri_word(t, true, true, true, active, options)),
       )
     }
-    // 别名 term 带 @container @set ⇒ 恒数组（#t0105 oracle）
+    // 别名 term 带 @container @set ⇒ 恒数组（#t0105 oracle；#t0106
+    // oracle——1.0 模式数组塌缩不受 @set 容器约束）
     let type_set = match scoped.terms.get(type_key) {
-      Some(td) => td.container is Some(Set)
+      Some(td) => td.container is Some(Set) && options.processing_mode is JsonLd11
       None => false
     }
     if options.compact_arrays && types.length() == 1 && !type_set {

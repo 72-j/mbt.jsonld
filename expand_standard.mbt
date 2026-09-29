@@ -3669,6 +3669,24 @@ fn StandardExpander::process_expanded_term_definition(
                 if has_graph {
                   td_container = Some(ContainerType::Graph)
                   td_graph_secondary = secondary
+                } else if combo_items.length() == 1 {
+                  // 单元素数组容器 = 裸形等价（#ts001 oracle——["@list"]
+                  // 等价 "@list"；REC 1.1 数组形逐值处理）
+                  match combo_items[0] {
+                    JsonValue::String("@list") =>
+                      td_container = Some(ContainerType::List)
+                    JsonValue::String("@set") =>
+                      td_container = Some(ContainerType::Set)
+                    JsonValue::String("@language") =>
+                      td_container = Some(ContainerType::Language)
+                    JsonValue::String("@type") =>
+                      td_container = Some(ContainerType::Type)
+                    JsonValue::String("@index") =>
+                      td_container = Some(ContainerType::Index)
+                    JsonValue::String("@id") =>
+                      td_container = Some(ContainerType::Id)
+                    _ => ()
+                  }
                 }
               }
               _ => ()
