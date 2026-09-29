@@ -1080,12 +1080,7 @@ pub fn compact_document(
         match compact_node_jv(node, active, options) {
           Ok(jv) => {
             let graph_key = compact_iri_word(
-              "@graph",
-              true,
-              false,
-              true,
-              active,
-              options,
+              "@graph", true, false, true, active, options,
             )
             body_pairs.push((graph_key, JsonValue::Array([jv])))
           }
@@ -1107,7 +1102,9 @@ pub fn compact_document(
     }
     // @graph 包裹键走 term 词形（关键字别名——#t0014/#t0052 oracle：
     // "data":"@graph"/"graph":"@graph" → 别名作键；无别名回落 "@graph"）
-    let graph_key = compact_iri_word("@graph", true, false, true, active, options)
+    let graph_key = compact_iri_word(
+      "@graph", true, false, true, active, options,
+    )
     body_pairs.push((graph_key, JsonValue::Array(arr)))
   }
   // @context 原文发射（context 空 / 主体空均不发射）

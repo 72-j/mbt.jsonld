@@ -4512,7 +4512,9 @@ fn StandardExpander::expand_list_item(
               let single : ExpandedValue? = Some(vs[0])
               Ok(single)
             } else {
-              let grouped : ExpandedValue? = Some(ExpandedValue::List(vs, index=None))
+              let grouped : ExpandedValue? = Some(
+                ExpandedValue::List(vs, index=None),
+              )
               Ok(grouped)
             }
           }
