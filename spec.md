@@ -628,7 +628,7 @@ expand_standard/to_rdf 手写钩子），**不是模型 vs 引擎**——J2/J3 �
 |---|---|---|---|
 | expansion | 385（正 276 / 负 109） | ✅ **385/385 全 plain** | suite_expand_test pin（deferred=0）+ 值级对拍 |
 | toRDF | 467（正 345 / 负 106 / 句法 16） | ✅ **467/467 全 plain** | suite_tordf_test pin + 判定器（迷你 N-Quads 解析 + 集合同构） |
-| compact | 246（正 229 / 负 17） | 🚧 **210/246 plain**（正 195 + 负 15）/ deferred 36 在册 | suite_compact_test pin（deferred=36）+ canonical_for_suite 直比 + bnode 双射兜底 |
+| compact | 246（正 229 / 负 17） | 🚧 **213/246 plain**（正 198 + 负 15）/ deferred 33 在册 | suite_compact_test pin（deferred=33）+ canonical_for_suite 直比 + bnode 双射兜底 |
 | flatten | 58（正 57 / 负 1） | ✅ **56/58 plain**（正 55 + 负 1）/ deferred 2 在册 | suite_flatten_test pin（deferred=2）+ canonical_for_suite 直比 + bnode 双射兜底（isomorphic_for_suite——判定器自检四钉） |
 | fromRdf | 54 | ❌ 未实现 | ——（§8.39） |
 | html | 50 | ❌ 未实现 | ——（§8.39） |
@@ -642,9 +642,9 @@ expand_standard/to_rdf 手写钩子），**不是模型 vs 引擎**——J2/J3 �
 
 ### 8.39 缺口解释表（三分类钉——零 deferred ≠ 零缺口；2026-09-29）
 **「设计如此」**（范围/兼容性裁决，注出处）：
-1. compact 246 例——**已立案开工中**（2026-09-29 十九役 210/246 plain——
-   开工钉 §8.41 + 首波 §8.42 + 役2-19 实录 §8.43-§8.59；收官清点 §8.51
-   后 graph 簇 + scoped 边界 + 分选精化续批清空 41 例；deferred 36 逐簇在册）
+1. compact 246 例——**已立案开工中**（2026-09-29 二十役 213/246 plain——
+   开工钉 §8.41 + 首波 §8.42 + 役2-20 实录 §8.43-§8.60；收官清点 §8.51
+   后 graph 簇 + scoped 边界 + 分选精化续批清空 44 例；deferred 33 逐簇在册）
 2. @reverse 展开保形（非 REC 反转）——t0042 套件 oracle（同形异判表
    「oracle > 规范字面」族）
 3. JCS 键序码点序（非 RFC 字面 UTF-16 码元序）——#tjs13 套件 oracle（同族）
@@ -1288,3 +1288,17 @@ expand_standard/to_rdf 手写钩子），**不是模型 vs 引擎**——J2/J3 �
 - **回补**：Null 臂（language None + dir 合 ⇒ 裸串）；t0089 ✓ 全收口
 - **deferred 36**：t0089 已收；余 = tc 深层（base 多候选/@propagate）、
   t 系值分选残余、te002/tpr03
+
+### 8.60 vocab 前置重排落成（2026-09-29 役20；210 → 213/246 plain，零回退）
+- **重排**：IRI 压缩四步序改 = exact → **@vocab 相对词** → 最长前缀 →
+  base（vocab 步自 prefix 后前移；#t0023 oracle——vocab 相对词
+  "subdir/vocab/types/Test" 胜 prefix 词 "ex:vocab/types/Test"）。撞词
+  守门随步迁移（t0043 守护不变）。
+- **转正 3 例**：t0023（vocab 胜 prefix）/t0043 全收（双 name 合并面实为
+  撞词守门位置误——守门回补后直比过）/tc011（vocab 相对键）
+- **deferred 33**：t0041/42 ERR 簇（展开层 @index+@list 值对象缺口——
+  影响类单独立批）/t0044（reverse×双 term 排名）/t0045（../ 上级逃逸）/
+  t0024（list 语言类型交叉）/t0038（异形前缀）/t0007/t0029/t0030 之
+  残余/t0066/0110/tla01/tn/ts/ttn/tpr03/te002
+- **过程**：块搬移吃掉撞词守门（搬移切片取自改前文本）——搬移后必
+  grep 附属守门在场（⑦ 亦覆盖搬移形）
