@@ -1103,6 +1103,155 @@ fn compact_map_entry(
       }
     }
     Some(Index) => {
+      // 属性化索引分支（§8.47——td.index_mapping Some：子键 = index 属性
+      // 首值；残余留；键化值节点对象形 / @none 组走常规值压缩——不对称出形）
+      match td.index_mapping {
+        Some(raw_index_name) => {
+          // index_mapping 存原始 term 名（展开侧同款——用时期 IRI 展开得
+          // 属性 IRI；expand_iri vocab=false/docRel=true 与展开侧 3880 行
+          // 同参——@base 随压缩 active 链）
+          let prop_iri = match IriExpander::expand_iri(
+            StandardExpander::{ },
+            active,
+            raw_index_name,
+            false,
+            true,
+          ) {
+            Ok(iri) => iri
+            Err(_) => raw_index_name
+          }
+          match value {
+            ExpandedValue::Node(child) => {
+              let idx_vals : Array[ExpandedValue] = []
+              let rest_props : Array[(String, Array[ExpandedValue])] = []
+              for p in child.properties {
+                if p.0 == prop_iri {
+                  for iv in p.1 {
+                    idx_vals.push(iv)
+                  }
+                } else {
+                  rest_props.push(p)
+                }
+              }
+              // 子键推导：首值字面量直取串；节点引用按 prop 自己的 term 定
+              // 塌缩（无 term / 不可塌缩 = 无键 → @none——#tpi06 oracle）
+              let subkey_opt : String? = match idx_vals.get(0) {
+                Some(ExpandedValue::Value(lit)) => Some(lit.value)
+                Some(ExpandedValue::Node(ref_node)) =>
+                  if ref_node.id is Some(_) {
+                    let prop_cands = compact_term_candidates(prop_iri, false, active)
+                    let prop_td : TermDefinition? = match prop_cands {
+                      pcs if pcs.length() > 0 => active.terms.get(pcs[0])
+                      _ => None
+                    }
+                    match prop_td {
+                      Some(ptd) =>
+                        match ptd.datatype {
+                          Some("@id") | Some("@vocab") =>
+                            match ref_node.id {
+                              Some(rid) =>
+                                Some(
+                                  compact_iri_word(
+                                    rid,
+                                    false,
+                                    ptd.datatype is Some("@vocab"),
+                                    active,
+                                    options,
+                                  ),
+                                )
+                              None => None
+                            }
+                          _ => None
+                        }
+                      None => None
+                    }
+                  } else {
+                    None
+                  }
+                _ => None
+              }
+              // variant：prop 属性 = 残余值（空则整剥）
+              let variant_props : Array[(String, Array[ExpandedValue])] = []
+              for p in rest_props {
+                variant_props.push(p)
+              }
+              let variant : ExpandedNode = {
+                id: child.id,
+                types: child.types,
+                properties: variant_props,
+                reverse_props: child.reverse_props,
+                graph: child.graph,
+                included: child.included,
+                index: child.index,
+              }
+              if idx_vals.length() > 0 {
+                // 无键（首值不可串塌缩——#tpi06 oracle）→ 全形落 @none 组
+                //（prop 保原形走常规渲染）
+                if subkey_opt is None {
+                  match compact_value_item(value, Some(td), active, options) {
+                    Ok(jv) => return Some((none_key, jv))
+                    Err(_) => return None
+                  }
+                }
+                // 键化（或有残余可键化候选）：子键取首值；variant 挂残余
+                if rest_props.length() == child.properties.length() - 1 ||
+                  idx_vals.length() > 1 {
+                  // 残余值重挂回 prop 属性（首值已键化）
+                  let with_rest : Array[(String, Array[ExpandedValue])] = []
+                  for p in variant_props {
+                    with_rest.push(p)
+                  }
+                  if idx_vals.length() > 1 {
+                    let rest_vals : Array[ExpandedValue] = []
+                    for i in 1..<idx_vals.length() {
+                      rest_vals.push(idx_vals[i])
+                    }
+                    with_rest.push((prop_iri, rest_vals))
+                  }
+                  let variant2 : ExpandedNode = {
+                    id: variant.id,
+                    types: variant.types,
+                    properties: with_rest,
+                    reverse_props: variant.reverse_props,
+                    graph: variant.graph,
+                    included: variant.included,
+                    index: variant.index,
+                  }
+                  match compact_node_jv(variant2, active, options) {
+                    Ok(jv) => {
+                      let subkey = match subkey_opt {
+                        Some(sk) => sk
+                        None => none_key
+                      }
+                      return Some((subkey, jv))
+                    }
+                    Err(_) => return None
+                  }
+                } else {
+                  match compact_node_jv(variant, active, options) {
+                    Ok(jv) => {
+                      let subkey = match subkey_opt {
+                        Some(sk) => sk
+                        None => none_key
+                      }
+                      return Some((subkey, jv))
+                    }
+                    Err(_) => return None
+                  }
+                }
+              } else {
+                // 无 index 属性 → @none 组（常规值压缩链——#tpi05/#tpi06）
+                match compact_value_item(value, Some(td), active, options) {
+                  Ok(jv) => return Some((none_key, jv))
+                  Err(_) => return None
+                }
+              }
+            }
+            _ => return None
+          }
+        }
+        None => ()
+      }
       let subkey_opt : String? = match value {
         ExpandedValue::Node(child) => child.index
         ExpandedValue::Value(lit) => lit.index
