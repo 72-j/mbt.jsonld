@@ -176,7 +176,22 @@ fn compact_bare_fit(
   active : ActiveContext,
 ) -> Bool {
   match value {
-    ExpandedValue::List(_) => td.container is Some(List)
+    ExpandedValue::List(items) => {
+      if td.container is Some(List) {
+        // 方向感知选择（§8.48——td 带方向映射时首项方向须合：
+        // #tdi03 oracle——同 IRI 双 list term 按 ltr/rtl 分选）
+        match td.direction_mapping {
+          Some(Set(d)) =>
+            match items.get(0) {
+              Some(ExpandedValue::Value(lit)) => lit.direction == Some(d)
+              _ => true
+            }
+          _ => true
+        }
+      } else {
+        false
+      }
+    }
     ExpandedValue::Node(child) => {
       let id_only = child.types.is_empty() &&
         child.properties.is_empty() &&
@@ -192,7 +207,21 @@ fn compact_bare_fit(
         _ => false
       }
     }
-    ExpandedValue::Value(lit) =>
+    ExpandedValue::Value(lit) => {
+      // 方向态对齐总闸（§8.48——方向不合者不入 bare，与语言态同判据：
+      // 裸形重展开由 term/缺省注回同向才安全——#tdi01/#tdi07 oracle）
+      let dir_aligned = match td.direction_mapping {
+        Some(Set(d)) => lit.direction == Some(d)
+        Some(Null) => lit.direction is None
+        None =>
+          match lit.direction {
+            Some(d) => d == active.default_direction.unwrap_or("")
+            None => active.default_direction is None
+          }
+      }
+      if !dir_aligned {
+        return false
+      }
       match td.datatype {
         Some(dt) => {
           if dt is ("@id" | "@vocab") {
@@ -222,6 +251,7 @@ fn compact_bare_fit(
               }
           }
       }
+    }
   }
 }
 
@@ -245,7 +275,21 @@ fn compact_object_fit(
         Some(dt) => dt is ("@id" | "@vocab")
         None => true
       }
-    ExpandedValue::Value(lit) =>
+    ExpandedValue::Value(lit) => {
+      // 方向态对齐总闸（§8.48——与 bare_fit 同判据；方向不合者对象形也
+      // 不入 term，落残余兜底键——#tdi07 oracle）
+      let dir_aligned = match td.direction_mapping {
+        Some(Set(d)) => lit.direction == Some(d)
+        Some(Null) => lit.direction is None
+        None =>
+          match lit.direction {
+            Some(d) => d == _active.default_direction.unwrap_or("")
+            None => _active.default_direction is None
+          }
+      }
+      if !dir_aligned {
+        return false
+      }
       match td.datatype {
         // @id 型 term + 字面量：值对象形不被强转（仅裸串强转）——安全
         Some("@id") | Some("@vocab") => true
@@ -261,6 +305,7 @@ fn compact_object_fit(
             // 缺省语言 → 不安全（#t0015 plain literal oracle）
             None => lit.datatype is Some(_) || lit.language is Some(_)
           }
+      }
       }
   }
 }
@@ -289,14 +334,37 @@ fn compact_value_jv(
           }
         _ => ()
       }
-      // language 吸收（串值裸形）
+      // language 吸收（串值裸形；方向态须合——§8.48 同判据）
       match td.language_mapping {
         Some(Set(lang)) =>
           match literal.language {
-            Some(l) => if l == lang { return JsonValue::String(literal.value) }
+            Some(l) =>
+              if l == lang {
+                let dir_ok = match td.direction_mapping {
+                  Some(Set(d)) => literal.direction == Some(d)
+                  Some(Null) => literal.direction is None
+                  None => true
+                }
+                if dir_ok {
+                  return JsonValue::String(literal.value)
+                }
+              }
             None => ()
           }
         _ => ()
+      }
+      // direction 吸收（串值裸形——§8.48 #tdi03 oracle：list 项 @direction
+      // 合 td 方向映射即裸形，重展开注回同向）
+      match td.direction_mapping {
+        Some(Set(d)) =>
+          if literal.direction == Some(d) {
+            return JsonValue::String(literal.value)
+          }
+        Some(Null) =>
+          if literal.direction is None {
+            return JsonValue::String(literal.value)
+          }
+        None => ()
       }
     }
     None => ()
@@ -342,12 +410,16 @@ fn compact_value_jv(
       }
     None => ()
   }
+  // @language/@direction 走别名键（#tdi02 oracle——"direction":"@direction"
+  // → 键 "direction"；无别名回落关键字字面）
+  let lang_key = compact_iri_word("@language", true, false, active, options)
+  let dir_key = compact_iri_word("@direction", true, false, active, options)
   match literal.language {
-    Some(lang) => pairs.push(("@language", JsonValue::String(lang)))
+    Some(lang) => pairs.push((lang_key, JsonValue::String(lang)))
     None => ()
   }
   match literal.direction {
-    Some(dir) => pairs.push(("@direction", JsonValue::String(dir)))
+    Some(dir) => pairs.push((dir_key, JsonValue::String(dir)))
     None => ()
   }
   match literal.index {
@@ -905,9 +977,19 @@ fn compact_node_jv(
         _ => ()
       }
     }
-    // 残余 → 兜底键（前缀/相对词形——#t0006 "ex:term1" oracle）
+    // 残余 → 兜底键（前缀/相对词形——#t0006 "ex:term1" oracle）；本属性
+    // 已有 term 组时禁 vocab 步（#tdi07 oracle——vocab 相对词撞 term 键，
+    // 落全 IRI）
     if leftovers.length() > 0 {
-      let fallback_key = compact_iri_word(pair.0, false, true, active, options)
+      let fallback_vocab = group_keys.length() == 0 && map_names.length() == 0
+      let fallback_key = compact_iri_word(
+        pair.0,
+        false,
+        fallback_vocab,
+        active,
+        options,
+      )
+
       let out = if options.compact_arrays && leftovers.length() == 1 {
         leftovers[0]
       } else {
@@ -1301,6 +1383,20 @@ fn compact_map_entry(
     Some(Language) =>
       match value {
         ExpandedValue::Value(lit) => {
+          // 方向过滤（§8.48——方向不合者不入语言图，落残余兜底键——
+          // #tdi07 oracle：不合值成 vocab:label 值对象数组）
+          let dir_ok = match td.direction_mapping {
+            Some(Set(d)) => lit.direction == Some(d)
+            Some(Null) => lit.direction is None
+            None =>
+              match lit.direction {
+                Some(d) => d == active.default_direction.unwrap_or("")
+                None => active.default_direction is None
+              }
+          }
+          if !dir_ok {
+            return None
+          }
           // 串值裸形（语言键化即剥——#tm012 oracle）；无语言 → @none
           let subkey = match lit.language {
             Some(lang) => lang
