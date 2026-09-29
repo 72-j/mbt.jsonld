@@ -117,7 +117,12 @@ expand_top_values 全链，修正单点落共享函数，385+416 两面同批受
 ### 同形异判实例（J2 语义分叉地图；2026-09-26 立节，持续收录）
 「输入相似/相同而判定不同」的 oracle 对——**禁止单一规则覆盖整族**，逐对勘定
 分叉轴后再落码；新增分叉对入本表。**族的归族维度统一入册**（每族一轴——
-族头括注；行级「分叉维度」列 = 轴内的具体分叉点）：
+族头括注；行级「分叉维度」列 = 轴内的具体分叉点）。**轴的选择依据** = 对内
+最小差异属性：逐对勘定「输入保持同形时**唯一翻转判定的属性**」，该属性即
+轴——@vocab 族对内唯一翻转属性 = processingMode/specVersion（#t0092[1.1]
+vs #t0115/#t0116[1.0] 同 vocab 输入异判定）；@value:null 族 = 值对象形态与
+挂载辖域；scoped 族 = 上下文来源位；权威位族 = 判定依据层（规范字面 vs
+套件 oracle）。禁按主题归类定轴（主题相近判定同向者不成族）：
 | 实例对 | 分叉维度 | 分叉轴 | 判定差异 |
 | #t0003 vs #t0004 | 形态分叉 | 值形态（null vs 空数组字面值） | null 值属性整体丢弃；空数组字面值属性保留（"set1": []——同文档两组键并存） |
 | #tli01 vs #ter24/#ter32 | specVersion 分叉 | processingMode/specVersion | 同输入（@list 嵌套）：1.1 允许保留 / 1.0 list of lists 禁止 |
@@ -623,7 +628,7 @@ expand_standard/to_rdf 手写钩子），**不是模型 vs 引擎**——J2/J3 �
 |---|---|---|---|
 | expansion | 385（正 276 / 负 109） | ✅ **385/385 全 plain** | suite_expand_test pin（deferred=0）+ 值级对拍 |
 | toRDF | 467（正 345 / 负 106 / 句法 16） | ✅ **467/467 全 plain** | suite_tordf_test pin + 判定器（迷你 N-Quads 解析 + 集合同构） |
-| compact | 246（正 229 / 负 17） | 🚧 **146/246 plain**（正 131 + 负 15）/ deferred 100 在册 | suite_compact_test pin（deferred=100）+ canonical_for_suite 直比 + bnode 双射兜底 |
+| compact | 246（正 229 / 负 17） | 🚧 **153/246 plain**（正 138 + 负 15）/ deferred 93 在册 | suite_compact_test pin（deferred=93）+ canonical_for_suite 直比 + bnode 双射兜底 |
 | flatten | 58（正 57 / 负 1） | ✅ **56/58 plain**（正 55 + 负 1）/ deferred 2 在册 | suite_flatten_test pin（deferred=2）+ canonical_for_suite 直比 + bnode 双射兜底（isomorphic_for_suite——判定器自检四钉） |
 | fromRdf | 54 | ❌ 未实现 | ——（§8.39） |
 | html | 50 | ❌ 未实现 | ——（§8.39） |
@@ -941,3 +946,36 @@ expand_standard/to_rdf 手写钩子），**不是模型 vs 引擎**——J2/J3 �
   首跑回退此二例暴露首稿「串联」表述之误，精化为豁免位后全过）
 - **过程**：match 作 `&&` 操作数须括号化（[3002] 第三度现形）；fmt 重排锚
   漂移两度——补丁全带 assert 锚 + grep 复核
+
+### 8.47 tpi 属性化索引批开工钉（2026-09-29 役6 前置——与役2 @index 容器的关系）
+
+**关系 = 役2 映射归组共机制的延续 + 独立子键来源**（同 arm 分叉，非混批）：
+- **延续面**：出形（映射容器归组 + 组内塌缩 + @none 兜底）全沿 §8.43 共
+  机制；路由位同在 compact_map_entry 的 Index arm。
+- **分叉面（子键来源不同源——§8.43 已预注「单独立批」）**：
+  - 役2 @index 容器（`td.index_mapping = None`）：子键 = 值的 **@index 成员**
+    （展开期容器应用写入）——已落，本批不动。
+  - 本批 tpi（`td.index_mapping = Some(prop_iri)`）：子键 = **属性位取键**——
+    展开期索引被写成属性（index_mapping），值**不带 @index**。
+- **oracle 形钉**（tpi01-06 逐例勘定）：
+  1. **首值键化、残余留**（同 @type map 首键化同构——#tpi01/#tpi02）：子键 =
+     index 属性**首个值**（字面量直取串；节点引用须可串塌缩——按 prop 自己
+     的 term 定夺，#tpi03 @type:@id → base 相对词）；**残余值留**为 prop 属性
+     （#tpi02 "prop":"foo" / #tpi04 节点引用残串）
+  2. **不对称出形**（#tpi01 vs #tpi05）：**键化值** = 节点对象形（剥首索引值
+     后纯 node 渲染，即便 id-only 不塌缩——#tpi01 `{@id:person/1}`）；
+     **@none 组值** = 常规值压缩链（compact_value_item + 容器 term 的 td——
+     id-only 串塌缩 #tpi05 数组串 / 带属态对象形 #tpi06）
+  3. **不可串塌缩的索引值 → @none**（#tpi06 oracle——prop 无 term 定义时
+     节点引用不塌缩 = 无键，prop 保 {@id} 对象形随值落 @none 组）
+  4. **无 index 属性 → @none**（#tpi05）
+
+#### 8.47.1 tpi 批落成（2026-09-29 役6；146 → 153/246 plain，+7 零回退）
+- **落码**（§8.47 钉兑现）：compact_map_entry Index arm 分叉——
+  `td.index_mapping` Some → 属性化索引分支（index_mapping 存**原始 term
+  名**——用时期 expand_iri(vocab=false/docRel=true) 得属性 IRI，与展开侧
+  同参；首值键化（字面量直取串 / 节点引用按 prop 自己的 term 定塌缩）、
+  残余值留、无键全形落 @none、无属性 @none 走常规值压缩）
+- **转正 7 例**：tpi01-06 全族 + t0112/0113（随批闭合）
+- **deferred 93 在册**：nullification 族（tc014/tc018——影响定性 §8.44）、
+  tla01（语言敏感 list 分选）、te002/tpr03、t 系杂族
