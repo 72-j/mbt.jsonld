@@ -628,7 +628,7 @@ expand_standard/to_rdf 手写钩子），**不是模型 vs 引擎**——J2/J3 �
 |---|---|---|---|
 | expansion | 385（正 276 / 负 109） | ✅ **385/385 全 plain** | suite_expand_test pin（deferred=0）+ 值级对拍 |
 | toRDF | 467（正 345 / 负 106 / 句法 16） | ✅ **467/467 全 plain** | suite_tordf_test pin + 判定器（迷你 N-Quads 解析 + 集合同构） |
-| compact | 246（正 229 / 负 17） | 🚧 **153/246 plain**（正 138 + 负 15）/ deferred 93 在册 | suite_compact_test pin（deferred=93）+ canonical_for_suite 直比 + bnode 双射兜底 |
+| compact | 246（正 229 / 负 17） | 🚧 **156/246 plain**（正 141 + 负 15）/ deferred 90 在册 | suite_compact_test pin（deferred=90）+ canonical_for_suite 直比 + bnode 双射兜底 |
 | flatten | 58（正 57 / 负 1） | ✅ **56/58 plain**（正 55 + 负 1）/ deferred 2 在册 | suite_flatten_test pin（deferred=2）+ canonical_for_suite 直比 + bnode 双射兜底（isomorphic_for_suite——判定器自检四钉） |
 | fromRdf | 54 | ❌ 未实现 | ——（§8.39） |
 | html | 50 | ❌ 未实现 | ——（§8.39） |
@@ -979,3 +979,40 @@ expand_standard/to_rdf 手写钩子），**不是模型 vs 引擎**——J2/J3 �
 - **转正 7 例**：tpi01-06 全族 + t0112/0113（随批闭合）
 - **deferred 93 在册**：nullification 族（tc014/tc018——影响定性 §8.44）、
   tla01（语言敏感 list 分选）、te002/tpr03、t 系杂族
+
+### 8.48 tdi 方向批开工钉（2026-09-29 役7 前置——与丙批 @direction 的关系）
+
+**定性 = 丙批方向机制在压缩面的逆用**（既非 compaction 的逆、也非 J3.4）：
+- **与丙批的关系**：丙批（J2 系——ActiveContext default_direction /
+  TermDefinition direction_mapping 三态）= **展开期方向注入**（context 方向
+  态注入值对象 `@direction`）；本批 = **压缩期方向吸收**（值对象 `@direction`
+  被 td/缺省方向态吸收成裸形——重展开注回同向即安全，同语言态对齐判据）。
+  机制同源（direction_mapping 三态语义同一份）、方向相反（注入 vs 吸收）。
+- **与 J3.4 rdfDirection 的关系 = 无**：那是 toRDF 序列化面（i18n-datatype /
+  compound-literal 出账形），tdi 全族无一涉 RDF。
+- **落码位四处**（compaction 机制节族）：
+  1. bare_fit 增方向态臂（Set(d) 吸同向 / Null 吸无向 / None 吸缺省对齐——
+     #tdi01 oracle：term5 @direction:null 吸无向值成裸串）
+  2. compact_value_jv 裸形臂增方向对齐 + **@direction 别名键**（#tdi02
+     oracle："direction":"@direction" → 键 "direction"）
+  3. **List 方向选择**（#tdi03 oracle——同 IRI 双 list term 按首项方向分选
+     foo_ltr/foo_rtl）
+  4. **Language map 方向过滤**（#tdi04/#tdi07 oracle——方向合者入语言图成
+     裸串、不合者落残余兜底键 vocab:label 值对象数组）
+- **deferred 底账不变**：nullification 族 / te002 / t 系杂族。
+
+#### 8.48.1 tdi 批落成（2026-09-29 役7；153 → 156/246 plain，+3 零回退）
+- **落码**（§8.48 四落码位兑现 + 探针两轮精修）：
+  1. bare_fit/object_fit **方向态总闸**（Set 吸同向 / Null 吸无向 / None 吸
+     缺省对齐——方向不合者任何形不入 term，#tdi07 oracle：不合值落残余
+     兜底键 vocab:label 值对象数组）
+  2. compact_value_jv **direction 吸收臂** + 裸形臂语言/方向双对齐
+     （#tdi01 oracle：term5 @direction:null 吸无向值）
+  3. **List 方向选择**（#tdi03 oracle：同 IRI 双 list term 按首项方向分选）
+  4. **Language map 方向过滤**（#tdi04/#tdi05/#tdi06 随方向闸闭合）+
+     **@language/@direction 别名键**（#tdi02 oracle）
+  5. **残余兜底 vocab 守门**（本属性有 term 组/映射组时禁 vocab 步——
+     #tdi07 oracle：vocab 相对词撞 term 键）
+- **转正 3 例**：tdi02/03/07（tdi01/04/05/06 随方向闸早批已过）
+- **过程**：object_fit 缺方向闸一度让不适值成组（探针打点实证 fallback 未
+  触发即组内出形——「打点定位 + 撤点收尾」标准动作复用）
