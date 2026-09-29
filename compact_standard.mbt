@@ -748,6 +748,28 @@ fn compact_node_jv(
         None => ()
       }
     }
+    // 多值 @set 候选偏好（§8.54——多值时 @set term 保形胜出，候选序前置；
+    // #t0027 oracle——label/container 同 IRI，多值归 @set 版）
+    if pair.1.length() > 1 {
+      let sets : Array[(String, TermDefinition)] = []
+      let rest : Array[(String, TermDefinition)] = []
+      for entry in cand_tds {
+        if entry.1.container is Some(Set) {
+          sets.push(entry)
+        } else {
+          rest.push(entry)
+        }
+      }
+      if sets.length() > 0 {
+        cand_tds.clear()
+        for entry in sets {
+          cand_tds.push(entry)
+        }
+        for entry in rest {
+          cand_tds.push(entry)
+        }
+      }
+    }
     // 映射容器候选（单 @index/@id/@type/@language——§8.43 共性路由位）
     let map_tds : Array[(String, TermDefinition)] = []
     for entry in cand_tds {
