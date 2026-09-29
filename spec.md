@@ -628,7 +628,7 @@ expand_standard/to_rdf 手写钩子），**不是模型 vs 引擎**——J2/J3 �
 |---|---|---|---|
 | expansion | 385（正 276 / 负 109） | ✅ **385/385 全 plain** | suite_expand_test pin（deferred=0）+ 值级对拍 |
 | toRDF | 467（正 345 / 负 106 / 句法 16） | ✅ **467/467 全 plain** | suite_tordf_test pin + 判定器（迷你 N-Quads 解析 + 集合同构） |
-| compact | 246（正 229 / 负 17） | 🚧 **213/246 plain**（正 198 + 负 15）/ deferred 33 在册 | suite_compact_test pin（deferred=33）+ canonical_for_suite 直比 + bnode 双射兜底 |
+| compact | 246（正 229 / 负 17） | 🚧 **215/246 plain**（正 200 + 负 15）/ deferred 31 在册 | suite_compact_test pin（deferred=31）+ canonical_for_suite 直比 + bnode 双射兜底 |
 | flatten | 58（正 57 / 负 1） | ✅ **56/58 plain**（正 55 + 负 1）/ deferred 2 在册 | suite_flatten_test pin（deferred=2）+ canonical_for_suite 直比 + bnode 双射兜底（isomorphic_for_suite——判定器自检四钉） |
 | fromRdf | 54 | ❌ 未实现 | ——（§8.39） |
 | html | 50 | ❌ 未实现 | ——（§8.39） |
@@ -642,9 +642,9 @@ expand_standard/to_rdf 手写钩子），**不是模型 vs 引擎**——J2/J3 �
 
 ### 8.39 缺口解释表（三分类钉——零 deferred ≠ 零缺口；2026-09-29）
 **「设计如此」**（范围/兼容性裁决，注出处）：
-1. compact 246 例——**已立案开工中**（2026-09-29 二十役 213/246 plain——
-   开工钉 §8.41 + 首波 §8.42 + 役2-20 实录 §8.43-§8.60；收官清点 §8.51
-   后 graph 簇 + scoped 边界 + 分选精化续批清空 44 例；deferred 33 逐簇在册）
+1. compact 246 例——**已立案开工中**（2026-09-29 廿一役 215/246 plain——
+   开工钉 §8.41 + 首波 §8.42 + 役2-23 实录 §8.43-§8.62；收官清点 §8.51
+   后 graph 簇 + scoped 边界 + 分选精化续批清空 46 例；deferred 31 逐簇在册）
 2. @reverse 展开保形（非 REC 反转）——t0042 套件 oracle（同形异判表
    「oracle > 规范字面」族）
 3. JCS 键序码点序（非 RFC 字面 UTF-16 码元序）——#tjs13 套件 oracle（同族）
@@ -1321,3 +1321,17 @@ expand_standard/to_rdf 手写钩子），**不是模型 vs 引擎**——J2/J3 �
   ——**单独立批**（模型变体扩展，非一行件）
 - **影响类定性维持**：涉共享展开面（expand_list_set_object 为 expand/compact
   共用），修时须 expand 385 + toRdf 467 全绿复验
+
+### 8.62 List index 槽批落成（2026-09-29 役23；213 → 215/246 plain，零回退）
+- **模型扩展**：`ExpandedValue::List` 加 `index~ : String?` 标签槽（构造点
+  5 处显式 None、pattern 位 14 处补 `..`、wbtest 2 处——编译器驱动全清点）
+- **展开侧**：expand_list_set_object 增 @index 键捕获（挂 index_value、
+  不落 impure——{@index,@list} 值对象合法，#t0041 oracle；P1/P2/P3 证据
+  矩阵定案 §8.60.1）
+- **压缩侧**：index 闸双 fit（带 @index 的 list 不入 @list term，落
+  full-IRI 残余键保 {@list,@index} 形——#t0041 oracle）；List 通用渲染
+  带 index ⇒ {@list,@index} 对象形；@list/@index 键走别名（#t0042
+  oracle——listAlias/indexAlias）
+- **转正 2 例**：t0041/t0042 全收口；**deferred 31**
+- **REC 尾注**：serialize_value List 展开形仍出纯 {@list}（REC expanded
+  形不带 @index——J2 对拍通道零扰动）
