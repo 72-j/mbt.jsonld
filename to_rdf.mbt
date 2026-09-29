@@ -188,7 +188,7 @@ fn nq_reserve_labels(value : ExpandedValue, into : Map[String, Bool]) -> Unit {
         None => ()
       }
     }
-    ExpandedValue::List(items) =>
+    ExpandedValue::List(items, ..) =>
       for item in items {
         nq_reserve_labels(item, into)
       }
@@ -325,7 +325,7 @@ fn nq_merge_same_id(
       }
       Ok(())
     }
-    ExpandedValue::List(items) => {
+    ExpandedValue::List(items, ..) => {
       for it in items {
         match nq_merge_same_id(it, ctx, graph_key) {
           Err(e) => return Err(e)
@@ -793,7 +793,7 @@ fn nq_value_term(
         None => None
       }
     ExpandedValue::Value(l) => nq_directional_literal_term(state, l, graph)
-    ExpandedValue::List(items) => Some(nq_list_to_rdf(state, items, graph))
+    ExpandedValue::List(items, ..) => Some(nq_list_to_rdf(state, items, graph))
   }
 }
 

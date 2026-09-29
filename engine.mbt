@@ -267,7 +267,7 @@ fn serialize_value(value : ExpandedValue) -> JsonValue {
       }
       JsonValue::Object(pairs)
     }
-    ExpandedValue::List(items) =>
+    ExpandedValue::List(items, ..) =>
       JsonValue::Object([
         ("@list", JsonValue::Array(items.map(serialize_value))),
       ])
@@ -657,7 +657,7 @@ fn flatten_reserve(value : ExpandedValue, into : Map[String, Bool]) -> Unit {
         None => ()
       }
     }
-    ExpandedValue::List(items) =>
+    ExpandedValue::List(items, ..) =>
       for it in items {
         flatten_reserve(it, into)
       }
@@ -716,7 +716,7 @@ fn flatten_walk_value(
       Some(JsonValue::Object([("@id", JsonValue::String(term))]))
     }
     ExpandedValue::Value(l) => Some(serialize_value(ExpandedValue::Value(l)))
-    ExpandedValue::List(items) => {
+    ExpandedValue::List(items, ..) => {
       // @list 保序保重复（#t0027 oracle：list 2,2 保留）
       let arr : Array[JsonValue] = []
       for it in items {
