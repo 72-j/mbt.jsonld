@@ -1239,10 +1239,14 @@ expand_standard/to_rdf 手写钩子），**不是模型 vs 引擎**——J2/J3 �
     ——**最短词形排名**（pass-1 多候选同 bare-fit 取塌缩词最短：exact 词 <
     base 相对 < 全 IRI）；t0089/t0026（无语言值辖域——language-null term
     确定性胜出，pre-map 扫描限定无语言值）
-  - **个案**：t0007（id-term 键面 this-is-not-an-IRI——@vocab 无链值位的
-    base 逃逸深研）、t0029/t0030（@index 图与数组出形逐字符 diff 定位——
-    可见形全同差异在深层）、t0066/0110（base 文档位多形态——目录/文件/
-    query/fragment 各归各）、t0089 已收、t0106 已收
+  - **个案**：t0007（**未实现**——值位 id-term 取舍：字串值经 @id 项塌缩
+    词与 full-IRI 键，oracle 取后者；无在册裁定 = 非设计如此，实现未落 =
+    非依赖外；判定树 Q1：钉文无此行为 ⇒ 补钉随批）、t0066/0110（base
+    文档位多形态——目录/文件/query/fragment 各归各）、t0089 已收、t0106
+    已收
+  - **【役17 撤销】t0029/t0030 个案判断注销**：逐字符探针实证规范形已
+    全同——役15 逆序套用顺手修平且已在册，「差异在深层」旧判断过时
+    （过时判断须撤销条，ctx §3）
   - **依赖别的批**：tc007/011/015/016/020/024/026（scoped 深层——base 子树
     传导/@propagate）、te002/tpr03（影响类纪律）、tjs07/09（@json 判定）、
     tn006-009（nest×容器）、ts001/002（数组容器出形）、ttn01-03（type-scoped
@@ -1251,3 +1255,27 @@ expand_standard/to_rdf 手写钩子），**不是模型 vs 引擎**——J2/J3 �
 - **转正 2 例**：t0089（无语言值辖域）+ t0027 复核；最短词形排名转正
   t0057/t0061/t0044 部分
 - **deferred 38 在册**
+
+### 8.59 tc 深层批开工钉（2026-09-29 役18 前置——base 轨与役3 双链分立的关系）
+
+**定性 = 役3 双链分立的「第三轨补全」，非新机制**：
+- 役3 双链 = **键选择链（scoped）** + **值成形链（outer + shaping 裁量）**；
+  本批补的是 **base 轨**——@id/词形的 base 相对化归属：
+  **base 轨随 scoped 链**（节点自身 type-scoped @base 传导至本节点值位
+  词形——#tc015 oracle：typed-base 下 "#typed-id" 片段相对）、**term/
+  成形轨随 outer + shaping 裁量**（tc009 @vocab 不塌等裁决不变）。
+- 三轨合记 = **键选 scoped / 词形 base scoped / 成形 outer**——双链分立
+  的细化（base 从成形链拆出独立随键选链），非推翻非另起。
+- **@propagate 面**（#tc026）：type-scoped @propagate:true 传导至嵌套节点
+  的键选轨——是键选链的**传导半径**扩展，机制同源；与 base 轨分立落码。
+- **nullification 纪律**照 §8.44 更正版：涉共享 process_context 仍单独立批。
+
+#### 8.59.1 base 轨落码（2026-09-29 役18；套件净中性 208 持平）
+- **value_chain 三处接入**（partition chosen/leftover/pre-map 扫描）：
+  值位词形 base 相对化随节点自身 scoped 链（tc015 typed-base ✓ subject/
+  base-id 片段相对闭合）；term/成形轨 outer 裁量不变（tc009 守卫复验 ✓）
+- **tc015 残余定性**：typed/nested 值仍红——各值相对其**解析时 base**
+  （typed 值→typed-base、nested 值→base-base），压缩期须**多 base 候选
+  排名**（IRI 面深层），deferred 注记
+- **净中性定性**：套件 208 持平零回退——base 轨为正确性补全（tc015
+  部分改善），无 oracle 反证
