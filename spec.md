@@ -1309,3 +1309,15 @@ expand_standard/to_rdf 手写钩子），**不是模型 vs 引擎**——J2/J3 �
   词）；回退分支**恒追加**修（首版 `Some(_) => ()` 吞同键第二值——t0050
   gregg 丢失即抓，harness pin 当轮拦截）
 - **deferred 33 不变**（t0044 移入已收；其余簇照 §8.58/§8.60 挂靠）
+
+#### 8.60.1 t0041/42 影响类勘定深挖（2026-09-29 役22——证据矩阵 + 模型缺口定位）
+- **探针证据矩阵**（{@index,@list} 组合逐形）：{@list} 单独 OK / {@index,
+  @value} OK（#t0036 已落）/ **{@index,@list} ERR**——expand_list_set_object
+  的 @index 键落 `else → impure` ⇒ invalid set or list object
+- **模型缺口定位**：impure 判据按 REC 本无错——错在**修不动**：
+  `ExpandedValue::List` 变体**无 index 槽位**，{@index,@list} 展开产物
+  无法携带 index 贯通压缩（t0041 oracle 要求 {@list,@index} 出形）。
+  修法 = List 变体加 index 槽（构造点全清点 + 压缩 List 路出 @index 形）
+  ——**单独立批**（模型变体扩展，非一行件）
+- **影响类定性维持**：涉共享展开面（expand_list_set_object 为 expand/compact
+  共用），修时须 expand 385 + toRdf 467 全绿复验
