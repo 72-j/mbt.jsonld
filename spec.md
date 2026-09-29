@@ -1335,3 +1335,17 @@ expand_standard/to_rdf 手写钩子），**不是模型 vs 引擎**——J2/J3 �
 - **转正 2 例**：t0041/t0042 全收口；**deferred 31**
 - **REC 尾注**：serialize_value List 展开形仍出纯 {@list}（REC expanded
   形不带 @index——J2 对拍通道零扰动）
+
+### 8.63 shaping 取舍序修正落成（2026-09-29 役24；210 → 216/246 plain，零回退）
+- **打点实证**（COLLAPSE tddt 双行）：bar 值渲染两发——scoped @id 一发
+  （rank 内 ✓）+ **outer xsd:string 覆盖一发**（chosen 渲染 ✗）——
+  「outer 同名全权」shaping 序越位实锤
+- **修正**：shaping 取舍序 = scoped 定义 datatype=@id ⇒ **scoped 全权**
+  （type-scoped 定义对该节点就是全量定义——#tc007 oracle）；@vocab 型仍
+  随 outer（tc009 不塌裁断不变——@vocab 传导需 @propagate，tc026 面另批）
+- **转正 6 例**：tc007（scoped @id 塌缩）/tc015（base 轨 + 片段相对叠加
+  全收）/tc016（scoped @vocab 键选已通、值位随 shaping 序补齐）/tc020/
+  tc024/tc012 复核全绿
+- **deferred 30**：tc026（@propagate 传导——需 apply 链 propagate 位跟踪）、
+  tc011 已收、nullification 残（te002/tpr03）、t 系值分选残余（t0015/18/
+  22/24/38/44/45/48/66/89/110）、tla01/tm007/tn006-009/ts001-002/ttn01-03
