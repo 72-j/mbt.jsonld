@@ -605,6 +605,17 @@ fn compact_node_jv(
         map_tds.push(entry)
       }
     }
+    // @graph 容器候选（§8.45——container=Graph，次级 Id/Index/None）
+    let mut graph_td : (String, TermDefinition)? = None
+    for entry in cand_tds {
+      if entry.1.container is Some(Graph) {
+        graph_td = Some(entry)
+        break
+      }
+    }
+    // 图归组账（次级键 → 内容数组；裸次级 → 内容数组直列）
+    let graph_subs : Array[(String, Array[JsonValue])] = []
+    let graph_bares : Array[JsonValue] = []
     // 映射归组账（term 键 → (subkey, 渲染值) 列表；首现序）
     let map_names : Array[String] = []
     let map_subs : Map[String, Array[(String, JsonValue)]] = Map([])
@@ -619,6 +630,62 @@ fn compact_node_jv(
     let group_tds : Map[String, TermDefinition] = Map([])
     let leftovers : Array[JsonValue] = []
     for v in pair.1 {
+      // @graph 容器路由优先（§8.45——图载体值；次级定归组键）
+      let mut graph_done = false
+      match graph_td {
+        Some((_, gtd)) =>
+          match v {
+            ExpandedValue::Node(child) =>
+              match child.graph {
+                Some(items) => {
+                  let content : Array[JsonValue] = []
+                  for it in items {
+                    match it {
+                      ExpandedValue::Node(sub) =>
+                        match compact_node_jv(sub, active, options) {
+                          Ok(jv) => content.push(jv)
+                          Err(e) => return Err(e)
+                        }
+                      _ => ()
+                    }
+                  }
+                  let none_key = compact_iri_word(
+                    "@none",
+                    true,
+                    false,
+                    active,
+                    options,
+                  )
+                  match gtd.graph_secondary {
+                    Some(Id) => {
+                      let subkey = match child.id {
+                        Some(id) =>
+                          compact_iri_word(id, false, false, active, options)
+                        None => none_key
+                      }
+                      graph_subs.push((subkey, content))
+                    }
+                    Some(Index) => {
+                      let subkey = match child.index {
+                        Some(ix) => ix
+                        None => none_key
+                      }
+                      graph_subs.push((subkey, content))
+                    }
+                    Some(List) | Some(Set) | Some(Language) | Some(Type) | Some(Graph) => ()
+                    None => graph_bares.push(JsonValue::Array(content))
+                  }
+                  graph_done = true
+                }
+                None => ()
+              }
+            _ => ()
+          }
+        None => ()
+      }
+      if graph_done {
+        continue
+      }
       // 映射归组优先（§8.43——值 fit 映射容器即归组；不适值照旧分选）
       let mut map_done = false
       for entry in map_tds {
@@ -713,6 +780,44 @@ fn compact_node_jv(
           leftovers.push(jv)
         }
       }
+    }
+    // @graph 容器出键（§8.45——次级键映射归并内容数组；裸次级数组直出）
+    match graph_td {
+      Some((gname, gtd)) => {
+        if graph_subs.length() > 0 {
+          let sub_pairs : Array[(String, JsonValue)] = []
+          let sub_keys : Array[String] = []
+          let sub_vals : Map[String, Array[JsonValue]] = Map([])
+          for entry in graph_subs {
+            match sub_vals.get(entry.0) {
+              Some(arr) =>
+                for jv in entry.1 {
+                  arr.push(jv)
+                }
+              None => {
+                sub_vals[entry.0] = entry.1
+                sub_keys.push(entry.0)
+              }
+            }
+          }
+          for sub in sub_keys {
+            match sub_vals.get(sub) {
+              Some(arr) => sub_pairs.push((sub, JsonValue::Array(arr)))
+              None => ()
+            }
+          }
+          pairs.push((gname, JsonValue::Object(sub_pairs)))
+        } else if graph_bares.length() > 0 {
+          let out = if graph_bares.length() == 1 {
+            graph_bares[0]
+          } else {
+            JsonValue::Array(graph_bares)
+          }
+          pairs.push((gname, out))
+        }
+        let _ = gtd
+      }
+      None => ()
     }
     // 容器逆形映射出键（§8.43——subkey → 值；单值塌缩随 compactArrays）
     for name in map_names {
@@ -913,7 +1018,9 @@ fn compact_map_entry(
       }
       let rendered : Result[JsonValue, JsonLdError] = match value {
         ExpandedValue::Node(child) => {
-          // 首 type 键化、残余留（#tm004 oracle——types[1:] 浅拷贝出形）
+          // 首 type 键化、残余留（#tm004 oracle——types[1:] 浅拷贝出形）；
+          // 剥后 id-only ⇒ 串塌缩**无条件**（#tm020/#tm022 oracle——不要求
+          // td @type；vocab 旗仍随 td：tm020 base 相对 / tm022 vocab 相对）
           let rest : Array[String] = []
           for i in 1..<child.types.length() {
             rest.push(child.types[i])
@@ -927,7 +1034,31 @@ fn compact_map_entry(
             included: child.included,
             index: child.index,
           }
-          compact_node_jv(variant, active, options)
+          let variant_bare = variant.types.is_empty() &&
+            variant.properties.is_empty() &&
+            variant.reverse_props.is_empty() &&
+            variant.graph is None &&
+            variant.included is None &&
+            variant.index is None
+          if variant_bare {
+            match variant.id {
+              Some(id) =>
+                Ok(
+                  JsonValue::String(
+                    compact_iri_word(
+                      id,
+                      false,
+                      td.datatype is Some("@vocab"),
+                      active,
+                      options,
+                    ),
+                  ),
+                )
+              None => compact_node_jv(variant, active, options)
+            }
+          } else {
+            compact_node_jv(variant, active, options)
+          }
         }
         ExpandedValue::Value(lit) => {
           // 字面量 datatype 键化 → 值对象去 @type 对

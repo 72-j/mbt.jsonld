@@ -15,9 +15,9 @@ async test "compact suite harness: manifest-driven buckets" {
     Some(@jsonld.JsonValue::Array(entries)) => entries
     _ => fail("manifest sequence missing")
   }
-  // J6 首波 + 役2 容器逆形 + 役3 scoped 压缩面（2026-09-29；132/246 plain——
-  // 正 117 + 负 15；缺口在册 §8.42-§8.44——nullification 族/@graph 容器/
-  // @index mapping/语言敏感 list/te002）
+  // J6 首波 + 役2 容器逆形 + 役3 scoped + 役4 @graph 容器（2026-09-29；
+  // 145/246 plain——正 130 + 负 15；缺口在册 §8.42-§8.45——nullification
+  // 族/tpi 属性化索引/语言敏感 list/前缀 gen-delim 边界/te002）
   let migrated : Array[String] = [
     "#t0001", "#t0002", "#t0003", "#t0005", "#t0006", "#t0008", "#t0009", "#t0010",
     "#t0011", "#t0012", "#t0013", "#t0014", "#t0016", "#t0017", "#t0019", "#t0020",
@@ -25,7 +25,8 @@ async test "compact suite harness: manifest-driven buckets" {
     "#t0033", "#t0034", "#t0035", "#t0039", "#t0040", "#t0046", "#t0047", "#t0049",
     "#t0050", "#t0051", "#t0052", "#t0053", "#t0058", "#t0060", "#t0062", "#t0063",
     "#t0064", "#t0067", "#t0068", "#t0069", "#t0071", "#t0072", "#t0074", "#t0075",
-    "#t0095", "#t0107", "#t0108", "#ta038", "#tc001", "#tc002", "#tc003", "#tc005",
+    "#t0078", "#t0082", "#t0086", "#t0087", "#t0095", "#t0099", "#t0101", "#t0102",
+    "#t0103", "#t0107", "#t0108", "#ta038", "#tc001", "#tc002", "#tc003", "#tc005",
     "#tc006", "#tc009", "#tc010", "#tc013", "#tc014", "#tc019", "#tc027", "#tc028",
     "#tdi01", "#tdi04", "#tdi05", "#tdi06", "#te001", "#ten01", "#tep05", "#tep06",
     "#tep07", "#tep08", "#tep09", "#tep10", "#tep11", "#tep12", "#tep13", "#tep14",
@@ -33,9 +34,10 @@ async test "compact suite harness: manifest-driven buckets" {
     "#tjs06", "#tjs08", "#tjs10", "#tjs11", "#tli01", "#tli02", "#tli03", "#tli04",
     "#tli05", "#tm001", "#tm002", "#tm003", "#tm004", "#tm005", "#tm006", "#tm008",
     "#tm009", "#tm010", "#tm011", "#tm012", "#tm013", "#tm014", "#tm015", "#tm016",
-    "#tn001", "#tn002", "#tn003", "#tn004", "#tn005", "#tn010", "#tn011", "#tp001",
-    "#tp002", "#tp004", "#tp005", "#tp006", "#tp007", "#tp008", "#tpi06", "#tpr01",
-    "#tpr02", "#tpr04", "#tr001", "#tr002",
+    "#tm017", "#tm020", "#tm021", "#tm022", "#tm023", "#tn001", "#tn002", "#tn003",
+    "#tn004", "#tn005", "#tn010", "#tn011", "#tp001", "#tp002", "#tp004", "#tp005",
+    "#tp006", "#tp007", "#tp008", "#tpi06", "#tpr01", "#tpr02", "#tpr04", "#tr001",
+    "#tr002",
   ]
   let deferred : Array[String] = []
   let plain : Array[String] = []
@@ -123,6 +125,6 @@ async test "compact suite harness: manifest-driven buckets" {
       deferred.push(id)
     }
   }
-  assert_eq(deferred.length(), 114)
-  assert_eq(plain.length(), 132)
+  assert_eq(deferred.length(), 101)
+  assert_eq(plain.length(), 145)
 }
