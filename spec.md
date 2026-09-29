@@ -151,6 +151,8 @@ expand_top_values 全链，修正单点落共享函数，385+416 两面同批受
 | #tjs13 vs RFC 8785 §3.2.3 字面 | 键序定义分叉 | JCS 键序：套件 oracle = **Unicode 码点序**（U+F8DF < U+1F602）vs RFC 字面「UTF-16 码元序」（D83D < F8DF） | 码点序胜出——nq_key_compare 逐码点自实现（const §5 String::compare 假序同日禁用） |
 | toRdf @reverse vs REC §6.3 反转形 | 展开词形分叉 | 引擎 = **t0042 保形**（@reverse 映射保留）vs REC 字面反转形（node 获反向属性） | 保形胜出——reverse 批 oracle 沿袭；J4 fixture 首写按 REC 记忆错一处实证 |
 | flatten te001 vs free-floating 字面弃置 | 弃置位分叉 | free-floating（@id-only 弃）是否豁免 **@index**：oracle 要求 @id+@index 裸节点**必达合并面**（te001「Conflicting indexes」负例——弃则冲突不可见，负例永不可红） | **@index 豁免胜出**——is_free_floating 增 `index is None` 位；expand/toRdf 套件无此形在册案例（零回归面实测） |
+| **scoped 来源分叉族**（2026-09-29 役3 收录） | | | |
+| #tc009 vs #tc013 | **scoped 来源分叉**（同形异判对——同一定义 `baz:{"@type":"@vocab"}` 分置 type-scoped / property-scoped） | type-scoped 定义的 term **只作键名**、datatype/container/language 不参与值成形（#tc009 值保 `{@id}` 对象形）；property-scoped 全参与值成形（#tc013 @vocab 型塌缩 vocab 相对词 "buzz"） | 双 oracle 各自成立——scoped context 双链分立的实证（机制账 §8.44） |
 | **族判据** | | | **规范字面与套件 oracle 冲突时，套件 oracle 为权威**——规范是解释起点，套件是判定终点；分叉必须在账（两例皆入册），禁静默择一 |
 
 ### term 名一致性检查（REC 4.2.2 @id 臂 "must be consistent"；2026-09-26 修正）
@@ -620,7 +622,7 @@ expand_standard/to_rdf 手写钩子），**不是模型 vs 引擎**——J2/J3 �
 |---|---|---|---|
 | expansion | 385（正 276 / 负 109） | ✅ **385/385 全 plain** | suite_expand_test pin（deferred=0）+ 值级对拍 |
 | toRDF | 467（正 345 / 负 106 / 句法 16） | ✅ **467/467 全 plain** | suite_tordf_test pin + 判定器（迷你 N-Quads 解析 + 集合同构） |
-| compact | 246（正 229 / 负 17） | 🚧 **132/246 plain**（正 117 + 负 15）/ deferred 114 在册 | suite_compact_test pin（deferred=114）+ canonical_for_suite 直比 + bnode 双射兜底 |
+| compact | 246（正 229 / 负 17） | 🚧 **145/246 plain**（正 130 + 负 15）/ deferred 101 在册 | suite_compact_test pin（deferred=101）+ canonical_for_suite 直比 + bnode 双射兜底 |
 | flatten | 58（正 57 / 负 1） | ✅ **56/58 plain**（正 55 + 负 1）/ deferred 2 在册 | suite_flatten_test pin（deferred=2）+ canonical_for_suite 直比 + bnode 双射兜底（isomorphic_for_suite——判定器自检四钉） |
 | fromRdf | 54 | ❌ 未实现 | ——（§8.39） |
 | html | 50 | ❌ 未实现 | ——（§8.39） |
@@ -779,6 +781,12 @@ expand_standard/to_rdf 手写钩子），**不是模型 vs 引擎**——J2/J3 �
   8. **关键字别名键**：@id/@graph 键走 term 词形（#t0008 "uri" / #t0014
      "data" / #t0052 "graph" oracle）；**@included 出键**（#tin01 oracle）；
      **@json 值直出**（#tjs07 oracle——容器/塌缩不包 JSON 原值）
+  9. **容器逆形映射归组**（役2——详钉 §8.43）：compact_map_entry（fit+子键+
+     键化成员剥离一体，四类差异表见 §8.43）；@none 兜底别名感知（#tm012）
+  10. **scoped 双链分立 + shaping td 裁量**（役3——详钉 §8.44）：type-scoped
+     只作键名 / property-scoped 全参与（#tc009 vs #tc013 同形异判对，入
+     同形异判表「scoped 来源分叉族」）；outer 同名全权、scoped-only 剥成形
+     属性保 local_context；@vocab 型塌缩 vocab 旗
 - **选项面**：JsonLdOptions 新增 `compact_arrays` / `compact_to_relative`
   （REC 缺省均 true；36 构造点编译器驱动同笔补）
 - **负例 15/17**：16 例 context 处理面复用检出（其中 tep07/09/10、ten01 为
@@ -860,7 +868,50 @@ expand_standard/to_rdf 手写钩子），**不是模型 vs 引擎**——J2/J3 �
      （#tc013 oracle："buzz"——vocab 拼回重展开同形）
 - **转正 9 例**：tc001/002/003/005/006/010/013/019 + **tpr04**（property-
   scoped 保护重定义——套用面落地后自然闭合）
-- **维持 deferred（114 在册）**：nullification 族 tc009 姊妹件 tc014/tc018
-  （[null] 空化后引用实现 vocab/term 存续面——REC 字面待核，涉共享
-  process_context 行为须谨慎）、@graph 次级容器/复合容器族、@index
-  mapping（tpi）、tla01（语言敏感 list 分选）、te002/tpr03
+- **维持 deferred（114 在册）**：
+  - **nullification 族 tc014/tc018——定性 = 影响（非分叉）**：compact
+    oracle（tc014-out 键 "p" vocab 相对词 + @type "Type"）实证引用实现
+    [null] 空化后 **@vocab 存续**（term 存续未证——"Type" 可由 vocab 相对
+    得）；本实现 process_context [null] 清 vocab（expand 385 绿面下无在册
+    oracle 钉 vocab 存续——**共享面潜在缺口**，影响面 = process_context 的
+    [null] 臂）。修法须 REC 字面核对 [null] 语义后动共享臂（涉 expand 全绿
+    面，禁顺手修），单独立批
+  - 其余：@graph 次级容器/复合容器族、@index mapping（tpi）、tla01（语言
+    敏感 list 分选）、te002/tpr03
+
+### 8.45 @graph 容器批开工钉（2026-09-29 役4 前置——与役2 的关系界定）
+
+**关系 = 役2 的共机制延续 + 独立出形面**（非混批）：
+- **延续面（共机制直接复用）**：映射归组账/出键/组内塌缩（compactArrays 门）/
+  @none 别名感知兜底/子键词形旗——全沿 §8.43 共性；路由位同在属性值分选层。
+- **独立面（出形不同源，故单独立批）**：
+  1. **值形态不同**：役2 四类的值 = 节点/字面量（单值出形）；@graph 容器的
+     值 = **图载体节点**（`node.graph` 在场）——出形 = **图内容数组**（内容
+     节点逐个压缩成数组，非单值）。
+  2. **键化对象不同**：役2 子键从值本身取（@id/@type/@index/language 成员）；
+     本批键化对象在**图载体**上（node.id / node.index），且由**次级**决定。
+- **「次级」定义**（存储形 = 展开侧同款，expand_standard 3651-3666 行）：
+  组合容器 `[@graph, X]` 中 @graph 定**值形态**（图载体）、X 定**归组键**——
+  X ∈ {@id, @index} 为次级；**@set 不占次级**（只定保形——数组恒保，#t0080
+  展开侧同款裁断）；裸 @graph = 次级 None（值 = 图内容数组直出）。
+  TermDefinition 存储形：container = Some(Graph) + graph_secondary =
+  Some(Id|Index)|None。
+- **oracle 形钉**：#tm017（[@graph,@index,@set]——无索引 → "@none" 键、值 =
+  内容数组恒保形）；#tm020/#tm022（**type map 串塌缩**——属役2 机制补丁随本
+  批：Type map 值剥首 type 后 id-only ⇒ 串塌缩**无条件**（不要求 td @type；
+  vocab 旗仍随 td——tm020 base 相对 / tm022 vocab 相对））
+- **deferred 底账**：tpi 属性化索引、tla01 语言敏感 list、nullification 族
+  （§8.44 定性 = 影响）、te002 不在本批。
+
+#### 8.45.1 @graph 容器批落成（2026-09-29 役4；132 → 145/246 plain，+13 零回退）
+- **落码**（§8.45 钉兑现）：graph 容器路由（图载体值 → 内容数组出形）+ 次级
+  键化（Id = node.id @id 位旗词形 / Index = node.index 原文 / None = 数组
+  直出）+ @none 兜底（#tm017）+ **type map 串塌缩**（役2 机制补丁随批——
+  剥首 type 后 id-only 无条件串塌缩、vocab 旗随 td：#tm020 base 相对 /
+  #tm022 vocab 相对）
+- **转正 13 例**：tm013/015（@id/@type map @none 兜底——役2 机制现成即过）、
+  tm017/021/022/023（graph 容器/串塌缩）+ t0078/0082/0086/0087/0099/0101/
+  0102/0103（graph 容器 t 系族——路由位落地后随批闭合）
+- **维持 deferred（101 在册）**：tp003（前缀 gen-delim 边界——term 名尾冒号
+  的 compact IRI 资格，IRI 压缩面细化）、tpi 属性化索引、tla01 语言敏感
+  list、nullification 族（§8.44 定性 = 影响）、te002/tpr03
