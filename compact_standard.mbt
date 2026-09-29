@@ -218,9 +218,23 @@ fn compact_bare_fit(
       if index is Some(_) {
         false
       } else if td.container is Some(List) {
-        // 方向感知选择（§8.48——td 带方向映射时首项方向须合：
-        // #tdi03 oracle——同 IRI 双 list term 按 ltr/rtl 分选）
-        match td.direction_mapping {
+        // 方向感知 + 语言镜像（§8.48/#t0024——td 方向/语言映射按首项分选：
+        // #tdi03 方向、#t0024 语言，双 oracle 同构）
+        let first_lang = match items.get(0) {
+          Some(ExpandedValue::Value(lit)) => lit.language
+          _ => None
+        }
+        let lang_ok = match td.language_mapping {
+          Some(Set(lang)) => first_lang == Some(lang)
+          Some(Null) => first_lang is None
+          // None 映射 = 缺省对齐（#t0024——termLL0 收缺省 de 项，非全收）
+          None =>
+            match first_lang {
+              Some(l) => l == active.default_language.unwrap_or("")
+              None => active.default_language is None
+            }
+        }
+        let dir_ok = match td.direction_mapping {
           Some(Set(d)) =>
             match items.get(0) {
               Some(ExpandedValue::Value(lit)) => lit.direction == Some(d)
@@ -228,6 +242,7 @@ fn compact_bare_fit(
             }
           _ => true
         }
+        lang_ok && dir_ok
       } else {
         false
       }

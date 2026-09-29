@@ -814,7 +814,12 @@ expand_standard/to_rdf 手写钩子），**不是模型 vs 引擎**——J2/J3 �
   11. **type-scoped 逆序套用**（役15——详录 §8.56；scoped 双链分立同族，
      §8.44）：@type 数组**倒序**逐个套 type-scoped context，先位类型后手
      胜（REC §6.1.2 步 12.8.1；#tc017 [Foo,Bar] Foo 胜 oracle）
-  12. **数值/布尔语言免注**（役8——#t0015/#t0018 oracle）：raw 保形体
+  12. **shaping 取舍序**（役24——详录 §8.63；双链分立同族 §8.44）：同 IRI
+     双定义（outer + type-scoped）时，scoped 定义 **datatype=@id ⇒ scoped
+     全权**（type-scoped 定义对该节点就是全量定义——#tc007 oracle）；
+     @vocab 型仍随 outer（tc009 不塌裁断——@vocab 传导需 @propagate，
+     tc026 前置面）
+  13. **数值/布尔语言免注**（役8——#t0015/#t0018 oracle）：raw 保形体
      （number/bool）不受缺省语言/方向注入——裸形判据只对串值做语言态/方向
      态对齐（串重展开会被注回，数值原样往返）；language 吸收 Null 臂
      render 侧同批补齐（bare_fit 有 render 无——判定树 Q1 钉不完整）
@@ -1343,9 +1348,37 @@ expand_standard/to_rdf 手写钩子），**不是模型 vs 引擎**——J2/J3 �
 - **修正**：shaping 取舍序 = scoped 定义 datatype=@id ⇒ **scoped 全权**
   （type-scoped 定义对该节点就是全量定义——#tc007 oracle）；@vocab 型仍
   随 outer（tc009 不塌裁断不变——@vocab 传导需 @propagate，tc026 面另批）
-- **转正 6 例**：tc007（scoped @id 塌缩）/tc015（base 轨 + 片段相对叠加
-  全收）/tc016（scoped @vocab 键选已通、值位随 shaping 序补齐）/tc020/
-  tc024/tc012 复核全绿
-- **deferred 30**：tc026（@propagate 传导——需 apply 链 propagate 位跟踪）、
+- **【役25 更正】转正实为 1 例（tc007）**：役24 首记「6 例」为**过收**
+  ——r15 FIXED 表实证仅 tc007 入转，tc015/016/020/024 仍红（scoped
+  @vocab 键选/值位深层面未毕）；账实不符族纪律更正
+- **deferred 30**：tc026（@propagate 传导——**前置定义（役24 定）**：
+  **apply 链** = compact_apply_type_scoped 的套用序列；**propagate 位** =
+  套用的 local context 是否带 @propagate:true（process_context 返回的
+  ActiveContext 现不记录此位——需扩链上结构或旁路账）；**跟踪** = 该位
+  须存活至嵌套节点渲染（子节点键选/值塌缩继承 propagate 过的 context）。
+  三件齐备前 tc026 挂 deferred），
   tc011 已收、nullification 残（te002/tpr03）、t 系值分选残余（t0015/18/
   22/24/38/44/45/48/66/89/110）、tla01/tm007/tn006-009/ts001-002/ttn01-03
+
+### 8.64 t 系值分选续批开工钉（2026-09-29 役25 前置——分组判据三分成文）
+
+**分组判据**（逐例先归组再动手；禁凭感觉）：
+- **更多形态**（同 fit 判据、新值形态组合）：判据位已有、组合未见——
+  修法 = fit 函数加组合臂，不动骨架（#t0015/#t0018/#t0024 list 语言×
+  类型交叉、#t0027 系偏好已落、#t0089 无语言辖域已落）。
+- **边界**（判据位已有、参数域端点）：量化边界/极端形——修法 = 判据
+  补端点臂（#t0066/#t0110 base 文档位多形态、#t0111 @-词转义已落）。
+- **分叉**（oracle 与本实现裁断冲突且无在册裁定）：**禁落码**——先立
+  裁定（oracle > 规范字面 族入册）再按裁定修（#t0007 值位 id-term
+  取舍、#t0045 ../ 逃逸——**待裁定**）。
+- 归组必须附**根因定位证据**（diff 位/打点行），无证据不入组。
+
+### 8.64.1 语言镜像语义修正落成（2026-09-29 役25；计数零变——语义正确性批）
+- **落码**（§8.64 更多形态类——List fit 语言镜像 + None 臂收紧）：
+  bare_fit List 臂增**语言镜像**（Set 合首项语言 / Null 合无语言 /
+  None = 缺省对齐——首版 None 臂无条件 true 过宽，收紧为缺省对齐；
+  #t0024 termLL0/1/2 分选判据）+ 方向/语言双闸合取
+- **计数零变定性**：镜像语义为 t0018/t0024 的**前置正确性**（分选判据
+  就位），转正需搭配「Set 精确 > 缺省对齐」特异性位（pass-1 排名
+  tie-break）——下役续
+- **役24 过收更正**（§8.63）：转正实为 tc007 一例；账实不符族纪律执行
