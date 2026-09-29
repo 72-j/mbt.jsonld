@@ -233,6 +233,13 @@ fn compact_bare_fit(
       }
     }
     ExpandedValue::Value(lit) => {
+      // index 闸（§8.54——@index 值对象在无 index_mapping 的 term 下重展开
+      // 丢 @index = 不安全，两形皆拒——#t0065 oracle）
+      if lit.index is Some(_) &&
+        td.index_mapping is None &&
+        td.container is Some(_) {
+        return false
+      }
       // 方向态对齐总闸（§8.48——方向不合者不入 bare，与语言态同判据：
       // 裸形重展开由 term/缺省注回同向才安全——#tdi01/#tdi07 oracle）
       let dir_aligned = match td.direction_mapping {
@@ -301,6 +308,12 @@ fn compact_object_fit(
         None => true
       }
     ExpandedValue::Value(lit) => {
+      // index 闸（§8.54——同 bare_fit；#t0065 oracle）
+      if lit.index is Some(_) &&
+        td.index_mapping is None &&
+        td.container is Some(_) {
+        return false
+      }
       // 方向态对齐总闸（§8.48——与 bare_fit 同判据；方向不合者对象形也
       // 不入 term，落残余兜底键——#tdi07 oracle）
       let dir_aligned = match td.direction_mapping {
@@ -1160,6 +1173,22 @@ active, options,
         }
         _ => ()
       }
+    }
+    // 空值属性 + 容器 term ⇒ 空数组出形（#t0004 oracle——myset2 []）
+    if pair.1.is_empty() {
+      let key = match cand_tds {
+        cs if cs.length() > 0 => cs[0].0
+        _ =>
+          compact_iri_word(
+            pair.0,
+            false,
+            true,
+            true,
+            active,
+            options,
+          )
+      }
+      pairs.push((key, JsonValue::Array([])))
     }
     // 残余 → 兜底键（前缀/相对词形——#t0006 "ex:term1" oracle）；本属性
     // 已有 term 组时禁 vocab 步（#tdi07 oracle——vocab 相对词撞 term 键，
