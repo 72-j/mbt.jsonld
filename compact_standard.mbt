@@ -715,8 +715,21 @@ fn compact_node_jv(
   // type-scoped 套用（压缩面——双链分立，#tc009 vs #tc013 同形异判对 oracle：
   // type-scoped 定义的 term **只作键名**、 datatype/container/language 不参与
   // 值成形；property-scoped 全参与。scoped = 键选择链；active（outer）=
-  // 值成形链）
+  // 值成形链）。base 轨（§8.59 第三轨）：值位词形 base 相对化随 scoped 链
+  // （#tc015 oracle——typed-base 下 "#typed-id" 片段相对）
   let scoped = compact_apply_type_scoped(node.types, active, options)
+  let value_chain : ActiveContext = if scoped.base != active.base {
+    {
+      base: scoped.base,
+      vocab: active.vocab,
+      terms: active.terms,
+      previous: active.previous,
+      default_language: active.default_language,
+      default_direction: active.default_direction,
+    }
+  } else {
+    active
+  }
   let pairs : Array[(String, JsonValue)] = []
   // @id 键走 term 词形（关键字别名 term——#t0008 oracle："uri":"@id" →
   // "uri" 作键；无别名回落 "@id" 字面）
@@ -1059,7 +1072,7 @@ active, options,
                 iri: td_scoped.iri,
               }
           }
-          let jv = match compact_value_item(v, Some(td), active, options) {
+          let jv = match compact_value_item(v, Some(td), value_chain, options) {
             Ok(out) => out
             Err(e) => return Err(e)
           }
@@ -1086,7 +1099,7 @@ active, options,
           let _ = is_bare
         }
         None => {
-          let jv = match compact_value_item(v, None, active, options) {
+          let jv = match compact_value_item(v, None, value_chain, options) {
             Ok(out) => out
             Err(e) => return Err(e)
           }
