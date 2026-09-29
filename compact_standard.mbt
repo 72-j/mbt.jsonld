@@ -80,6 +80,23 @@ fn compact_iri_word(
       return exact[0]
     }
   }
+  // @vocab 相对词形（#t0021 oracle：@vocab "http://example.com/subdir/" +
+  // "…/subdir/vocab/embed" → "vocab/embed"——仅谓词/类型位；@id 值位禁，
+  // allow_vocab=false）
+  if allow_vocab {
+    match active.vocab {
+      Some(vocab) =>
+        if vocab.length() < iri.length() && iri.has_prefix(vocab) {
+          // 撞词守门（#t0043 oracle——suffix 为在册 term 时重展开撞词，
+          // 跳过 vocab 步保全 IRI）
+          let suffix = iri[vocab.length():].to_owned()
+          if !active.terms.contains(suffix) {
+            return suffix
+          }
+        }
+      None => ()
+    }
+  }
   // 最长前缀 compact IRI
   let mut best_prefix : String? = None
   let mut best_name : String? = None
@@ -139,18 +156,6 @@ fn compact_iri_word(
       return name + ":" + suffix
     }
     _ => ()
-  }
-  // @vocab 相对词形（#t0021 oracle：@vocab "http://example.com/subdir/" +
-  // "…/subdir/vocab/embed" → "vocab/embed"——仅谓词/类型位；@id 值位禁，
-  // allow_vocab=false）
-  if allow_vocab {
-    match active.vocab {
-      Some(vocab) =>
-        if vocab.length() < iri.length() && iri.has_prefix(vocab) {
-          return iri[vocab.length():].to_owned()
-        }
-      None => ()
-    }
   }
   // base 相对化（compactToRelative 门——×1 件保绝对词面；段界对齐：base 尾
   // 无 "/" 补一段再对前缀，防 "http://example.com" vs "…/com/foo" 误剥——
