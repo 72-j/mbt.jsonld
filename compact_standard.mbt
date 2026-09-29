@@ -379,7 +379,8 @@ fn compact_value_jv(
           }
         _ => ()
       }
-      // language 吸收（串值裸形；方向态须合——§8.48 同判据）
+      // language 吸收（串值裸形；方向态须合——§8.48 同判据；Null 臂 =
+      // 显式压制吸收无语言值——#t0015 term5/#t0089 s oracle）
       match td.language_mapping {
         Some(Set(lang)) =>
           match literal.language {
@@ -395,6 +396,17 @@ fn compact_value_jv(
                 }
               }
             None => ()
+          }
+        Some(Null) =>
+          if literal.language is None {
+            let dir_ok = match td.direction_mapping {
+              Some(Set(d)) => literal.direction == Some(d)
+              Some(Null) => literal.direction is None
+              None => true
+            }
+            if dir_ok {
+              return JsonValue::String(literal.value)
+            }
           }
         _ => ()
       }
