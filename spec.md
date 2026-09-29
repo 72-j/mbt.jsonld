@@ -1302,3 +1302,10 @@ expand_standard/to_rdf 手写钩子），**不是模型 vs 引擎**——J2/J3 �
   残余/t0066/0110/tla01/tn/ts/ttn/tpr03/te002
 - **过程**：块搬移吃掉撞词守门（搬移切片取自改前文本）——搬移后必
   grep 附属守门在场（⑦ 亦覆盖搬移形）
+
+### 8.61 reverse 值级排名分键落成（2026-09-29 役21；213 持平——t0044 役内已过终收）
+- **落码**：@reverse 非映射路值级**最短词形排名分键**（同 IRI 双 term 按
+  值拆键——#t0044 oracle：dave→knows 全词、DefinedTerm→knowsVocab exact
+  词）；回退分支**恒追加**修（首版 `Some(_) => ()` 吞同键第二值——t0050
+  gregg 丢失即抓，harness pin 当轮拦截）
+- **deferred 33 不变**（t0044 移入已收；其余簇照 §8.58/§8.60 挂靠）
