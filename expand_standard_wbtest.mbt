@@ -105,7 +105,7 @@ test "contract smoke: pending hooks refuse politely (red-not-wrong)" {
     is Ok([]),
   )
   // postprocess_value（#t0045 批升级）：恒等对非值；值对象空语言清除
-  assert_true(Expander::postprocess_value(e, active, List([])) is Ok(List([])))
+  assert_true(Expander::postprocess_value(e, active, List([], index=None)) is Ok(List([], index=None)))
   // （模式位不收 struct 更新字面量 ⇒ 先取值再逐字段断言）
   match
     Expander::postprocess_value(

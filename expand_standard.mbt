@@ -1785,7 +1785,7 @@ impl Expander for StandardExpander with fn expand_array(
       Err(e) => return Err(e)
     }
   }
-  Ok(ExpandedValue::List(out))
+  Ok(ExpandedValue::List(out, index=None))
 }
 
 ///|
@@ -1947,7 +1947,7 @@ fn StandardExpander::expand_term_values(
         Err(e) => return Err(e)
       }
     }
-    return Ok([ExpandedValue::List(out)])
+    return Ok([ExpandedValue::List(out, index=None)])
   }
   // @container 映射分支（REC 13.8.3 "container mapping includes @index, @type, or
   // @id and value is a map"）：本批落 @type（type map）+ @index（index map 最小
@@ -4341,6 +4341,7 @@ fn StandardExpander::expand_list_set_object(
 ) -> Result[Array[ExpandedValue]?, JsonLdError] {
   let mut list_value : JsonValue? = None
   let mut set_value : JsonValue? = None
+  let mut index_value : String? = None
   let mut impure = false
   for pair in obj_pairs {
     // 键别名识别（t0014 批——REC 键归一先于对象形态判定）：别名 term（"set" →
@@ -4355,6 +4356,18 @@ fn StandardExpander::expand_list_set_object(
         "@set",
       ) {
       set_value = Some(pair.1)
+    } else if StandardExpander::key_expands_to_keyword(
+        self,
+        active,
+        pair.0,
+        "@index",
+      ) {
+      // @index 随 @list 值对象合法（#t0041 oracle——index 挂 list 贯通压缩；
+      // 非 impure）
+      match pair.1 {
+        JsonValue::String(index_word) => index_value = Some(index_word)
+        _ => impure = true
+      }
     } else {
       impure = true
     }
@@ -4393,7 +4406,9 @@ fn StandardExpander::expand_list_set_object(
           }
         }
       }
-      let wrapped : Array[ExpandedValue]? = Some([ExpandedValue::List(out)])
+      let wrapped : Array[ExpandedValue]? = Some([
+        ExpandedValue::List(out, index=index_value),
+      ])
       Ok(wrapped)
     }
     None =>
@@ -4473,7 +4488,7 @@ fn StandardExpander::expand_list_item(
           Err(e) => return Err(e)
         }
       }
-      let nested : ExpandedValue? = Some(ExpandedValue::List(out))
+      let nested : ExpandedValue? = Some(ExpandedValue::List(out, index=None))
       Ok(nested)
     }
     JsonValue::Object(obj_pairs) =>
@@ -4497,7 +4512,7 @@ fn StandardExpander::expand_list_item(
               let single : ExpandedValue? = Some(vs[0])
               Ok(single)
             } else {
-              let grouped : ExpandedValue? = Some(ExpandedValue::List(vs))
+              let grouped : ExpandedValue? = Some(ExpandedValue::List(vs, index=None))
               Ok(grouped)
             }
           }

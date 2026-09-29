@@ -88,7 +88,9 @@ pub(all) struct ExpandedNode {
 pub(all) enum ExpandedValue {
   Node(ExpandedNode)
   Value(ExpandedLiteral)
-  List(Array[ExpandedValue])
+  /// index 槽（役23——{@index,@list} 值对象贯通：展开收 index、压缩出
+  /// {@list,@index} 形——#t0041 oracle；缺省 None 零扰动存量构造/匹配）
+  List(Array[ExpandedValue], index~ : String?)
 } derive(Debug)
 
 ///|

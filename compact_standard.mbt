@@ -213,8 +213,11 @@ fn compact_bare_fit(
   active : ActiveContext,
 ) -> Bool {
   match value {
-    ExpandedValue::List(items) =>
-      if td.container is Some(List) {
+    ExpandedValue::List(items, index~) =>
+      // index 闸（#t0041 oracle——带 @index 的 list 不入 @list term）
+      if index is Some(_) {
+        false
+      } else if td.container is Some(List) {
         // 方向感知选择（§8.48——td 带方向映射时首项方向须合：
         // #tdi03 oracle——同 IRI 双 list term 按 ltr/rtl 分选）
         match td.direction_mapping {
@@ -309,8 +312,9 @@ fn compact_object_fit(
   _active : ActiveContext,
 ) -> Bool {
   match value {
-    // @list 值对象恒安全（重展开保 @list 形）
-    ExpandedValue::List(_) => true
+    // @list 值对象恒安全（重展开保 @list 形）；带 @index 者例外
+    // （#t0041 oracle——term 重展开丢 index）
+    ExpandedValue::List(_, index~) => !(index is Some(_))
     // 节点值：@id 型 term（非裸引用亦安全——对象形重展开仍为节点）；无
     // datatype 的 term 对象形安全；datatype 版 term 冲突不可用
     // （#t0006 term2 oracle：裸引用对象形落回 term 键）
@@ -603,10 +607,11 @@ fn compact_value_item(
     }
     ExpandedValue::Value(literal) =>
       Ok(compact_value_jv(literal, td_opt, active, options))
-    ExpandedValue::List(items) => {
+    ExpandedValue::List(items, index~) => {
       // @list 容器吸收（td @container @list → 裸数组——#t0015 term4 oracle）；
       // 1.0 嵌套 list = compaction to list of lists 错（#te001 oracle）；
-      // 无容器 → @list 值对象形
+      // 无容器 → @list 值对象形（带 @index ⇒ {@list,@index} 对象形——
+      // #t0041 oracle）
       let is_list_container = match td_opt {
         Some(td) => td.container is Some(List)
         None => false
@@ -624,7 +629,32 @@ fn compact_value_item(
       if is_list_container {
         return Ok(JsonValue::Array(arr))
       }
-      Ok(JsonValue::Object([("@list", JsonValue::Array(arr))]))
+      // @list/@index 键走 term 词形（关键字别名——#t0042 oracle：
+      // "listAlias"/"indexAlias" 作键；无别名回落关键字字面）
+      let list_key = compact_iri_word(
+        "@list",
+        true,
+        false,
+        true,
+        active,
+        options,
+      )
+      let index_key = compact_iri_word(
+        "@index",
+        true,
+        false,
+        true,
+        active,
+        options,
+      )
+      let list_obj : Array[(String, JsonValue)] = [
+        (list_key, JsonValue::Array(arr)),
+      ]
+      match index {
+        Some(ix) => list_obj.push((index_key, JsonValue::String(ix)))
+        None => ()
+      }
+      Ok(JsonValue::Object(list_obj))
     }
   }
 }
@@ -645,7 +675,7 @@ fn compact_property_values(
       if td.container is Some(List) {
         if vals.length() == 1 {
           match vals[0] {
-            ExpandedValue::List(items) => {
+            ExpandedValue::List(items, ..) => {
               let arr : Array[JsonValue] = []
               for it in items {
                 if it is ExpandedValue::List(_) &&
