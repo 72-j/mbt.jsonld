@@ -90,11 +90,24 @@ fn compact_iri_word(
           iri.has_prefix(pfx) &&
           name.contains("/") is false &&
           name.contains("@") is false &&
-          // 前缀资格（REC 4.2.2——1.1：@prefix 显式 true，或简单 string 形
+          // 前缀资格闸（REC 4.2.2——1.1：@prefix 显式 true，或简单 string 形
           // 缺省 true；map 形缺省 false——#tp001 oracle）
           (
             pair.1.is_prefix is Some(true) ||
-            (pair.1.is_prefix is None && pair.1.simple_form)
+            (pair.1.is_prefix is None &&
+            pair.1.simple_form &&
+            // 映射词尾闸（§8.46 精化——简单形隐式资格受词尾约束；@prefix:true
+            // 显式豁免词尾——#tp003 oracle 落闸 vs #tp005/#tp006 oracle
+            // @prefix:true 过闸：mapping 尾 '-' 照压缩）
+            (match pair.1.iri {
+              Some(pfx_word) =>
+                match pfx_word.get_char(pfx_word.length() - 1) {
+                  Some(':') | Some('/') | Some('?') | Some('#') | Some('[') |
+                  Some(']') | Some('@') => true
+                  _ => false
+                }
+              None => false
+            }))
           ) {
           match best_prefix {
             Some(bp) =>
