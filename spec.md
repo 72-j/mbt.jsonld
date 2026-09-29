@@ -628,7 +628,7 @@ expand_standard/to_rdf 手写钩子），**不是模型 vs 引擎**——J2/J3 �
 |---|---|---|---|
 | expansion | 385（正 276 / 负 109） | ✅ **385/385 全 plain** | suite_expand_test pin（deferred=0）+ 值级对拍 |
 | toRDF | 467（正 345 / 负 106 / 句法 16） | ✅ **467/467 全 plain** | suite_tordf_test pin + 判定器（迷你 N-Quads 解析 + 集合同构） |
-| compact | 246（正 229 / 负 17） | 🚧 **203/246 plain**（正 188 + 负 15）/ deferred 43 在册 | suite_compact_test pin（deferred=43）+ canonical_for_suite 直比 + bnode 双射兜底 |
+| compact | 246（正 229 / 负 17） | 🚧 **206/246 plain**（正 191 + 负 15）/ deferred 40 在册 | suite_compact_test pin（deferred=40）+ canonical_for_suite 直比 + bnode 双射兜底 |
 | flatten | 58（正 57 / 负 1） | ✅ **56/58 plain**（正 55 + 负 1）/ deferred 2 在册 | suite_flatten_test pin（deferred=2）+ canonical_for_suite 直比 + bnode 双射兜底（isomorphic_for_suite——判定器自检四钉） |
 | fromRdf | 54 | ❌ 未实现 | ——（§8.39） |
 | html | 50 | ❌ 未实现 | ——（§8.39） |
@@ -642,9 +642,9 @@ expand_standard/to_rdf 手写钩子），**不是模型 vs 引擎**——J2/J3 �
 
 ### 8.39 缺口解释表（三分类钉——零 deferred ≠ 零缺口；2026-09-29）
 **「设计如此」**（范围/兼容性裁决，注出处）：
-1. compact 246 例——**已立案开工中**（2026-09-29 十四役 203/246 plain——
-   开工钉 §8.41 + 首波 §8.42 + 役2-14 实录 §8.43-§8.55；收官清点 §8.51
-   后 graph 簇 + scoped 边界 + 分选精化续批清空 34 例；deferred 43 逐簇在册）
+1. compact 246 例——**已立案开工中**（2026-09-29 十五役 206/246 plain——
+   开工钉 §8.41 + 首波 §8.42 + 役2-15 实录 §8.43-§8.56；收官清点 §8.51
+   后 graph 簇 + scoped 边界 + 分选精化续批清空 37 例；deferred 40 逐簇在册）
 2. @reverse 展开保形（非 REC 反转）——t0042 套件 oracle（同形异判表
    「oracle > 规范字面」族）
 3. JCS 键序码点序（非 RFC 字面 UTF-16 码元序）——#tjs13 套件 oracle（同族）
@@ -1209,3 +1209,12 @@ expand_standard/to_rdf 手写钩子），**不是模型 vs 引擎**——J2/J3 �
   5. **单元素数组容器**（#ts001 展开/压缩两侧——["@list"] 等价裸形；
      ERR 已除，出形残余 deferred）
 - **转正 2 例**（t0111/t0106）；deferred 43（t0043/t0048/ts001 残层注记）
+
+### 8.56 type-scoped 逆序套用落成（2026-09-29 役15；203 → 206/246 plain，零回退）
+- **REC 判据**（§6.1.2 步 12.8.1——@type 数组**倒序**逐个套 type-scoped
+  context，**先位类型后手胜**——#tc017 oracle：types [Foo,Bar] Foo 的
+  prop 定义胜出打 "prop":"foo"）。compact_apply_type_scoped 套用序由正改逆。
+- **转正 3 例**：tc012（多 type-scoped 覆盖序）/tc017（数组 local context
+  多链）/tc018（nullification+多链交叉——[null,{prop}] 形）
+- **deferred 40 在册**：tc 深层（base 子树传导/@propagate）、t 系残余、
+  te002/tpr03
