@@ -233,6 +233,10 @@ fn compact_bare_fit(
           Some(ExpandedValue::Value(lit)) => lit.language
           _ => None
         }
+        let first_dt = match items.get(0) {
+          Some(ExpandedValue::Value(lit)) => lit.datatype
+          _ => None
+        }
         let lang_ok = match td.language_mapping {
           Some(Set(lang)) => first_lang == Some(lang)
           Some(Null) => first_lang is None
@@ -243,6 +247,12 @@ fn compact_bare_fit(
               None => active.default_language is None
             }
         }
+        // type 镜像（#t0024——termTL0/1/2 按 @type 分选：termTL1 @type type1
+        // 收 type1 项裸形；termTL0 无 @type 收 typed 值对象形）
+        let type_ok = match td.datatype {
+          Some(dt) => first_dt == Some(dt)
+          None => first_dt is None
+        }
         let dir_ok = match td.direction_mapping {
           Some(Set(d)) =>
             match items.get(0) {
@@ -251,7 +261,7 @@ fn compact_bare_fit(
             }
           _ => true
         }
-        lang_ok && dir_ok
+        lang_ok && dir_ok && type_ok
       } else {
         false
       }

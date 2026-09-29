@@ -1392,3 +1392,13 @@ expand_standard/to_rdf 手写钩子），**不是模型 vs 引擎**——J2/J3 �
 - **t0018/0024 现貌**：判据已贯通仍红——残余在 list 吸收路与分选路的
   **路序交叉**（@list 值先经容器吸收臂，语言镜像在吸收臂内不可见），
   下役 List 吸收臂语言镜像迁移
+
+#### 8.64.3 List type 镜像落位（2026-09-29 役27；216 持平零回退——语义正确性批）
+- **落码**：bare_fit List 臂 **type 镜像**（#t0024 termTL0/1/2 oracle——
+  td.datatype Some(dt) ⇒ 首项 datatype 合 dt 才入（bare）；None ⇒ typed
+  值对象形）——对称语言镜像；index 闸/语言镜像/方向闸/type 镜像四闸合取
+- **计数零变定性**：镜像语义为 t0024 前置正确性；转正需 **datatype
+  特异性位**（排名同构语言——termTL1 @type 精确 > termTL0 缺省）+
+  typed 值对象收集项（termTL0 收不可 bare 的 typed 值对象形）——下役续
+- **t0018 定性**：混合值对象族（裸标量+语言值+typed 值同 IRI 多 term）
+  ——分选骨架已支撑，残余在语言/类型双特异性联合排名，随上续批
