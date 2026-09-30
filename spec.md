@@ -628,7 +628,7 @@ expand_standard/to_rdf 手写钩子），**不是模型 vs 引擎**——J2/J3 �
 |---|---|---|---|
 | expansion | 385（正 276 / 负 109） | ✅ **385/385 全 plain** | suite_expand_test pin（deferred=0）+ 值级对拍 |
 | toRDF | 467（正 345 / 负 106 / 句法 16） | ✅ **467/467 全 plain** | suite_tordf_test pin + 判定器（迷你 N-Quads 解析 + 集合同构） |
-| compact | 246（正 229 / 负 17） | 🚧 **238/246 plain**（正 222 + 负 16）/ deferred 8 在册 | suite_compact_test pin（deferred=8）+ canonical_for_suite 直比 + bnode 双射兜底 |
+| compact | 246（正 229 / 负 17） | 🚧 **241/246 plain**（正 224 + 负 17 全负例入 plain）/ deferred 5 在册 | suite_compact_test pin（deferred=5）+ canonical_for_suite 直比 + bnode 双射兜底 |
 | flatten | 58（正 57 / 负 1） | ✅ **56/58 plain**（正 55 + 负 1）/ deferred 2 在册 | suite_flatten_test pin（deferred=2）+ canonical_for_suite 直比 + bnode 双射兜底（isomorphic_for_suite——判定器自检四钉） |
 | fromRdf | 54 | ❌ 未实现 | ——（§8.39） |
 | html | 50 | ❌ 未实现 | ——（§8.39） |
@@ -1963,3 +1963,74 @@ deferred 8：t0038/t0045/t0066/te002/tn006-009（负例 te002）。
 deny-warn 65/65 绿、全仓 377 零回退、n3gen 12、子模块 124、.mbti 无变化。
 **余量**：t0038 随 base 专役同笔；base/相对 IRI 专役（t0045/t0066/
 te002 + A 组同笔双跑）待全预算。
+
+### 8.88 收官役（base 专役）开工钉 + 三处核落账（2026-10-01；用户令）
+
+**核一·§8.87 三层根型挂账（按根型三分类）**：①值位 fit 裁定 = **分叉**
+（REC 字面「值对象形安全」与 oracle 全 IRI 取舍相抵——按 oracle 裁量）；
+②前缀撞词门 = **边界**（#t0043 同族守门未铺到前缀步——机械位在）；
+③vocab 撞词门精化 = **边界**（terms.contains 粗判据精化为 IRI 比对）。
+三层均属「设计如此/修法裁量」类，无未实现。
+
+**核二·「加量件」正名**（§8.85 新造词，补定义）：**加量件 = 勘定批原判
+一层修、深勘后发现需两层及以上（或牵出第二裁定面）的 deferred 件**——
+t0007 即此（勘定判「值位 fit 单翻转」，深勘牵出兜底键裁定第二层）。
+Companion 词：t0038 = 「同函数面件」（修法面与另一专役同函数不同臂，
+建议同笔）。
+
+**核三·deferred 8 分布勘正（用户令——「只剩 base 面」结论不准，勘正）**：
+t0045/t0066/te002（base 簇 3）+ t0038（异形前缀·随 base 同笔）=
+**base 面 4**；**tn006-009（nest×容器簇 4 例）——§8.73 排期在案未施工**。
+本收官役清 base 面 4；nest 簇 4 例为**真正的末批**（收官役后另役或同批
+追加，待令）。
+
+**钉一·共享核冻结面清单（收官役）**：
+- **重写面**：压缩方向相对形生成（compact_iri_word base 步——../ 上跳/
+  fragment 首位/query 形裁定）；expand 侧共享核
+  （resolve_base_value/merge_base_reference——**A 组算法已重写已绿，
+  本役只读不写**；若压缩面裁定需共享核语义对齐，改动限增量注释）。
+- **复跑门**：expand 385 + compact 全量 + n3gen 12 + 子模块 124 四门
+  外加 **A 组 8 例（t0120-0127）与 #t0029/#t0091/#tr001 专项对**
+  （todo A 组「双 suite 同跑」令兑现）。
+- **役31 冻结面关系**：排名键函数（compact_rank_word_len/compact_word_rank）
+  **不动**；词长**值**可能因 base 修正而变（合法——键三层语义未动），
+  套件 diff 若现排名面翻转须归因注记（§8.69 冻结纪律兑现）。
+- **禁触清单**：役32 键链（key_active）、役33 @none 标记、役41 撞词门
+  （已绿面）——本役改动只在 base 步与键位出口检测。
+
+**钉二·te002 Err 点（防「错得对」）**：属性 IRI `tag:champin.net,2019:prop`
+的 **scheme "tag" 与在册前缀 term 同名**——as-is 兜底出的键位词会被重
+展开读成 curie（→ `http://example.org/ns/tag/champin.net,2019:prop`
+≠ 原 IRI，撞词不可救：词即原 IRI 本身，无更优词形）。**Err 必须在
+compact_iri_word 键位出口的 scheme 撞名检测发**（结果为绝对 IRI 且
+scheme 恰为在册 term 名 ⇒ Err），不得在 expand 侧/上下文处理位代发
+（错点=错因）。
+
+### 8.89 收官役 base 簇三例落成（2026-10-01 役42；238 → 241/246 plain，零回退）
+
+**三刀兑现（§8.88 两钉框架内）**：
+1. **query 相对形**（iri = doc URL + "?…" ⇒ "?…"——与 tc015 fragment 规则
+   对称，#t0066 第 3 行）。
+2. **../ 上跳形**（#t0045 "../parent-node"/#t0066 "../"../../" 族——同
+   scheme 同 authority 下段级公共前缀对 **base 目录段**（bp 尾段 pop——
+   目录标），ups = 目录段数 − 公共段数。**施工勘误两笔**：①it 尾段误
+   pop 吃掉目标段（parent-node ⇒ "../"）——目录标 pop 只归 bd；②裸
+   authority（#t0076 "http://example.com" 无 path）伪造路径卷入上跳
+   ——has-path 前提守卫（无 path 恒绝对）；③值位限定 allow_vocab=false
+   （property 兜底键走 vocab 形不上跳——#t0095 vocab "" 键形不被 ../
+   覆写）。十二点目标形（tests/=1 上…root 文件=3 上）**段级均一规则
+   成立**——勘定期「非均一裁」疑虑解除（算术基线取错目录所致）。
+3. **te002 scheme 撞名检测**（键位出口两处：compact_property_pair 键 +
+   leftover 兜底键）——**施工勘误**：初版按 scheme 名在册即 Err，误伤
+   #t0006（前缀词 ex:term1 语法似绝对且 "ex" 在册但重展开同于原 IRI）
+   ——精化为**重展开比对**（scheme term 展开 ≠ 原 IRI 才 Err）。
+4. **@type 词形不走文档相对化**（allow_base=false——#t0066 类型位
+   oracle 全绝对；类型位只经 term/vocab）。
+
+**转正 3 例**：t0045（../ 上跳/terms ignored）/t0066（base 文档位多形
+态——fragment/query/目录/上跳各归各）/te002（NEG scheme 撞车报错）。
+deferred 5：t0038（本役 base 步已重写，前缀词形面待专研）+ tn006-009
+（nest×容器末批）。**负例 17/17 全 plain**。
+deny-warn 65/65 绿、全仓 377 零回退、n3gen 12、子模块 124、.mbti 无变化。
+§8.88 冻结面纪律兑现：排名键/键链/@none/役41 撞门零触；expand 侧共享核
+只读（A 组 8 例原样绿）。
