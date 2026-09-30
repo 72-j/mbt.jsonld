@@ -628,7 +628,7 @@ expand_standard/to_rdf 手写钩子），**不是模型 vs 引擎**——J2/J3 �
 |---|---|---|---|
 | expansion | 385（正 276 / 负 109） | ✅ **385/385 全 plain** | suite_expand_test pin（deferred=0）+ 值级对拍 |
 | toRDF | 467（正 345 / 负 106 / 句法 16） | ✅ **467/467 全 plain** | suite_tordf_test pin + 判定器（迷你 N-Quads 解析 + 集合同构） |
-| compact | 246（正 229 / 负 17） | 🚧 **235/246 plain**（正 220 + 负 15）/ deferred 11 在册 | suite_compact_test pin（deferred=11）+ canonical_for_suite 直比 + bnode 双射兜底 |
+| compact | 246（正 229 / 负 17） | 🚧 **236/246 plain**（正 221 + 负 15）/ deferred 10 在册 | suite_compact_test pin（deferred=10）+ canonical_for_suite 直比 + bnode 双射兜底 |
 | flatten | 58（正 57 / 负 1） | ✅ **56/58 plain**（正 55 + 负 1）/ deferred 2 在册 | suite_flatten_test pin（deferred=2）+ canonical_for_suite 直比 + bnode 双射兜底（isomorphic_for_suite——判定器自检四钉） |
 | fromRdf | 54 | ❌ 未实现 | ——（§8.39） |
 | html | 50 | ❌ 未实现 | ——（§8.39） |
@@ -1853,3 +1853,35 @@ list 闸 Set 与缺省对齐 / compact_value_jv 吸收臂与 bare 对齐——�
 全元素计缺省语言由既有闸位承担）。deferred 11：t0007/t0038/t0045/
 t0066/t0110/te002/tn006-009/tpr03（负例 te002/tpr03）。
 deny-warn 65/65 绿、全仓 377 零回退、n3gen 12、子模块 124、.mbti 无变化。
+
+### 8.83 役39 开工钉：graph 簇 t0110 根型（2026-10-01；勘定修订：未实现 → 边界）
+
+**判别谓词（三绿例对读）**：t0078 值 = 普通节点对象（无 @graph）→ 不进
+graph shaped 路（正常两遍）；t0082 = Index 次级（shaped 数组形正是
+map 面所需——"g1":[…]）；t0109 = 非 graph_set 路的 **@included 包裹
+机械已存在且绿**（多内容 shaped = @included 对象）。t0110 =
+`["@graph","@set"]` + 纯 graph object 值 → graph_set shaped = 数组 →
+发射位摊平（`[[…]]` 塌成平铺）——EXPECT 单成员 `{"@included":[…]}`。
+
+**根型修订：未实现 → 边界**（§8.73 勘定批初判修正——@included 机械
+在、shaped 形态判据缺**次级位维度**：graph_set 数组形只该用于映射面
+次级 Index；bares 面的 graph-object 值该走 @included 语义）。
+
+**修法 = shaped 判据加次级位**（`graph_set && graph_secondary is
+Some(_)` 才数组形；bares 面落 @included/单内容分支——发射位摊平循环
+对非 Array 成员整员直推，天然承接）。与 graph 既有位的界线：载体渲染
+（@id 组，#t0080）/映射归组（#t0081/#t0083）/t0078 普通节点路全不涉。
+
+### 8.84 graph 簇 t0110 落成（2026-10-01 役39；235 → 236/246 plain，零回退）
+
+**钉的兑现（§8.83 根型修订 = 边界·shaped 判据缺次级位维度）**：shaped
+形态判据加 `graph_secondary is Some(_)`——数组形仅映射面次级（#t0082
+Index 位），bares 面的 graph-object 值落 @included/单内容分支（发射位
+摊平循环对非 Array 成员整员直推，天然承接——`[{@included:[…]}]` 单
+成员出形 ✓）。graph 族全量回归零回退（t0078 普通节点路 / t0082 映射
+面数组形 / t0083 载体归组 / t0109 非 graph_set @included 原样绿）。
+
+**转正 1 例**：t0110（[@graph,@set] 复合容器的 @included 出形）。
+deferred 10：t0007/t0038/t0045/t0066/te002/tn006-009/tpr03（负例
+te002/tpr03）。deny-warn 65/65 绿、全仓 377 零回退、n3gen 12、
+子模块 124、.mbti 无变化。
