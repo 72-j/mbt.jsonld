@@ -1616,11 +1616,11 @@ fn compact_node_jv(
     for name in group_keys {
       match (group_vals.get(name), group_array.get(name)) {
         (Some(arr), Some(keep)) => {
-          // @json 值直出（#tjs07 oracle——@json 原值即 JSON，容器/塌缩不包）
+          // @json 值直出（#tjs07 oracle——@json 原值即 JSON，容器/塌缩不包；
+          // datatype 位是**关键字形** "@json"（丁批 #tjs01 同形），full IRI
+          // 形在管线中不存在——役34 勘定：旧守卫查 full IRI 恒不命中）
           let td_json = match group_tds.get(name) {
-            Some(td) =>
-              td.datatype
-              is Some("http://www.w3.org/1999/02/22-rdf-syntax-ns#JSON")
+            Some(td) => td.datatype is Some("@json")
             None => false
           }
           let out = if td_json && arr.length() == 1 {
