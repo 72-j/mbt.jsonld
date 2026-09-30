@@ -196,10 +196,40 @@ fn compact_iri_word(
 }
 
 ///|
-/// 值 datatype 取形（排名特异性用——Value 取其 datatype、他形 None）
+/// 值 datatype 取形（排名特异性用——Value 取其 datatype；List 取**全项
+/// uniform** 的 datatype（役31 typed 值对象收集项——#t0018 term4/term5、
+/// #t0024 termTL1/TL2 排名位），混合/含非值项 → None；他形 None）
 fn literal_datatype_of(v : ExpandedValue) -> String? {
   match v {
     ExpandedValue::Value(lit) => lit.datatype
+    ExpandedValue::List(items, ..) => {
+      let mut acc : String? = None
+      let mut mixed = false
+      for item in items {
+        let known = match item {
+          ExpandedValue::Value(_) => true
+          _ => false
+        }
+        let item_dt : String? = match item {
+          ExpandedValue::Value(lit) => lit.datatype
+          _ => None
+        }
+        if !known {
+          mixed = true
+        } else {
+          match (acc, item_dt) {
+            (None, dt) => acc = dt
+            (Some(a), Some(d)) => if a != d { mixed = true }
+            (Some(_), None) => mixed = true
+          }
+        }
+      }
+      if mixed {
+        None
+      } else {
+        acc
+      }
+    }
     _ => None
   }
 }
@@ -247,6 +277,11 @@ fn compact_bare_fit(
         td.container is Some(_) {
         return false
       }
+      // @list 容器 term 只整列吸收 List 值（标量入列即多值异质并组——
+      // #t0018 oracle：v0.2/v0.3/裸标量归 plain term，不落 term2/term3 列）
+      if td.container is Some(List) {
+        return false
+      }
       // 方向态对齐总闸（§8.48——方向不合者不入 bare，与语言态同判据：
       // 裸形重展开由 term/缺省注回同向才安全——#tdi01/#tdi07 oracle）
       let dir_aligned = match td.direction_mapping {
@@ -287,7 +322,8 @@ fn compact_bare_fit(
               // raw 保形体不受缺省语言注入）
               match lit.language {
                 Some(lang) => lang == active.default_language.unwrap_or("")
-                None => active.default_language is None || literal_raw_is_scalar(lit)
+                None =>
+                  active.default_language is None || literal_raw_is_scalar(lit)
               }
           }
       }
@@ -348,9 +384,12 @@ fn compact_object_fit(
             Some(_) => false
             // 纯 term：对象形可用的残域 = datatype 在场（钉 @type——
             // #t0002 term2 oracle）或 language 在场（钉 @language——
-            // #t0002 term3 oracle）；纯串无修饰时对象形重展开仍会被注入
-            // 缺省语言 → 不安全（#t0015 plain literal oracle）
-            None => lit.datatype is Some(_) || lit.language is Some(_)
+            // #t0002 term3 oracle）或 context 缺省语言在场（对象形保住
+            // 无语言态，裸串重展开会被注入缺省——#t0018 v0.3 oracle）
+            None =>
+              lit.datatype is Some(_) ||
+              lit.language is Some(_) ||
+              _active.default_language is Some(_)
           }
       }
     }
@@ -465,7 +504,9 @@ fn compact_value_jv(
         pairs.push(
           (
             "@type",
-            JsonValue::String(compact_iri_word(dt, true, true, true, active, options)),
+            JsonValue::String(
+              compact_iri_word(dt, true, true, true, active, options),
+            ),
           ),
         )
       }
@@ -473,8 +514,12 @@ fn compact_value_jv(
   }
   // @language/@direction 走别名键（#tdi02 oracle——"direction":"@direction"
   // → 键 "direction"；无别名回落关键字字面）
-  let lang_key = compact_iri_word("@language", true, false, true, active, options)
-  let dir_key = compact_iri_word("@direction", true, false, true, active, options)
+  let lang_key = compact_iri_word(
+    "@language", true, false, true, active, options,
+  )
+  let dir_key = compact_iri_word(
+    "@direction", true, false, true, active, options,
+  )
   match literal.language {
     Some(lang) => pairs.push((lang_key, JsonValue::String(lang)))
     None => ()
@@ -491,33 +536,184 @@ fn compact_value_jv(
 }
 
 ///|
-/// 排名估长器（无递归——断 compact_node_jv 定义环）：id_only 节点取压缩
-/// 词长；值取词长+8；list 取 300+项*8；非裸节点 400——排名仅需相对序，
-/// 精确长由选中后真渲染承担
+/// 排名估长器（无递归——断 compact_node_jv 定义环）：id_only 节点取**本
+/// term 塌缩词**长（役31——词形随候选项，最短词形排名的本职；塌缩旗标与
+/// compact_value_item 串塌缩臂逐字同源，故 id_only 面即精确渲染长）+
+/// 词形级别（exact 0 < vocab 后缀 1 < 前缀词 2 < base 相对 3 < 全 IRI 4
+/// ——同长 tie-break，#t0044 DefinedTerm exact 胜 base 相对）；值取词长+8；
+/// list 300+项*8；非裸节点 400——排名仅需相对序，精确长由选中后真渲染承担
 fn compact_rank_word_len(
   v : ExpandedValue,
+  td_opt : TermDefinition?,
   active : ActiveContext,
   options : JsonLdOptions,
-) -> Int {
+) -> (Int, Int) {
   match v {
-    ExpandedValue::Node(child) =>
-      if child.types.is_empty() &&
+    ExpandedValue::Node(child) => {
+      let id_only = child.types.is_empty() &&
         child.properties.is_empty() &&
         child.reverse_props.is_empty() &&
         child.graph is None &&
         child.included is None &&
-        child.index is None {
-        match child.id {
-          Some(id) =>
-            compact_iri_word(id, false, false, true, active, options).length()
-          None => 400
-        }
-      } else {
-        400
+        child.index is None
+      let id = match child.id {
+        Some(id) => id
+        None => return (400, 4)
       }
-    ExpandedValue::Value(lit) => lit.value.length() + 8
-    ExpandedValue::List(items, ..) => 300 + items.length() * 8
+      if !id_only {
+        return (400, 4)
+      }
+      match td_opt {
+        Some(td) =>
+          match td.datatype {
+            // @id 型：串塌缩恒行（base 相对——compact_value_item 同旗标）
+            Some("@id") => {
+              let word = compact_iri_word(
+                id, false, false, true, active, options,
+              )
+              (
+                word.length(),
+                compact_word_rank(id, false, false, active, options),
+              )
+            }
+            // @vocab 型：exact/vocab 命中才塌，否则前缀词步（base 禁——
+            // compact_value_item 同判据）
+            Some("@vocab") => {
+              let exact_hit = compact_term_candidates(id, false, active).length() >
+                0
+              let vocab_hit = match active.vocab {
+                Some(vocab) =>
+                  vocab.length() < id.length() && id.has_prefix(vocab)
+                None => false
+              }
+              let word = if exact_hit || vocab_hit {
+                compact_iri_word(id, true, true, true, active, options)
+              } else {
+                compact_iri_word(id, false, false, false, active, options)
+              }
+              (
+                word.length(),
+                compact_word_rank(id, exact_hit, vocab_hit, active, options),
+              )
+            }
+            // 无 @type 形态：id_only 节点走对象形（{"@id":…}），不作裸塌缩
+            _ => (400, 4)
+          }
+        None => (400, 4)
+      }
+    }
+    ExpandedValue::Value(lit) => (lit.value.length() + 8, 3)
+    ExpandedValue::List(items, ..) => (300 + items.length() * 8, 3)
   }
+}
+
+///|
+/// 词形级别（估长器同长 tie-break 用；与本 term 塌缩词配套）：exact 命中
+/// 0 < vocab 后缀 1 < 前缀词 2 < base 相对 3 < 全 IRI 4——以窄旗标逐步
+/// 试塌归类（每步纯串工作，无渲染递归）
+fn compact_word_rank(
+  id : String,
+  exact_hit : Bool,
+  vocab_hit : Bool,
+  active : ActiveContext,
+  options : JsonLdOptions,
+) -> Int {
+  if exact_hit {
+    return 0
+  }
+  if vocab_hit {
+    return 1
+  }
+  let prefix_word = compact_iri_word(id, false, false, false, active, options)
+  if prefix_word != id {
+    return 2
+  }
+  let base_word = compact_iri_word(id, false, false, true, active, options)
+  if base_word != id {
+    return 3
+  }
+  4
+}
+
+///|
+/// @reverse 值级分键（役31 从 compact_node_jv 内联抽出——@reverse 定义 term
+/// 与普通 term 双路复用）：逐值 bare_fit + 最短词形排名（词长→词形级别）归
+/// term（#t0044 oracle——dave→knows 全词、DefinedTerm→knowsVocab exact 词；
+/// 同 IRI 双 term 按值拆键）；无 fit 值落 compact_property_pair 兜底键。
+/// 返回 (键, 值) 对数组——组内单值塌缩随 compactArrays
+fn compact_reverse_split_pairs(
+  pred : String,
+  cands : Array[String],
+  vals : Array[ExpandedValue],
+  active : ActiveContext,
+  options : JsonLdOptions,
+) -> Result[Array[(String, JsonValue)], JsonLdError] {
+  let rev_split : Map[String, Array[JsonValue]] = Map([])
+  for v in vals {
+    let mut best : (String, TermDefinition, Int, Int)? = None
+    for name in cands {
+      match active.terms.get(name) {
+        Some(td) => {
+          let fits = compact_bare_fit(v, td, active)
+          if fits {
+            let (word_len, word_rank) = compact_rank_word_len(
+              v,
+              Some(td),
+              active,
+              options,
+            )
+            let better = match best {
+              Some((_, _, bl, br)) =>
+                word_len < bl || (word_len == bl && word_rank < br)
+              None => true
+            }
+            if better {
+              best = Some((name, td, word_len, word_rank))
+            }
+          }
+        }
+        None => ()
+      }
+    }
+    match best {
+      Some((name, td, _, _)) => {
+        let jv = match
+          compact_value_item(v, Some(td), active, active, options) {
+          Ok(out) => out
+          Err(e) => return Err(e)
+        }
+        match rev_split.get(name) {
+          Some(arr) => arr.push(jv)
+          None => rev_split[name] = [jv]
+        }
+      }
+      None =>
+        match compact_property_pair(pred, true, [v], active, options) {
+          Ok(pair_out) =>
+            // 同键并值（多值同落一词形——恒追加）
+            match rev_split.get(pair_out.0) {
+              Some(arr) => arr.push(pair_out.1)
+              None => rev_split[pair_out.0] = [pair_out.1]
+            }
+          Err(e) => return Err(e)
+        }
+    }
+  }
+  let out : Array[(String, JsonValue)] = []
+  for name in rev_split.keys().collect() {
+    match rev_split.get(name) {
+      Some(arr) => {
+        let rendered = if options.compact_arrays && arr.length() == 1 {
+          arr[0]
+        } else {
+          JsonValue::Array(arr)
+        }
+        out.push((name, rendered))
+      }
+      None => ()
+    }
+  }
+  Ok(out)
 }
 
 ///|
@@ -527,10 +723,13 @@ fn compact_value_item(
   value : ExpandedValue,
   td_opt : TermDefinition?,
   active : ActiveContext,
+  key_active : ActiveContext,
   options : JsonLdOptions,
 ) -> Result[JsonValue, JsonLdError] {
   // property-scoped context 套用（压缩面——tc001/tc013 族：td @context 在
-  // 节点有效链之上套用，值渲染全走此链；套用失败回退——定义期已校验）
+  // 节点有效链之上套用，值渲染全走此链；套用失败回退——定义期已校验）。
+  // key_active = 键选择链（役3 双链分立——#tc011：type-scoped 注销的别名
+  // 只在键链生效，{"@id"} 对象形键随此链；property-scoped 对两链同权套用）
   let active : ActiveContext = match td_opt {
     Some(td) =>
       match td.local_context {
@@ -550,6 +749,25 @@ fn compact_value_item(
       }
     None => active
   }
+  let key_active : ActiveContext = match td_opt {
+    Some(td) =>
+      match td.local_context {
+        Some(lc) =>
+          match
+            ContextProcessor::process_context(
+              StandardExpander::{ },
+              key_active,
+              lc,
+              ContextFlags::property_scoped(),
+              options,
+            ) {
+            Ok(c) => c
+            Err(_) => key_active
+          }
+        None => key_active
+      }
+    None => key_active
+  }
   match value {
     ExpandedValue::Node(child) => {
       let id_only = child.types.is_empty() &&
@@ -568,7 +786,9 @@ fn compact_value_item(
                   Some("@id") =>
                     return Ok(
                       JsonValue::String(
-                        compact_iri_word(id, false, false, true, active, options),
+                        compact_iri_word(
+                          id, false, false, true, active, options,
+                        ),
                       ),
                     )
                   // @vocab 型塌缩 = exact 命中或 vocab 前缀命中才塌
@@ -576,11 +796,8 @@ fn compact_value_item(
                   // ——base 步不参与（#t0062 oracle：绝对 IRI 不因文档
                   // base 相对化）
                   Some("@vocab") => {
-                    let exact_hit = compact_term_candidates(
-                      id,
-                      false,
-                      active,
-                    ).length() > 0
+                    let exact_hit = compact_term_candidates(id, false, active).length() >
+                      0
                     let vocab_hit = match active.vocab {
                       Some(v) => v.length() < id.length() && id.has_prefix(v)
                       None => false
@@ -589,12 +806,7 @@ fn compact_value_item(
                       return Ok(
                         JsonValue::String(
                           compact_iri_word(
-                            id,
-                            true,
-                            true,
-                            true,
-                            active,
-                            options,
+                            id, true, true, true, active, options,
                           ),
                         ),
                       )
@@ -602,12 +814,7 @@ fn compact_value_item(
                     // 前缀词步仍可（#t0063 oracle——"prefix:suffix"），
                     // base 步禁（绝对 IRI 不因文档 base 相对化）
                     let prefix_word = compact_iri_word(
-                      id,
-                      false,
-                      false,
-                      false,
-                      active,
-                      options,
+                      id, false, false, false, active, options,
                     )
                     return Ok(JsonValue::String(prefix_word))
                   }
@@ -617,14 +824,19 @@ fn compact_value_item(
             }
           None => ()
         }
-        // 对象形：{"@id": 压缩词}；@-词转义（#t0111 oracle——"@special"
-        // 重展开会被当关键字 ⇒ "./" 前缀逃逸）
+        // 对象形：{@id键: 压缩词}；键走关键词压缩（役31——@id 别名 term
+        // 生效，#t0022 oracle："id":"@id" 别名下列项节点 {id:…} 非 {@id:…}；
+        // 与值对象 @language 键同款旗标）；@-词转义（#t0111 oracle——
+        // "@special" 重展开会被当关键字 ⇒ "./" 前缀逃逸）
+        let id_key = compact_iri_word(
+          "@id", true, false, true, key_active, options,
+        )
         let word = match child.id {
           Some(id) => compact_iri_word(id, false, false, true, active, options)
           None => ""
         }
         let word = if word.has_prefix("@") { "./" + word } else { word }
-        return Ok(JsonValue::Object([("@id", JsonValue::String(word))]))
+        return Ok(JsonValue::Object([(id_key, JsonValue::String(word))]))
       }
       compact_node_graph_value_jv(child, active, options)
     }
@@ -644,7 +856,7 @@ fn compact_value_item(
         if it is ExpandedValue::List(_) && options.processing_mode is JsonLd10 {
           return Err(JsonLdError::InvalidList("compaction to list of lists"))
         }
-        match compact_value_item(it, td_opt, active, options) {
+        match compact_value_item(it, td_opt, active, key_active, options) {
           Ok(jv) => arr.push(jv)
           Err(e) => return Err(e)
         }
@@ -655,20 +867,10 @@ fn compact_value_item(
       // @list/@index 键走 term 词形（关键字别名——#t0042 oracle：
       // "listAlias"/"indexAlias" 作键；无别名回落关键字字面）
       let list_key = compact_iri_word(
-        "@list",
-        true,
-        false,
-        true,
-        active,
-        options,
+        "@list", true, false, true, active, options,
       )
       let index_key = compact_iri_word(
-        "@index",
-        true,
-        false,
-        true,
-        active,
-        options,
+        "@index", true, false, true, active, options,
       )
       let list_obj : Array[(String, JsonValue)] = [
         (list_key, JsonValue::Array(arr)),
@@ -707,7 +909,7 @@ fn compact_property_values(
                     JsonLdError::InvalidList("compaction to list of lists"),
                   )
                 }
-                match compact_value_item(it, td_opt, active, options) {
+                match compact_value_item(it, td_opt, active, active, options) {
                   Ok(jv) => arr.push(jv)
                   Err(e) => return Err(e)
                 }
@@ -730,7 +932,7 @@ fn compact_property_values(
   let vals_jv : Array[JsonValue] = []
   let seen : Map[String, Bool] = Map([])
   for v in vals {
-    match compact_value_item(v, td_opt, active, options) {
+    match compact_value_item(v, td_opt, active, active, options) {
       Ok(jv) => {
         let key = jv_render(jv)
         if !seen.contains(key) {
@@ -809,7 +1011,9 @@ fn compact_node_jv(
       pairs.push(
         (
           id_key,
-          JsonValue::String(compact_iri_word(id, true, false, true, active, options)),
+          JsonValue::String(
+            compact_iri_word(id, true, false, true, active, options),
+          ),
         ),
       )
     None => ()
@@ -823,13 +1027,16 @@ fn compact_node_jv(
       // @type 值渲染走 outer 链（#tc014 oracle——nullification 后 vocab
       // 存续；type-scoped 只管键选择，值词形随外层——双链分立同款）
       types.push(
-        JsonValue::String(compact_iri_word(t, true, true, true, active, options)),
+        JsonValue::String(
+          compact_iri_word(t, true, true, true, active, options),
+        ),
       )
     }
     // 别名 term 带 @container @set ⇒ 恒数组（#t0105 oracle；#t0106
     // oracle——1.0 模式数组塌缩不受 @set 容器约束）
     let type_set = match scoped.terms.get(type_key) {
-      Some(td) => td.container is Some(Set) && options.processing_mode is JsonLd11
+      Some(td) =>
+        td.container is Some(Set) && options.processing_mode is JsonLd11
       None => false
     }
     if options.compact_arrays && types.length() == 1 && !type_set {
@@ -932,8 +1139,7 @@ fn compact_node_jv(
                     }
                   }
                   let none_key = compact_iri_word(
-                    "@none", true, false, true,
-active, options,
+                    "@none", true, false, true, active, options,
                   )
                   // shaped（§8.52——单内容节点对象 / 多内容 @included 包裹；
                   // graph_set 载体恒数组保形——#t0082 族 oracle）
@@ -943,8 +1149,7 @@ active, options,
                     content[0]
                   } else {
                     let included_key = compact_iri_word(
-                      "@included", true, false, true,
-active, options,
+                      "@included", true, false, true, active, options,
                     )
                     JsonValue::Object(
                       [("@included", JsonValue::Array(content))].map(fn(p) {
@@ -960,7 +1165,9 @@ active, options,
                     Some(Id) => {
                       let subkey = match child.id {
                         Some(id) =>
-                          compact_iri_word(id, false, false, true, active, options)
+                          compact_iri_word(
+                            id, false, false, true, active, options,
+                          )
                         None => none_key
                       }
                       graph_subs.push((subkey, shaped))
@@ -974,7 +1181,8 @@ active, options,
                       // 组——@index 成员自带键信息，#t0083 oracle）；无 id
                       // = shaped 入映射组（#t0081）
                       if child.id is Some(_) {
-                        match compact_node_graph_value_jv(child, active, options) {
+                        match
+                          compact_node_graph_value_jv(child, active, options) {
                           Ok(jv) =>
                             match group_vals.get(gt_name) {
                               Some(arr) => arr.push(jv)
@@ -1000,7 +1208,8 @@ active, options,
                     // "@id"+"@graph" 随形）；无 id = shaped
                     None =>
                       if child.id is Some(_) {
-                        match compact_node_graph_value_jv(child, active, options) {
+                        match
+                          compact_node_graph_value_jv(child, active, options) {
                           Ok(jv) => graph_bares.push(jv)
                           Err(e) => return Err(e)
                         }
@@ -1035,7 +1244,8 @@ active, options,
             _ => false
           }
           if !is_map && compact_bare_fit(v, entry.1, active) {
-            let jv = match compact_value_item(v, Some(entry.1), active, options) {
+            let jv = match
+              compact_value_item(v, Some(entry.1), active, scoped, options) {
               Ok(out) => out
               Err(e) => return Err(e)
             }
@@ -1080,9 +1290,10 @@ active, options,
       // oracle——exact 词 < base 相对 < 全 IRI）
       let mut chosen : (String, TermDefinition, Bool)? = None
       for pass_bare in [true, false] {
-        // 排名键 = (词长, 特异性位降序)：同长时 Set/Null 精确映射 > None
-        // 缺省对齐（#t0018/#t0024 oracle——en 项归 termLL1 非 termLL0）
-        let mut best : (String, TermDefinition, Int, Int)? = None
+        // 排名键 = (词长, 词形级别, 特异性位降序)：同长时 exact/vocab 塌缩
+        // 胜 base/全 IRI（#t0044），再同则 Set/Null 精确映射 > None 缺省
+        // 对齐（#t0018/#t0024 oracle——en 项归 termLL1 非 termLL0）
+        let mut best : (String, TermDefinition, Int, Int, Int)? = None
         for entry in cand_tds {
           let fits = if pass_bare {
             compact_bare_fit(v, entry.1, active)
@@ -1090,10 +1301,16 @@ active, options,
             compact_object_fit(v, entry.1, active)
           }
           if fits {
-            let word_len = compact_rank_word_len(v, active, options)
+            let (word_len, word_rank) = compact_rank_word_len(
+              v,
+              Some(entry.1),
+              active,
+              options,
+            )
             // 特异性双维（役30 第二维 datatype）：language-mapping term
             // 不得抢 typed 值（#t0015）；td @type 与值 datatype 合 ⇒ +1
-            // （#t0024 oracle——type1 项归 termTL1 非 termLL0）
+            // （#t0024 oracle——type1 项归 termTL1 非 termLL0）；列的
+            // datatype 位 = 全项 uniform 才计（役31 typed 值对象收集项）
             let v_dt = literal_datatype_of(v)
             let spec_lang = match (entry.1.language_mapping, v_dt) {
               (Some(_), None) => 1
@@ -1105,23 +1322,26 @@ active, options,
             }
             let specificity = spec_lang + spec_type
             let better = match best {
-              Some((_, _, bl, bs)) => word_len < bl || (word_len == bl && specificity > bs)
+              Some((_, _, bl, br, bs)) =>
+                word_len < bl ||
+                (
+                  word_len == bl &&
+                  (word_rank < br || (word_rank == br && specificity > bs))
+                )
               None => true
             }
             if better {
-              best = Some((entry.0, entry.1, word_len, specificity))
+              best = Some((entry.0, entry.1, word_len, word_rank, specificity))
             }
           }
         }
         match best {
-          Some((name, td, _, _)) => {
-            chosen = Some((name, td, pass_bare))
-          }
+          Some((name, td, _, _, _)) => chosen = Some((name, td, pass_bare))
           None => ()
         }
         if chosen is Some(_) {
           break
-      }
+        }
       }
       match chosen {
         Some((name, td_scoped, is_bare)) => {
@@ -1162,7 +1382,8 @@ active, options,
                 iri: td_scoped.iri,
               }
           }
-          let jv = match compact_value_item(v, Some(td), value_chain, options) {
+          let jv = match
+            compact_value_item(v, Some(td), value_chain, scoped, options) {
             Ok(out) => out
             Err(e) => return Err(e)
           }
@@ -1189,7 +1410,8 @@ active, options,
           let _ = is_bare
         }
         None => {
-          let jv = match compact_value_item(v, None, value_chain, options) {
+          let jv = match
+            compact_value_item(v, None, value_chain, scoped, options) {
             Ok(out) => out
             Err(e) => return Err(e)
           }
@@ -1347,15 +1569,7 @@ active, options,
     if pair.1.is_empty() {
       let key = match cand_tds {
         cs if cs.length() > 0 => cs[0].0
-        _ =>
-          compact_iri_word(
-            pair.0,
-            false,
-            true,
-            true,
-            active,
-            options,
-          )
+        _ => compact_iri_word(pair.0, false, true, true, active, options)
       }
       pairs.push((key, JsonValue::Array([])))
     }
@@ -1402,8 +1616,7 @@ active, options,
         }
       }
       let included_key = compact_iri_word(
-        "@included", true, false, true,
-active, options,
+        "@included", true, false, true, active, options,
       )
       // @included 单值解包为对象形（#tin02/#tin04/#tin05 oracle——与
       // @graph 关键词条恒数组分叉：REC 出形位不同）；别名 term 带
@@ -1445,7 +1658,6 @@ active, options,
   let rev_map_names : Array[String] = []
   let rev_map_subs : Map[String, Array[(String, JsonValue)]] = Map([])
   let rev_pairs : Array[(String, JsonValue)] = []
-  let rev_split : Map[String, Array[JsonValue]] = Map([])
   for pair in node.reverse_props {
     let cands = compact_term_candidates(pair.0, true, active)
     if cands.length() > 0 {
@@ -1491,70 +1703,42 @@ active, options,
         }
       } else {
         // 值级最短词形排名分键（#t0044 oracle——dave→knows 全词、
-        // DefinedTerm→knowsVocab exact 词；同 IRI 双 term 按值拆键）
-        for v in pair.1 {
-          let mut best : (String, TermDefinition, Int)? = None
-          for name in cands {
-            match active.terms.get(name) {
-              Some(td) => {
-                let fits = compact_bare_fit(v, td, active)
-                if fits {
-                  let word_len = compact_rank_word_len(v, active, options)
-                  let better = match best {
-                    Some((_, _, bl)) => word_len < bl
-                    None => true
-                  }
-                  if better {
-                    best = Some((name, td, word_len))
-                  }
-                }
-              }
-              None => ()
+        // DefinedTerm→knowsVocab exact 词；同 IRI 双 term 按值拆键；
+        // 役31 抽 compact_reverse_split_pairs 双路复用）
+        match
+          compact_reverse_split_pairs(pair.0, cands, pair.1, active, options) {
+          Ok(split_pairs) =>
+            for split_pair in split_pairs {
+              pairs.push(split_pair)
             }
-          }
-          match best {
-            Some((name, td, _)) => {
-              let jv = match compact_value_item(v, Some(td), active, options) {
-                Ok(out) => out
-                Err(e) => return Err(e)
-              }
-              match rev_split.get(name) {
-                Some(arr) => arr.push(jv)
-                None => rev_split[name] = [jv]
-              }
-            }
-            None => {
-              match compact_property_pair(pair.0, true, [v], active, options) {
-                Ok(pair_out) => {
-                  // 同键并值（多值同落一词形——恒追加）
-                  match rev_split.get(pair_out.0) {
-                    Some(arr) => arr.push(pair_out.1)
-                    None => rev_split[pair_out.0] = [pair_out.1]
-                  }
-                }
-                Err(e) => return Err(e)
-              }
-            }
-          }
-        }
-        for name in rev_split.keys().collect() {
-          match rev_split.get(name) {
-            Some(arr) => {
-              let out = if options.compact_arrays && arr.length() == 1 {
-                arr[0]
-              } else {
-                JsonValue::Array(arr)
-              }
-              pairs.push((name, out))
-            }
-            None => ()
-          }
+          Err(e) => return Err(e)
         }
       }
     } else {
-      match compact_property_pair(pair.0, false, pair.1, active, options) {
-        Ok(pair_out) => rev_pairs.push(pair_out)
-        Err(e) => return Err(e)
+      // 无 @reverse 定义 term：正向 term 逐值分键（役31 #t0044 第二路——
+      // @type @id/@vocab 普通 term 在 @reverse 位同 IRI 双候选按值拆键，
+      // 出形保 @reverse 包裹）；无正向候选落整体渲染兜底
+      let fwd_cands = compact_term_candidates(pair.0, false, active)
+      if fwd_cands.length() > 0 {
+        match
+          compact_reverse_split_pairs(
+            pair.0,
+            fwd_cands,
+            pair.1,
+            active,
+            options,
+          ) {
+          Ok(split_pairs) =>
+            for split_pair in split_pairs {
+              rev_pairs.push(split_pair)
+            }
+          Err(e) => return Err(e)
+        }
+      } else {
+        match compact_property_pair(pair.0, false, pair.1, active, options) {
+          Ok(pair_out) => rev_pairs.push(pair_out)
+          Err(e) => return Err(e)
+        }
       }
     }
   }
@@ -1618,10 +1802,13 @@ fn compact_map_entry(
       match value {
         ExpandedValue::Node(child) => {
           let subkey = match child.id {
-            Some(id) => compact_iri_word(id, false, false, true, active, options)
+            Some(id) =>
+              compact_iri_word(id, false, false, true, active, options)
             None => none_key
           }
-          let id_key = compact_iri_word("@id", true, false, true, active, options)
+          let id_key = compact_iri_word(
+            "@id", true, false, true, active, options,
+          )
           match compact_node_jv(child, active, options) {
             Ok(JsonValue::Object(pairs)) => {
               let stripped : Array[(String, JsonValue)] = []
@@ -1808,7 +1995,8 @@ fn compact_map_entry(
                 // 无键（首值不可串塌缩——#tpi06 oracle）→ 全形落 @none 组
                 //（prop 保原形走常规渲染）
                 if subkey_opt is None {
-                  match compact_value_item(value, Some(td), active, options) {
+                  match
+                    compact_value_item(value, Some(td), active, active, options) {
                     Ok(jv) => return Some((none_key, jv))
                     Err(_) => return None
                   }
@@ -1861,7 +2049,8 @@ fn compact_map_entry(
                 }
               } else {
                 // 无 index 属性 → @none 组（常规值压缩链——#tpi05/#tpi06）
-                match compact_value_item(value, Some(td), active, options) {
+                match
+                  compact_value_item(value, Some(td), active, active, options) {
                   Ok(jv) => return Some((none_key, jv))
                   Err(_) => return None
                 }
@@ -1997,7 +2186,6 @@ fn compact_apply_type_scoped(
   current
 }
 
-
 ///|
 /// 图对象值位渲染（REC 12.8.8.4——节点渲染后，@graph 键（含别名）单内容
 /// 塌缩为对象形；关键字词条 as-array 恒真不在此路——#t0092/#t0094/#t0080
@@ -2010,7 +2198,9 @@ fn compact_node_graph_value_jv(
   let jv = compact_node_jv(node, active, options)
   match jv {
     Ok(JsonValue::Object(pairs)) => {
-      let graph_key = compact_iri_word("@graph", true, false, true, active, options)
+      let graph_key = compact_iri_word(
+        "@graph", true, false, true, active, options,
+      )
       let out : Array[(String, JsonValue)] = []
       for p in pairs {
         if p.0 == graph_key {
@@ -2035,8 +2225,9 @@ fn compact_node_graph_value_jv(
 
 ///|
 /// list 值 bare 适配（役30 从 bare_fit 内联链抽出——顶层具名函数规避
-/// 深嵌套 match 文法坑）：index 闸 / @list 容器闸 / 语言镜像（含标量免疫）/
-/// type 镜像 / 方向闸
+/// 深嵌套 match 文法坑；役31 闸形与 Value 臂对齐——datatype 分支优先，
+/// 语言只属无 @type 面）：index 闸 / @list 容器闸 / 方向闸 / type 闸
+/// （uniform 整列）/ 语言镜像（含标量免疫）
 fn compact_list_bare_fit(
   items : Array[ExpandedValue],
   index : String?,
@@ -2046,34 +2237,6 @@ fn compact_list_bare_fit(
   if index is Some(_) {
     false
   } else if td.container is Some(List) {
-    let first_lang = match items.get(0) {
-      Some(ExpandedValue::Value(lit)) => lit.language
-      _ => None
-    }
-    let first_dt = match items.get(0) {
-      Some(ExpandedValue::Value(lit)) => lit.datatype
-      _ => None
-    }
-    let first_scalar = match items.get(0) {
-      Some(ExpandedValue::Value(lit)) => lit.raw is Some(_)
-      _ => false
-    }
-    let lang_ok = match td.language_mapping {
-      Some(Set(lang)) => first_lang == Some(lang)
-      Some(Null) => first_lang is None
-      None => {
-        // 缺省对齐（termLL0 收缺省 de 项）；标量免疫（数值不受缺省注入）
-        let aligned = match first_lang {
-          Some(l) => l == active.default_language.unwrap_or("")
-          None => active.default_language is None
-        }
-        first_scalar || aligned
-      }
-    }
-    let type_ok = match td.datatype {
-      Some(dt) => first_dt == Some(dt)
-      None => first_dt is None
-    }
     let dir_ok = match td.direction_mapping {
       Some(Set(d)) =>
         match items.get(0) {
@@ -2082,7 +2245,55 @@ fn compact_list_bare_fit(
         }
       _ => true
     }
-    lang_ok && dir_ok && type_ok
+    if !dir_ok {
+      false
+    } else {
+      match td.datatype {
+        // @type 版 term：整列 uniform datatype 才吸收（与 Value 臂同形——
+        // datatype 吸收面与语言无关）；混合 typed 列不归 @type term
+        Some(dt) => {
+          let mut uniform = true
+          for item in items {
+            let item_dt : String? = match item {
+              ExpandedValue::Value(lit) => lit.datatype
+              _ => None
+            }
+            if item_dt != Some(dt) {
+              uniform = false
+            }
+          }
+          uniform
+        }
+        None => {
+          // 无 @type：语言镜像（首项定调）+ 免注免疫（raw 标量 + typed 值
+          // 对象——重展开不受缺省语言注入）；type 面恒容——typed 项以值
+          // 对象形居裸数组（役27 None⇒typed 值对象形；#t0024 termTL0 混合列）
+          let first_lang = match items.get(0) {
+            Some(ExpandedValue::Value(lit)) => lit.language
+            _ => None
+          }
+          let first_immune = match items.get(0) {
+            Some(ExpandedValue::Value(lit)) =>
+              lit.raw is Some(_) || lit.datatype is Some(_)
+            _ => false
+          }
+          let lang_ok = match td.language_mapping {
+            Some(Set(lang)) => first_lang == Some(lang)
+            Some(Null) => first_lang is None
+            None => {
+              // 缺省对齐（termLL0 收缺省 de 项）；免注免疫（#t0018 [1,2]
+              // 数值列、#t0024 termTL0 typed 列）
+              let aligned = match first_lang {
+                Some(l) => l == active.default_language.unwrap_or("")
+                None => active.default_language is None
+              }
+              first_immune || aligned
+            }
+          }
+          lang_ok
+        }
+      }
+    }
   } else {
     false
   }

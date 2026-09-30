@@ -86,7 +86,7 @@ pub fn ExpandedNode::to_repr(Self) -> @debug.Repr
 pub(all) enum ExpandedValue {
   Node(ExpandedNode)
   Value(ExpandedLiteral)
-  List(Array[ExpandedValue])
+  List(Array[ExpandedValue], index~ : String?)
 } derive(@debug.Debug)
 pub fn ExpandedValue::to_repr(Self) -> @debug.Repr
 
