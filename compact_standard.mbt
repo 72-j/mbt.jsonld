@@ -88,9 +88,15 @@ fn compact_iri_word(
       Some(vocab) =>
         if vocab.length() < iri.length() && iri.has_prefix(vocab) {
           // 撞词守门（#t0043 oracle——suffix 为在册 term 时重展开撞词，
-          // 跳过 vocab 步保全 IRI）
+          // 跳过 vocab 步保全 IRI）。精化（役41/#tc027 兜底位）：suffix
+          // term 的 IRI **同于**被压 IRI 时非撞（即 exact term——键位词形
+          // 照用，#tc027 "baz"）；异于才跳（#t0043 本案）
           let suffix = iri[vocab.length():].to_owned()
-          if !active.terms.contains(suffix) {
+          let collide = match active.terms.get(suffix) {
+            Some(td) => td.iri != Some(iri)
+            None => false
+          }
+          if !collide {
             return suffix
           }
         }
@@ -152,8 +158,13 @@ fn compact_iri_word(
   match (best_name, best_prefix) {
     (Some(name), Some(pfx)) => {
       let suffix = iri[pfx.length():].to_owned()
-      // compact IRI = 词形原样拼接（REC：suffix 原样）
-      return name + ":" + suffix
+      // 撞词守门（役41/#t0007 oracle——前缀词为在册 term 名时重展开歧义，
+      // 跳前缀步保全 IRI；#t0043 vocab 步同族判据）。被拒 exact term 不得
+      // 经前缀复得键位
+      let word = name + ":" + suffix
+      if !active.terms.contains(word) {
+        return word
+      }
     }
     _ => ()
   }
@@ -417,9 +428,9 @@ fn compact_object_fit(
         return false
       }
       match td.datatype {
-        // @id 型 term + 字面量：值对象形不被强转（仅裸串强转）——安全；
         // @none 同权（#ttn01——值恒值对象形，object_fit 放行）
-        Some("@id") | Some("@vocab") | Some("@none") => true
+        Some("@none") => true
+        Some("@id") | Some("@vocab") => false
         // datatype 版 term 与值态失配 → 无形可用（#t0006 oracle）
         Some(_) => false
         None =>
