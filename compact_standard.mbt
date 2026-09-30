@@ -1967,6 +1967,13 @@ fn compact_map_entry(
             variant.graph is None &&
             variant.included is None &&
             variant.index is None
+          // 键化 type 的 scoped context 预套（役37/#tm007——type-map 值
+          // 渲染的键链：键化 type 的 type-scoped 定义须活于值位词形；
+          // variant 已剥 types[0]，内层 apply 见不到）
+          let keyed_chain = match child.types.get(0) {
+            Some(t0) => compact_apply_type_scoped([t0], active, options)
+            None => active
+          }
           if variant_bare {
             match variant.id {
               Some(id) =>
@@ -1977,15 +1984,15 @@ fn compact_map_entry(
                       false,
                       td.datatype is Some("@vocab"),
                       true,
-                      active,
+                      keyed_chain,
                       options,
                     ),
                   ),
                 )
-              None => compact_node_jv(variant, active, options)
+              None => compact_node_jv(variant, keyed_chain, options)
             }
           } else {
-            compact_node_jv(variant, active, options)
+            compact_node_jv(variant, keyed_chain, options)
           }
         }
         ExpandedValue::Value(lit) => {

@@ -42,13 +42,13 @@ async test "compact suite harness: manifest-driven buckets" {
     "#tin03", "#tin04", "#tin05", "#tjs01", "#tjs02", "#tjs03", "#tjs04", "#tjs05",
     "#tjs06", "#tjs07", "#tjs09", "#tjs08", "#tjs10", "#tjs11", "#tli01", "#tli02",
     "#tli03", "#tli04", "#tli05", "#tm001", "#tm002", "#tm003", "#tm004", "#tm005",
-    "#tm006", "#tm008", "#tm009", "#tm010", "#tm011", "#tm012", "#tm013", "#tm014",
-    "#tm015", "#tm016", "#tm017", "#tm018", "#tm019", "#tm020", "#tm021", "#tm022",
-    "#tm023", "#tn001", "#tn002", "#tn003", "#tn004", "#tn005", "#tn010", "#tn011",
-    "#ttn01", "#ttn02", "#ttn03", "#tp001", "#tp002", "#tp003", "#tp004", "#tp005",
-    "#tp006", "#tp007", "#tp008", "#tpi01", "#tpi02", "#tpi03", "#tpi04", "#tpi05",
-    "#tpi06", "#tpr01", "#tpr02", "#tpr04", "#tpr05", "#ts001", "#ts002", "#tr001",
-    "#tr002",
+    "#tm006", "#tm007", "#tm008", "#tm009", "#tm010", "#tm011", "#tm012", "#tm013",
+    "#tm014", "#tm015", "#tm016", "#tm017", "#tm018", "#tm019", "#tm020", "#tm021",
+    "#tm022", "#tm023", "#tn001", "#tn002", "#tn003", "#tn004", "#tn005", "#tn010",
+    "#tn011", "#ttn01", "#ttn02", "#ttn03", "#tp001", "#tp002", "#tp003", "#tp004",
+    "#tp005", "#tp006", "#tp007", "#tp008", "#tpi01", "#tpi02", "#tpi03", "#tpi04",
+    "#tpi05", "#tpi06", "#tpr01", "#tpr02", "#tpr04", "#tpr05", "#ts001", "#ts002",
+    "#tr001", "#tr002",
   ]
   let deferred : Array[String] = []
   let plain : Array[String] = []
@@ -136,6 +136,6 @@ async test "compact suite harness: manifest-driven buckets" {
       deferred.push(id)
     }
   }
-  assert_eq(deferred.length(), 13)
-  assert_eq(plain.length(), 233)
+  assert_eq(deferred.length(), 12)
+  assert_eq(plain.length(), 234)
 }
