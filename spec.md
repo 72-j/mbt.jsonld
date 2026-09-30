@@ -628,7 +628,7 @@ expand_standard/to_rdf 手写钩子），**不是模型 vs 引擎**——J2/J3 �
 |---|---|---|---|
 | expansion | 385（正 276 / 负 109） | ✅ **385/385 全 plain** | suite_expand_test pin（deferred=0）+ 值级对拍 |
 | toRDF | 467（正 345 / 负 106 / 句法 16） | ✅ **467/467 全 plain** | suite_tordf_test pin + 判定器（迷你 N-Quads 解析 + 集合同构） |
-| compact | 246（正 229 / 负 17） | 🚧 **228/246 plain**（正 213 + 负 15）/ deferred 18 在册 | suite_compact_test pin（deferred=18）+ canonical_for_suite 直比 + bnode 双射兜底 |
+| compact | 246（正 229 / 负 17） | 🚧 **230/246 plain**（正 215 + 负 15）/ deferred 16 在册 | suite_compact_test pin（deferred=16）+ canonical_for_suite 直比 + bnode 双射兜底 |
 | flatten | 58（正 57 / 负 1） | ✅ **56/58 plain**（正 55 + 负 1）/ deferred 2 在册 | suite_flatten_test pin（deferred=2）+ canonical_for_suite 直比 + bnode 双射兜底（isomorphic_for_suite——判定器自检四钉） |
 | fromRdf | 54 | ❌ 未实现 | ——（§8.39） |
 | html | 50 | ❌ 未实现 | ——（§8.39） |
@@ -1645,4 +1645,73 @@ datatype 位本就承载关键字形态，非新增布尔位、非改 None 语�
 **转正 3 例**：ttn01（不压缩值）/ttn02（无容器单值塌缩）/ttn03（@set
 保数组）。deferred 18：t0007/t0038/t0045/t0048/t0066/t0110/te002/
 tjs07/tjs09/tla01/tm007/tn006-009/tpr03/ts001/ts002（负例 te002/tpr03）。
+deny-warn 65/65 绿、全仓 377 零回退、n3gen 12、子模块 124、.mbti 无变化。
+
+### 8.73 杂项清账 + 排名键冻结纪律 + 双簇勘定（2026-10-01 役34；用户令三核一勘——勘定批，转性先例 §8.58 役28）
+
+**核一·根型正名**：见 ctx「根型三分类正名」条——「根分类」弃用，统一
+**根型**（未实现/边界/分叉），与「根因」（批分组判据）、「根标记」（IRI
+解析数据位）切界。§8.71「根分类」读作「根型」。
+
+**核二·杂项 9 清账（「杂项」类目注销——禁止无类缺口兑现）**：九例逐一
+立案（根型带探针 diff 证据，r34 勘定批）：
+| 例 | 根型 | 簇/修法面 |
+|---|---|---|
+| t0007 | 未实现 | 值位 id-term 取舍（compact_node_jv 值位键选择——字串值经 @id 项塌缩词 vs full-IRI 键，oracle 取 full-IRI；役16 判定树兑现）——个案 |
+| t0038 | 边界 | 前缀词形生成（compact_iri_word 前缀步——异形 mapping「body:」空后缀路径；Drupal 复杂回环的残余位）——个案 |
+| t0048 | 边界 | 吸收臂丢 raw 形（compact_value_jv language-null 吸收 return String(value) 丢 raw——数 5 变 "5"）；三候选偏好层待首层修后复核——语言闸簇 |
+| t0110 | 未实现 | @included 出形（graph container["@set","@graph"] 复合容器——§8.45 邻域）——graph 簇 |
+| tla01 | 边界 | list 全元素特异性（compact_list_bare_fit 首项闸 vs oracle「全元素最特异计缺省语言」——**fit 闸位非冻结面**）——语言 list 簇 |
+| tm007 | 边界 | type map 子键词形随 scoped 链（typemap 子键未吃 Inner scoped "a" 词形——役32 键链同族）——scoped 键簇 |
+| tpr03 | 未实现(NEG) | compact 面 protected 覆写校验（type-scoped 覆写保护 term 须报错）——保护校验簇 |
+| ts001 | 未实现 | context 处理数组形值（"@context": [a,b] 合并——ContextProcessor）——context 处理簇 |
+| ts002 | 未实现 | 同上（@set 与兼容值并存形）——context 处理簇 |
+排期建议序：context 处理簇（2 例同根）→ 语言闸簇（t0048+复核）→
+scoped 键簇（tm007）→ 语言 list（tla01）→ graph（t0110）→ 个案三件
+（t0007/t0038/tpr03）随缘并批。
+
+**核三·役31 排名键冻结纪律（成文）**：
+- **冻结范围**：compact_rank_word_len、compact_word_rank 两函数 +
+  三层键序语义（词长 → 词形级别 → 特异性位）。
+- **冻结效力**：他簇施工禁顺手改面；套件计数变化凡源于排名面即违冻
+  （归因随落账注记）。
+- **解冻条件（三，穷尽）**：①新 oracle 证键缺维 ⇒ §8.65 单维渐进
+  （一役一维、全量绿才收）；②oracle 证伪既有层序 ⇒ 更正批（三对账
+  全档）；③用户令专役钉明解除。
+- **界外澄清**：bare_fit/object_fit 的 **fit 闸位不在冻结面**（役33
+  object_fit 有案）——冻结锁排名键，不锁闸；tla01（list 全元素闸）、
+  t0048（吸收臂）均在闸位，不受冻。
+
+**勘一·双簇难度（用户令先勘再定）**：
+- **@json 簇（tjs07/09）——低成本，1 例施工 + 1 例白捡**：勘定实判
+  **tjs09 现判已 PASS**（deferred 数组迁入即 +1 零施工）；tjs07 diff =
+  `[[…]]` 双包 vs `[…]`——**根型 = 边界（值形态×容器交叉）**：@json
+  raw 数组值被 @set 多值并组再包一层，raw 数组应原子直发。**钉（防
+  J3.3 混）：本簇非 JCS 边界**——canonical 序列化无涉（raw 词形逐字
+  回环），J3.3 挂账不联动；修法位 = 值发射/并组对 @json raw 的原子
+  豁免（compact_value_item/property_values 发射位），小成本。
+- **base/相对 IRI 簇（t0045/t0066/te002）——高成本**：t0045（../ 点段
+  上跳——resolve_base_value 共享核重写，todo A 组 8 例 IRI suite 同笔
+  双跑）；t0066（**分叉裁定**：base 文档位多形态——目录/文件/query/
+  fragment 各归各，役16 判定待落码）；te002（NEG——scheme 撞车须报错，
+  现判 neg-ok）。共享核 + 双 suite 回归面 + 裁定三件叠，须专役全预算。
+
+**勘定结论（建议序，待用户定）**：先 @json（役34 快批——tjs09 白捡 +
+tjs07 原子豁免小修）；base 簇另立专役（A 组算法重写随行）。
+
+### 8.74 @json 簇落成（2026-10-01 役34；228 → 230/246 plain，零回退）
+
+**钉的兑现（§8.73 根 = 边界·值形态×容器交叉，非 JCS 边界）**：病灶一行
+——组出键位的 @json 直出守卫查 **full IRI 形**
+`rdf-syntax-ns#JSON`，而管线 datatype 全程**关键字形** `"@json"`（丁批
+#tjs01 定形：上下文 type mapping 与字面量 datatype 同为关键字）——守卫
+恒不命中 ⇒ @set keep 双包（`[[…]]`）。修 = 守卫对齐关键字形（一行）。
+J3.3 不联动兑现：canonical 序列化零涉（raw 词形逐字回环）。
+- tjs09 **白捡兑现**（勘定实测已 PASS，迁入即 +1 零施工）；
+- 全仓 grep 复核：同款 full-IRI 守卫无别处（to_rdf.mbt 的 RDF_JSON_IRI
+  常量是 RDF 面合法用途，非本坑）。
+
+**转正 2 例**：tjs07（@type @json 数组值直出）/tjs09（展开形 JSON 字面
+量）。deferred 16：t0007/t0038/t0045/t0048/t0066/t0110/te002/tla01/
+tm007/tn006-009/tpr03/ts001/ts002（负例 te002/tpr03）。
 deny-warn 65/65 绿、全仓 377 零回退、n3gen 12、子模块 124、.mbti 无变化。
