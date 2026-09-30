@@ -628,7 +628,7 @@ expand_standard/to_rdf 手写钩子），**不是模型 vs 引擎**——J2/J3 �
 |---|---|---|---|
 | expansion | 385（正 276 / 负 109） | ✅ **385/385 全 plain** | suite_expand_test pin（deferred=0）+ 值级对拍 |
 | toRDF | 467（正 345 / 负 106 / 句法 16） | ✅ **467/467 全 plain** | suite_tordf_test pin + 判定器（迷你 N-Quads 解析 + 集合同构） |
-| compact | 246（正 229 / 负 17） | 🚧 **237/246 plain**（正 221 + 负 16）/ deferred 9 在册 | suite_compact_test pin（deferred=9）+ canonical_for_suite 直比 + bnode 双射兜底 |
+| compact | 246（正 229 / 负 17） | 🚧 **238/246 plain**（正 222 + 负 16）/ deferred 8 在册 | suite_compact_test pin（deferred=8）+ canonical_for_suite 直比 + bnode 双射兜底 |
 | flatten | 58（正 57 / 负 1） | ✅ **56/58 plain**（正 55 + 负 1）/ deferred 2 在册 | suite_flatten_test pin（deferred=2）+ canonical_for_suite 直比 + bnode 双射兜底（isomorphic_for_suite——判定器自检四钉） |
 | fromRdf | 54 | ❌ 未实现 | ——（§8.39） |
 | html | 50 | ❌ 未实现 | ——（§8.39） |
@@ -1938,3 +1938,28 @@ deny-warn 65/65 绿、全仓 377 零回退、n3gen 12、子模块 124、.mbti �
 - **排期结论**：三件均独立于 base/相对 IRI 的**语义面**（resolve/
   base 步零依赖）；tpr03 即刻施工；t0007 专役一件；t0038 随 base
   专役同笔。
+
+
+### 8.87 个案 t0007 落成（2026-10-01 役41；237 → 238/246 plain，零回退）
+
+**两层裁定兑现（§8.85 勘定加量件）+ 施工中发现的第三层**：
+1. **值位 fit 裁定**：object_fit 值臂 @id/@vocab 不再收字面量（裸串
+   重展开被强转；值对象形 oracle 亦不取——#t0007）；节点引用 Node 臂
+   不变（#t0006 term2 原样绿）。
+2. **兜底键裁定·前缀撞词门**：compact_iri_word 前缀步产物为在册 term
+   名时跳步保全 IRI（#t0007——被拒 exact term 不得经前缀复得键位
+   "ex:contains"；#t0043 vocab 步同族判据移植）。
+3. **兜底键裁定·vocab 撞词门精化**（施工中 tc027 回退打点定位）：
+   suffix term 的 IRI **同于**被压 IRI 时非撞（即 exact term——键位
+   词形照用，#tc027 "baz"）；异于才跳（#t0043 本案）。粗守门
+   `terms.contains` 精化为 IRI 比对——t0043 自身判据不变（其案 IRI
+   相异）。
+- **打点注记**：二分（翻转/守门）与走码分析一度矛盾——R41MAP/R41LEFTOVER
+  打点定谳（map_entry 零进入，map 形假象排除；真病灶 = 翻转后 leftover
+  兜底撞既有 vocab 守门）。「打点带假设判别信息」条再兑现。
+
+**转正 1 例**：t0007（external context——值位 id-term 取舍收口）。
+deferred 8：t0038/t0045/t0066/te002/tn006-009（负例 te002）。
+deny-warn 65/65 绿、全仓 377 零回退、n3gen 12、子模块 124、.mbti 无变化。
+**余量**：t0038 随 base 专役同笔；base/相对 IRI 专役（t0045/t0066/
+te002 + A 组同笔双跑）待全预算。
