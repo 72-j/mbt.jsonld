@@ -628,7 +628,7 @@ expand_standard/to_rdf 手写钩子），**不是模型 vs 引擎**——J2/J3 �
 |---|---|---|---|
 | expansion | 385（正 276 / 负 109） | ✅ **385/385 全 plain** | suite_expand_test pin（deferred=0）+ 值级对拍 |
 | toRDF | 467（正 345 / 负 106 / 句法 16） | ✅ **467/467 全 plain** | suite_tordf_test pin + 判定器（迷你 N-Quads 解析 + 集合同构） |
-| compact | 246（正 229 / 负 17） | 🚧 **232/246 plain**（正 217 + 负 15）/ deferred 14 在册 | suite_compact_test pin（deferred=14）+ canonical_for_suite 直比 + bnode 双射兜底 |
+| compact | 246（正 229 / 负 17） | 🚧 **233/246 plain**（正 218 + 负 15）/ deferred 13 在册 | suite_compact_test pin（deferred=13）+ canonical_for_suite 直比 + bnode 双射兜底 |
 | flatten | 58（正 57 / 负 1） | ✅ **56/58 plain**（正 55 + 负 1）/ deferred 2 在册 | suite_flatten_test pin（deferred=2）+ canonical_for_suite 直比 + bnode 双射兜底（isomorphic_for_suite——判定器自检四钉） |
 | fromRdf | 54 | ❌ 未实现 | ——（§8.39） |
 | html | 50 | ❌ 未实现 | ——（§8.39） |
@@ -1763,3 +1763,33 @@ deny-warn 65/65 绿、全仓 377 零回退、n3gen 12、子模块 124。
 **.mbti +1**（TermDefinition.container_set 公开面新增——本笔同带）。
 桶锚注记：tpr03 系 deferred 例，桶插入锚误选致脚本 abort 一次——
 assert 拦截，工作区未污（三对账法桶名单件再兑现）。
+
+### 8.77 役36 开工钉：语言闸簇 t0048 根型（2026-10-01；用户令排期首簇）
+
+**根型 = 边界（偏好位已通，渲染吸收臂丢 raw 形）——单点双证**：
+- 偏好证：OUR 键 = `propertyLanguageNull` = oracle 键——「language-null
+  term 胜无映射 term（非串值）」的**三候选偏好已通**（役26 spec_lang
+  位 (Some(Null), None) ⇒ +1 即此偏好；§8.73 备案的「偏好层待复核」
+  **复核结论 = 已通，无第二层**）。
+- 形证：OUR 值 = `"5"`（串）vs oracle `5`（raw 数）——compact_value_jv
+  **吸收臂 return String(literal.value) 丢 raw**（language-null 臂与
+  方向双臂共四处；datatype 吸收臂同形位是 raw 保形的——420 行先例）。
+  数值经标量免疫入 Null 映射 term 裸位，吸收臂把 raw 数值串化。
+
+**修法 = 四吸收臂 raw 保形**（return raw Some 否则 String——与 datatype
+吸收臂同形）。与语言闸其他位的界线：bare_fit 闸零涉（偏好已对）、
+tla01 全元素闸另案、标量免疫判据零涉。
+
+### 8.78 语言闸簇 t0048 落成（2026-10-01 役36；232 → 233/246 plain，零回退）
+
+**钉的兑现（§8.77 根型 = 边界·吸收臂丢 raw 形）**：四处吸收臂
+（language Set/Null + direction Set/Null）`return String(literal.value)`
+改 raw 保形（`match literal.raw`——与 datatype 吸收臂 420 行同形）。
+**复核兑现：三候选偏好层已通无第二层**（役26 spec_lang 位即此偏好，
+OUR 键 = oracle 键为证）。语言吸收族全量回归零回退（#t0015 term5/
+#t0089/#tdi 族原样绿）。
+
+**转正 1 例**：t0048（language-null 偏好 + 非串值 raw 保形）。
+deferred 13：t0007/t0038/t0045/t0066/t0110/te002/tla01/tm007/
+tn006-009/tpr03（负例 te002/tpr03）。
+deny-warn 65/65 绿、全仓 377 零回退、n3gen 12、子模块 124、.mbti 无变化。
