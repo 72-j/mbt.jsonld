@@ -628,7 +628,7 @@ expand_standard/to_rdf 手写钩子），**不是模型 vs 引擎**——J2/J3 �
 |---|---|---|---|
 | expansion | 385（正 276 / 负 109） | ✅ **385/385 全 plain** | suite_expand_test pin（deferred=0）+ 值级对拍 |
 | toRDF | 467（正 345 / 负 106 / 句法 16） | ✅ **467/467 全 plain** | suite_tordf_test pin + 判定器（迷你 N-Quads 解析 + 集合同构） |
-| compact | 246（正 229 / 负 17） | 🚧 **241/246 plain**（正 224 + 负 17 全负例入 plain）/ deferred 5 在册 | suite_compact_test pin（deferred=5）+ canonical_for_suite 直比 + bnode 双射兜底 |
+| compact | 246（正 229 / 负 17） | 🚧 **245/246 plain**（正 228 + 负 17 全负例入 plain）/ deferred 1 在册 | suite_compact_test pin（deferred=1）+ canonical_for_suite 直比 + bnode 双射兜底 |
 | flatten | 58（正 57 / 负 1） | ✅ **56/58 plain**（正 55 + 负 1）/ deferred 2 在册 | suite_flatten_test pin（deferred=2）+ canonical_for_suite 直比 + bnode 双射兜底（isomorphic_for_suite——判定器自检四钉） |
 | fromRdf | 54 | ❌ 未实现 | ——（§8.39） |
 | html | 50 | ❌ 未实现 | ——（§8.39） |
@@ -2034,3 +2034,22 @@ deferred 5：t0038（本役 base 步已重写，前缀词形面待专研）+ tn0
 deny-warn 65/65 绿、全仓 377 零回退、n3gen 12、子模块 124、.mbti 无变化。
 §8.88 冻结面纪律兑现：排名键/键链/@none/役41 撞门零触；expand 侧共享核
 只读（A 组 8 例原样绿）。
+
+### 8.90 nest×容器末批落成（2026-10-01 役43；241 → 245/246 plain，零回退）
+
+**根型 = 边界（接线缺失）**：nest 组账（nest_groups/nest_order——tn001-005
+纯 nest 绿）与 map 发射位（§8.43 map 容器路由——tm/t0030/t0036 族绿）
+两位皆在，复合面（map 容器 × @nest）无接线。修法 = map 发射位按 td.nest
+入 nest 组、带 term 名中间键级（`nestedindex→index→{A,B}`——#tn006-009
+四族 @index/@language/@type/@id 全过）。
+
+**施工勘误（入册）**：首轮接线落错位（compact_property_pair 尾——文本
+锚撞同形尾段），拆错位块时把 **reverse 映射组出键的原 push 一并抹除**
+（#t0036 isKnownBy 顶层提升位静默丢输出——harness 当轮拦截）——复回并
+注记。锚撞教训：**同形尾段多处时，锚必须带前导独有行**（本轮改用
+「空值属性 #t0004」前导锚定位）。
+
+**转正 4 例**：tn006（@index×nest）/tn007（@language×nest）/tn008
+（@type×nest）/tn009（@id×nest）。deferred 1：t0038（前缀词形面专研）。
+**负例 17/17 全 plain**。deny-warn 65/65 绿、全仓 377 零回退、n3gen 12、
+子模块 124、.mbti 无变化。
