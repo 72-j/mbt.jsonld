@@ -628,7 +628,7 @@ expand_standard/to_rdf 手写钩子），**不是模型 vs 引擎**——J2/J3 �
 |---|---|---|---|
 | expansion | 385（正 276 / 负 109） | ✅ **385/385 全 plain** | suite_expand_test pin（deferred=0）+ 值级对拍 |
 | toRDF | 467（正 345 / 负 106 / 句法 16） | ✅ **467/467 全 plain** | suite_tordf_test pin + 判定器（迷你 N-Quads 解析 + 集合同构） |
-| compact | 246（正 229 / 负 17） | 🚧 **230/246 plain**（正 215 + 负 15）/ deferred 16 在册 | suite_compact_test pin（deferred=16）+ canonical_for_suite 直比 + bnode 双射兜底 |
+| compact | 246（正 229 / 负 17） | 🚧 **232/246 plain**（正 217 + 负 15）/ deferred 14 在册 | suite_compact_test pin（deferred=14）+ canonical_for_suite 直比 + bnode 双射兜底 |
 | flatten | 58（正 57 / 负 1） | ✅ **56/58 plain**（正 55 + 负 1）/ deferred 2 在册 | suite_flatten_test pin（deferred=2）+ canonical_for_suite 直比 + bnode 双射兜底（isomorphic_for_suite——判定器自检四钉） |
 | fromRdf | 54 | ❌ 未实现 | ——（§8.39） |
 | html | 50 | ❌ 未实现 | ——（§8.39） |
@@ -1715,3 +1715,51 @@ J3.3 不联动兑现：canonical 序列化零涉（raw 词形逐字回环）。
 量）。deferred 16：t0007/t0038/t0045/t0048/t0066/t0110/te002/tla01/
 tm007/tn006-009/tpr03/ts001/ts002（负例 te002/tpr03）。
 deny-warn 65/65 绿、全仓 377 零回退、n3gen 12、子模块 124、.mbti 无变化。
+
+### 8.75 役35 开工钉：context 处理簇（ts001/002）根型（2026-10-01；用户令）
+
+**例义勘正**：purpose 字面「@context values may be in an array」有误导——
+实为 **`@container` 的数组形**（ts001 单元素数组 `["@list"]` 等六族；
+ts002 双元素 `["@id","@set"]` 并容族），非 @context 值数组形。
+
+**根型 = 边界（验证白名单窄于已预埋的存储语义）**：
+- 非未实现：@container 数组**臂在**（validate_container_value 数组形
+  图组合已绿——#t0083 三元）；**存储位已预埋**——单元素数组 = 裸形
+  等价六族存储齐备（臂内注释已引 #ts001 oracle，前役开了头没通闸）；
+- 非分叉：REC 4.2.2 数组形组合规则单义（单元素任意/@graph 组合/
+  @set+@X 并容；@list 禁组合）；
+- 病灶 = validate_container_value 数组臂白名单只放行图组合 ⇒
+  ts001/002 context 处理 Err（探针 ERR 实证）；另 map+set 次级位缺
+  （graph_set 先例在，[@id,@set] 族无对应保形位）。
+
+**修法三件**：①验证数组臂放宽三形（单元素任意/@graph 组合不变/@set
+并容 ≤1 主键；@list 禁组合、重复/未知/空拒）；②存储 @X+@set ⇒
+container=Some(X) + 新位 `container_set : Bool`（TermDefinition 加字段，
+graph_set 同族先例；构造位 8 处同笔）；③compact 主 map 发射位按
+container_set 保数组（reverse/graph 位对称挂账——无 oracle 不扩）。
+与既有 context 处理器的界线：改动只在 @container 数组臂 + map 发射
+保形读位；process_context 主链（元素级/type-scoped/property-scoped
+三链）零涉，役32 键链零涉。
+
+### 8.76 context 处理簇两例落成（2026-10-01 役35；230 → 232/246 plain，零回退）
+
+**钉的兑现（§8.75 根型 = 边界·验证白名单窄于存储语义）**：
+1. **验证数组臂三形放宽**（validate_container_value）：单元素 = 裸形
+   等价（#ts001）；@graph 组合原样保留（#t0083）；@set 并容 ≤1 主键
+   （#ts002——@set+@id|@type|@language|@index）；@list 禁组合、重复/
+   未知/空拒、1.0 恒拒。
+2. **存储 @X+@set 并容**：container = 主键态 + 新位
+   `container_set : Bool`（TermDefinition 加字段——graph_set 同族先例；
+   构造位 8 处同笔：expand_standard 4 + wbtest 4；shaping scoped-only
+   构造位随 td_scoped 传导）。单元素数组走既有裸形等价位零改动
+   （存储臂注释预埋兑现）。
+3. **compact 主 map 发射保形**：map 值塌缩位按 container_set 保数组
+   （ts002 map 值恒数组形）。reverse/graph 位对称挂账（无 oracle 不扩）。
+
+**转正 2 例**：ts001（六族单元素数组容器）/ts002（@set 并容四族）。
+deferred 14：t0007/t0038/t0045/t0048/t0066/t0110/te002/tla01/tm007/
+tn006-009/tpr03（负例 te002/tpr03）。
+deny-warn 65/65 绿、全仓 377 零回退、n3gen 12、子模块 124。
+**.mbti +1**（TermDefinition.container_set 公开面新增——本笔同带）。
+桶锚注记：tpr03 系 deferred 例，桶插入锚误选致脚本 abort 一次——
+assert 拦截，工作区未污（三对账法桶名单件再兑现）。
