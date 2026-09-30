@@ -1066,7 +1066,10 @@ fn compact_node_jv(
   // 值成形；property-scoped 全参与。scoped = 键选择链；active（outer）=
   // 值成形链）。base 轨（§8.59 第三轨）：值位词形 base 相对化随 scoped 链
   // （#tc015 oracle——typed-base 下 "#typed-id" 片段相对）
-  let scoped = compact_apply_type_scoped(node.types, active, options)
+  let scoped = match compact_apply_type_scoped(node.types, active, options) {
+    Ok(c) => c
+    Err(e) => return Err(e)
+  }
   let value_chain : ActiveContext = if scoped.base != active.base {
     {
       base: scoped.base,
@@ -2012,7 +2015,13 @@ fn compact_map_entry(
           // 渲染的键链：键化 type 的 type-scoped 定义须活于值位词形；
           // variant 已剥 types[0]，内层 apply 见不到）
           let keyed_chain = match child.types.get(0) {
-            Some(t0) => compact_apply_type_scoped([t0], active, options)
+            Some(t0) =>
+              match compact_apply_type_scoped([t0], active, options) {
+                Ok(c) => c
+                // Option 契约无 Err 通道——错误经兜底分选的
+                // compact_node_jv（含同款 apply）重现，不丢
+                Err(_) => return None
+              }
             None => active
           }
           if variant_bare {
@@ -2321,7 +2330,7 @@ fn compact_apply_type_scoped(
   types : Array[String],
   active : ActiveContext,
   options : JsonLdOptions,
-) -> ActiveContext {
+) -> Result[ActiveContext, JsonLdError] {
   let mut current = active
   // 逆序套用（REC §6.1.2 步 12.8.1——@type 数组倒序逐个套 type-scoped
   // context，先位类型后手胜——#tc017 oracle：[Foo,Bar] Foo 的 prop 胜出）
@@ -2341,7 +2350,9 @@ fn compact_apply_type_scoped(
                   options,
                 ) {
                 Ok(c) => current = c
-                Err(_) => ()
+                // 保护重定义等 invalid 不吞（#tpr03 oracle——NEG 须达
+                // compact_document；吞错即 neg-ok 假绿）
+                Err(e) => return Err(e)
               }
             None => ()
           }
@@ -2349,7 +2360,7 @@ fn compact_apply_type_scoped(
       }
     }
   }
-  current
+  Ok(current)
 }
 
 ///|
