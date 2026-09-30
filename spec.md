@@ -628,7 +628,7 @@ expand_standard/to_rdf 手写钩子），**不是模型 vs 引擎**——J2/J3 �
 |---|---|---|---|
 | expansion | 385（正 276 / 负 109） | ✅ **385/385 全 plain** | suite_expand_test pin（deferred=0）+ 值级对拍 |
 | toRDF | 467（正 345 / 负 106 / 句法 16） | ✅ **467/467 全 plain** | suite_tordf_test pin + 判定器（迷你 N-Quads 解析 + 集合同构） |
-| compact | 246（正 229 / 负 17） | 🚧 **234/246 plain**（正 219 + 负 15）/ deferred 12 在册 | suite_compact_test pin（deferred=12）+ canonical_for_suite 直比 + bnode 双射兜底 |
+| compact | 246（正 229 / 负 17） | 🚧 **235/246 plain**（正 220 + 负 15）/ deferred 11 在册 | suite_compact_test pin（deferred=11）+ canonical_for_suite 直比 + bnode 双射兜底 |
 | flatten | 58（正 57 / 负 1） | ✅ **56/58 plain**（正 55 + 负 1）/ deferred 2 在册 | suite_flatten_test pin（deferred=2）+ canonical_for_suite 直比 + bnode 双射兜底（isomorphic_for_suite——判定器自检四钉） |
 | fromRdf | 54 | ❌ 未实现 | ——（§8.39） |
 | html | 50 | ❌ 未实现 | ——（§8.39） |
@@ -1826,3 +1826,30 @@ type-scoped 定义（variant 已剥 types[0]，内层 apply 见不到——补�
 t0007/t0038/t0045/t0066/t0110/te002/tla01/tn006-009/tpr03（负例
 te002/tpr03）。deny-warn 65/65 绿、全仓 377 零回退、n3gen 12、
 子模块 124、.mbti 无变化。
+
+### 8.81 役38 开工钉：语言 list 簇 tla01 根型（2026-10-01）
+
+**根型 = 边界（语言标签大小写折叠缺失）**：termLL1 `@language: "eN"`
+对值 `"en"`——BCP47 语言标签大小写不敏感，闸位逐字比对拒 bare
+（探针 diff：en-list 值对象形 vs oracle bare 数组）。机制位全在
+（List 闸/语言镜像/排名位——役30-31 已落）。
+
+**修法 = `lang_tag_eq` 助手**（ASCII 宽松折叠——语言子序列恒 ASCII）
+接六比较位：bare_fit 值臂 Set/缺省对齐、list 闸 Set/缺省对齐、
+compact_value_jv 吸收臂与 bare 对齐。**排名键零涉**（冻结纪律——
+比较位是闸不是键）。方向标签不扩（无 oracle，从严）。与 t0024 的
+界线：t0024 精确匹配已绿（"en"=="en"），折叠为超集不改其判。
+
+### 8.82 语言 list 簇 tla01 落成（2026-10-01 役38；234 → 235/246 plain，零回退）
+
+**钉的兑现（§8.81 根型 = 边界·大小写折叠缺失）**：`lang_tag_eq` +
+`ascii_fold_lower` 助手接**七比较位**（bare_fit 值臂 Set 与缺省对齐 /
+list 闸 Set 与缺省对齐 / compact_value_jv 吸收臂与 bare 对齐——钉写
+六、施工中 bare 对齐位实为独立第七位）。Char 无 to_lower → ASCII 手折
+（A-Z ±32，语言子序列恒 ASCII 前提在册）。排名键零涉兑现（冻结纪律
+——闸非键）。t0024 精确匹配族全量回归零回退；方向标签从严不扩在案。
+
+**转正 1 例**：tla01（list 全元素最特异 term——"eN"≡"en" 折叠即通，
+全元素计缺省语言由既有闸位承担）。deferred 11：t0007/t0038/t0045/
+t0066/t0110/te002/tn006-009/tpr03（负例 te002/tpr03）。
+deny-warn 65/65 绿、全仓 377 零回退、n3gen 12、子模块 124、.mbti 无变化。
