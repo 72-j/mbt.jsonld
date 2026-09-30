@@ -3448,6 +3448,7 @@ impl ContextProcessor for StandardExpander with fn process_context(
                       nest: None,
                       simple_form: true,
                       graph_set: false,
+                      container_set: false,
                     },
                     flags.override_protected,
                   ) {
@@ -3480,6 +3481,7 @@ impl ContextProcessor for StandardExpander with fn process_context(
                       nest: None,
                       simple_form: false,
                       graph_set: false,
+                      container_set: false,
                     },
                     flags.override_protected,
                   ) {
@@ -3557,6 +3559,7 @@ fn StandardExpander::process_expanded_term_definition(
   let mut td_reverse : String? = None
   let mut td_graph_secondary : ContainerType? = None
   let mut td_graph_set = false
+  let mut td_container_set = false
   let mut td_prefix = false
   let mut td_nest : String? = None
   let mut td_is_prefix : Bool? = None
@@ -3730,9 +3733,36 @@ fn StandardExpander::process_expanded_term_definition(
                     _ => ()
                   }
                 }
+                let mut combo_key : ContainerType? = None
+                for combo in combo_items {
+                  match combo {
+                    JsonValue::String("@id") =>
+                      if combo_key is None {
+                        combo_key = Some(ContainerType::Id)
+                      }
+                    JsonValue::String("@type") =>
+                      if combo_key is None {
+                        combo_key = Some(ContainerType::Type)
+                      }
+                    JsonValue::String("@language") =>
+                      if combo_key is None {
+                        combo_key = Some(ContainerType::Language)
+                      }
+                    JsonValue::String("@index") =>
+                      if combo_key is None {
+                        combo_key = Some(ContainerType::Index)
+                      }
+                    _ => ()
+                  }
+                }
                 if has_graph {
                   td_container = Some(ContainerType::Graph)
                   td_graph_secondary = secondary
+                } else if td_graph_set && combo_key is Some(_) {
+                  // @set 并容（[#@id|@type|@language|@index, @set]——#ts002）：
+                  // container = 主键态 + container_set 保形位（map 发射保数组）
+                  td_container = combo_key
+                  td_container_set = true
                 } else if combo_items.length() == 1 {
                   // 单元素数组容器 = 裸形等价（#ts001 oracle——["@list"]
                   // 等价 "@list"；REC 1.1 数组形逐值处理）
@@ -4078,6 +4108,7 @@ fn StandardExpander::process_expanded_term_definition(
           nest: td_nest,
           simple_form: false,
           graph_set: false,
+          container_set: false,
         },
         flags.override_protected,
       ) {
@@ -4154,6 +4185,7 @@ fn StandardExpander::process_expanded_term_definition(
       nest: td_nest,
       simple_form: td_simple,
       graph_set: td_graph_set,
+      container_set: td_container_set,
     },
     flags.override_protected,
   )
@@ -4313,12 +4345,19 @@ fn validate_container_value(
       }
     }
     JsonValue::Array(items) => {
-      // 仅 1.1 graph 组合（#t0083 oracle：三元 [@graph, @index, @set] 合法）：
-      // @graph + 至多一个 @id|@index + 可选 @set，禁重复/未知成员
+      // 数组形容器三形（1.1）：①单元素 = 裸形等价（#ts001 oracle——
+      // ["@list"] 等价 "@list"）；②@graph 组合（#t0083 oracle：@graph +
+      // 至多一个 @id|@index + 可选 @set，禁重复/未知成员）；③@set 并容
+      //（#ts002 oracle：@set + 至多一个 @id|@type|@language|@index）。
+      // @list 禁组合；空数组/未知成员拒
+      if is_10 {
+        return Err(JsonLdError::InvalidContext("invalid container mapping"))
+      }
       let mut has_graph = false
-      let mut has_key = false
       let mut has_set = false
-      let mut valid = true
+      let mut has_list = false
+      let mut key_count = 0
+      let mut valid = items.length() > 0
       for item in items {
         match item {
           JsonValue::String("@graph") =>
@@ -4333,20 +4372,24 @@ fn validate_container_value(
             } else {
               has_set = true
             }
+          JsonValue::String("@list") =>
+            if has_list {
+              valid = false
+            } else {
+              has_list = true
+            }
           JsonValue::String(s) =>
-            if s is ("@id" | "@index") {
-              if has_key {
-                valid = false
-              } else {
-                has_key = true
-              }
+            if s is ("@id" | "@type" | "@language" | "@index") {
+              key_count += 1
             } else {
               valid = false
             }
           _ => valid = false
         }
       }
-      if !is_10 && has_graph && valid {
+      let graph_combo = has_graph && key_count <= 1
+      let set_combo = has_set && !has_list && !has_graph && key_count <= 1
+      if valid && (items.length() == 1 || graph_combo || set_combo) {
         Ok(())
       } else {
         Err(JsonLdError::InvalidContext("invalid container mapping"))

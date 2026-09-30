@@ -47,7 +47,7 @@ async test "compact suite harness: manifest-driven buckets" {
     "#tn001", "#tn002", "#tn003", "#tn004", "#tn005", "#tn010", "#tn011", "#ttn01",
     "#ttn02", "#ttn03", "#tp001", "#tp002", "#tp003", "#tp004", "#tp005", "#tp006",
     "#tp007", "#tp008", "#tpi01", "#tpi02", "#tpi03", "#tpi04", "#tpi05", "#tpi06",
-    "#tpr01", "#tpr02", "#tpr04", "#tpr05", "#tr001", "#tr002",
+    "#tpr01", "#tpr02", "#tpr04", "#tpr05", "#ts001", "#ts002", "#tr001", "#tr002",
   ]
   let deferred : Array[String] = []
   let plain : Array[String] = []
@@ -135,6 +135,6 @@ async test "compact suite harness: manifest-driven buckets" {
       deferred.push(id)
     }
   }
-  assert_eq(deferred.length(), 16)
-  assert_eq(plain.length(), 230)
+  assert_eq(deferred.length(), 14)
+  assert_eq(plain.length(), 232)
 }

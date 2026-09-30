@@ -199,6 +199,7 @@ pub(all) struct TermDefinition {
   nest : String?
   simple_form : Bool
   graph_set : Bool
+  container_set : Bool
 }
 
 // Type aliases

@@ -71,6 +71,10 @@ pub(all) struct TermDefinition {
   /// 「@set 不占次级」丢此位——判定树 Q1 钉不完整补存储，增量字段展开
   /// 不读、零行为面）
   graph_set : Bool
+  /// map 组合容器 @set 保形位（役33/35——[@id|@type|@language|@index, @set]
+  /// 的 @set 次级：map 发射位按此保数组——#ts002 oracle；单元素数组/裸形
+  /// 恒 false）
+  container_set : Bool
 }
 
 ///|

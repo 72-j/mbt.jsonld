@@ -1401,6 +1401,7 @@ fn compact_node_jv(
                   None
                 },
                 container: td_scoped.container,
+                container_set: td_scoped.container_set,
                 reverse: td_scoped.reverse,
                 local_context: td_scoped.local_context,
                 context_base_url: td_scoped.context_base_url,
@@ -1582,6 +1583,17 @@ fn compact_node_jv(
       match map_subs.get(name) {
         Some(entries) =>
           if entries.length() > 0 {
+            // @set 并容保形位（#ts002——[@id|@type|@language|@index, @set]
+            // 的 map 值恒数组，单值不塌缩）
+            let td_set = {
+              let mut found = false
+              for mtd in map_tds {
+                if mtd.0 == name {
+                  found = mtd.1.container_set
+                }
+              }
+              found
+            }
             let sub_pairs : Array[(String, JsonValue)] = []
             let sub_keys : Array[String] = []
             let sub_vals : Map[String, Array[JsonValue]] = Map([])
@@ -1597,7 +1609,9 @@ fn compact_node_jv(
             for sub in sub_keys {
               match sub_vals.get(sub) {
                 Some(arr) => {
-                  let out = if options.compact_arrays && arr.length() == 1 {
+                  let out = if options.compact_arrays &&
+                    arr.length() == 1 &&
+                    !td_set {
                     arr[0]
                   } else {
                     JsonValue::Array(arr)
