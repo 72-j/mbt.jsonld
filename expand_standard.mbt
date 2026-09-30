@@ -843,6 +843,9 @@ fn StandardExpander::expand_object(
   let mut is_value_object = false
   let mut saw_value = false // @value 成员可见（丙批后缀规则：language-only 值对象丢弃）
   let mut has_datatype = false
+  // @type 先至挂起位（#tc020——值对象 @type 在 @value 之前出现时 literal
+  // 尚未建，直接赋值落空；@value 建立后统一回填）
+  let mut pending_dt : String? = None
   let mut has_language = false
   let mut has_direction = false
   // 元素级 @context 先于主键循环处理（REC 5.1.2 次序：previous 回退 → property-scoped
@@ -1028,11 +1031,15 @@ fn StandardExpander::expand_object(
             return Err(JsonLdError::InvalidValue("@id value must be a string"))
         }
       }
-      "@type" =>
-        // @type 双侧：值对象内 = datatype（coercion 形态 A）；节点侧 = 类型数组。
-        // 值展开一律用 **type-scoped 快照**（REC 5.1.2 @type 步："IRI expanding
-        // each of its values using type-scoped context for active context"；
-        // #tc014/#tc018 oracle）
+      // @type 双侧：值对象内 = datatype（coercion 形态 A）；节点侧 = 类型数组。
+      // 值展开一律用 **type-scoped 快照**（REC 5.1.2 @type 步："IRI expanding
+      // each of its values using type-scoped context for active context"；
+      // #tc014/#tc018 oracle）。值对象性预扫（#tc020——@type 在 @value 之前
+      // 出现时 is_value_object 尚未置位，文档序依赖 ⇒ 键形态先判）
+      "@type" => {
+        if StandardExpander::has_value_key_shaped(self, current, pairs) {
+          is_value_object = true
+        }
         match pair.1 {
           JsonValue::String(t) =>
             if is_value_object {
@@ -1048,7 +1055,7 @@ fn StandardExpander::expand_object(
                     has_datatype = true
                     match literal {
                       Some(l) => l.datatype = Some("@json")
-                      None => ()
+                      None => pending_dt = Some("@json")
                     }
                   } else if !is_valid_absolute_iri(dt) {
                     return Err(JsonLdError::InvalidValue("invalid typed value"))
@@ -1068,7 +1075,7 @@ fn StandardExpander::expand_object(
                     has_datatype = true
                     match literal {
                       Some(l) => l.datatype = Some(dt)
-                      None => ()
+                      None => pending_dt = Some(dt)
                     }
                   }
                 Err(e) => return Err(e)
@@ -1106,6 +1113,7 @@ fn StandardExpander::expand_object(
             }
           _ => return Err(JsonLdError::InvalidValue("invalid type value")) // #ter28
         }
+      }
       "@value" => {
         // @value：值对象核心（string/number/bool 词形保形；null → 值对象丢弃）
         is_value_object = true
@@ -1563,6 +1571,12 @@ fn StandardExpander::expand_object(
         // "drop-lang-only" 不产出属性；placeholder literal 不升格）
         if !saw_value {
           return Ok(None)
+        }
+        // @type 先至挂起位回填（#tc020——文档序 @type 在 @value 前时
+        // datatype 挂起至此回填）
+        match pending_dt {
+          Some(dt) => found.datatype = Some(dt)
+          None => ()
         }
         // @language 只配字符串 @value（#ter39 oracle）：@value 非串（raw 记录
         // Number/Bool 词形）而带 @language → invalid language-tagged value；
@@ -2336,6 +2350,29 @@ fn StandardExpander::expand_map_item_values(
 ///|
 /// @json 值对象识别（丁批——#tjs15/#tjs16/#tjs22 oracle）：同对象存在 vocab
 /// 展开为 @type 的键、其值（可别名 term，"json" → @json）展开为 @json
+
+///|
+/// 值对象性预扫（#tc020——任一键展开为 @value 即值对象形态，与键文档序
+/// 无关；配套 @type 先至的 coercion 分路）
+fn StandardExpander::has_value_key_shaped(
+  self : StandardExpander,
+  current : ActiveContext,
+  pairs : Array[(String, JsonValue)],
+) -> Bool {
+  for p in pairs {
+    let sibling = match
+      IriExpander::expand_iri(self, current, p.0, false, true) {
+      Ok(k) => k
+      Err(_) => p.0
+    }
+    if sibling is "@value" {
+      return true
+    }
+  }
+  false
+}
+
+///|
 fn StandardExpander::is_json_value_object(
   self : StandardExpander,
   current : ActiveContext,
@@ -3618,9 +3655,19 @@ fn StandardExpander::process_expanded_term_definition(
                   Err(e) => return Err(e)
                 }
               }
-              // type mapping 只收关键字形态（@id/@vocab/@json——丁批）或绝对 IRI
+              // type mapping 只收关键字形态（@id/@vocab/@json——丁批）或绝对
+              // IRI；无 vocab 时 **curie 形**（含冒号）相对形原样收留
+              //（#tc024 oracle——"ex:Number" 前缀未定义，与值 datatype 同串
+              // 对上）；路径相对形拒（#ter23 oracle——"relative/iri" 无冒号
+              // invalid）；空节点标号恒拒（#ter13 oracle——"_:not-an-iri"）
               if !(expanded is ("@id" | "@vocab" | "@json") ||
-                is_valid_absolute_iri(expanded)) {
+                is_valid_absolute_iri(expanded) ||
+                (
+                  vocab is None &&
+                  expanded == t &&
+                  t.contains(":") &&
+                  !t.has_prefix("_:")
+                )) {
                 return Err(JsonLdError::InvalidContext("invalid type mapping"))
               }
               td_datatype = Some(expanded)

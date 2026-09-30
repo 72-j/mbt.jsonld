@@ -319,11 +319,17 @@ fn compact_bare_fit(
             None =>
               // 纯 term：语言态对齐 = 值语言 == context 缺省语言（裸形重展开
               // 带回缺省语言——失配即不安全）；标量免注（#t0048——number/bool
-              // raw 保形体不受缺省语言注入）
+              // raw 保形体不受缺省语言注入）；typed 非裸串不可裸吸（裸串重
+              // 展开丢 @type——#tc020 value-type；raw 标量 datatype 重展开
+              // 自恢复不受此限）
               match lit.language {
                 Some(lang) => lang == active.default_language.unwrap_or("")
                 None =>
-                  active.default_language is None || literal_raw_is_scalar(lit)
+                  (
+                    active.default_language is None ||
+                    literal_raw_is_scalar(lit)
+                  ) &&
+                  (lit.datatype is None || literal_raw_is_scalar(lit))
               }
           }
       }
@@ -405,6 +411,7 @@ fn compact_value_jv(
   literal : ExpandedLiteral,
   td_opt : TermDefinition?,
   active : ActiveContext,
+  key_active : ActiveContext,
   options : JsonLdOptions,
 ) -> JsonValue {
   match td_opt {
@@ -488,9 +495,13 @@ fn compact_value_jv(
     }
   }
 
+  // @value 键走别名压缩（#tc020——type-scoped "value":"@value" 键生效）
+  let value_key = compact_iri_word(
+    "@value", true, false, true, key_active, options,
+  )
   let pairs : Array[(String, JsonValue)] = [
     (
-      "@value",
+      value_key,
       match literal.raw {
         Some(raw) => raw
         None => JsonValue::String(literal.value)
@@ -501,11 +512,14 @@ fn compact_value_jv(
     Some(dt) =>
       // xsd:string 缺省 @type 不发（REC 值压缩）；其余压缩词形保留
       if dt != "http://www.w3.org/2001/XMLSchema#string" {
+        let type_key = compact_iri_word(
+          "@type", true, false, true, key_active, options,
+        )
         pairs.push(
           (
-            "@type",
+            type_key,
             JsonValue::String(
-              compact_iri_word(dt, true, true, true, active, options),
+              compact_iri_word(dt, true, true, true, key_active, options),
             ),
           ),
         )
@@ -514,11 +528,12 @@ fn compact_value_jv(
   }
   // @language/@direction 走别名键（#tdi02 oracle——"direction":"@direction"
   // → 键 "direction"；无别名回落关键字字面）
+  // 值对象键随键选择链（#tc020——type-scoped "value":"@value" 别名生效）
   let lang_key = compact_iri_word(
-    "@language", true, false, true, active, options,
+    "@language", true, false, true, key_active, options,
   )
   let dir_key = compact_iri_word(
-    "@direction", true, false, true, active, options,
+    "@direction", true, false, true, key_active, options,
   )
   match literal.language {
     Some(lang) => pairs.push((lang_key, JsonValue::String(lang)))
@@ -529,7 +544,12 @@ fn compact_value_jv(
     None => ()
   }
   match literal.index {
-    Some(ix) => pairs.push(("@index", JsonValue::String(ix)))
+    Some(ix) => {
+      let index_key = compact_iri_word(
+        "@index", true, false, true, key_active, options,
+      )
+      pairs.push((index_key, JsonValue::String(ix)))
+    }
     None => ()
   }
   JsonValue::Object(pairs)
@@ -841,7 +861,7 @@ fn compact_value_item(
       compact_node_graph_value_jv(child, active, options)
     }
     ExpandedValue::Value(literal) =>
-      Ok(compact_value_jv(literal, td_opt, active, options))
+      Ok(compact_value_jv(literal, td_opt, active, key_active, options))
     ExpandedValue::List(items, index~) => {
       // @list 容器吸收（td @container @list → 裸数组——#t0015 term4 oracle）；
       // 1.0 嵌套 list = compaction to list of lists 错（#te001 oracle）；
@@ -1008,11 +1028,13 @@ fn compact_node_jv(
   let id_key = compact_iri_word("@id", true, false, true, scoped, options)
   match node.id {
     Some(id) =>
+      // 词形走 value_chain（base 轨——type-scoped @base 传导至本节点值位，
+      // §8.59/#tc015 oracle：typed-base 下 "#typed-id" 片段相对）
       pairs.push(
         (
           id_key,
           JsonValue::String(
-            compact_iri_word(id, true, false, true, active, options),
+            compact_iri_word(id, true, false, true, value_chain, options),
           ),
         ),
       )
@@ -1361,6 +1383,9 @@ fn compact_node_jv(
             None =>
               {
                 datatype: if td_scoped.datatype == Some("@id") ||
+                  // @vocab 型同权保（#tc026——scoped-only @vocab term 词形
+                  // 塌缩；outer 同名案仍走 outer 全权臂不受此位——#tc009）
+                  td_scoped.datatype == Some("@vocab") ||
                   td_scoped.local_context is Some(_) {
                   td_scoped.datatype
                 } else {
@@ -1382,8 +1407,35 @@ fn compact_node_jv(
                 iri: td_scoped.iri,
               }
           }
+          // 新节点对象回退（作用域两族边界表——type-scoped 不跨新节点，
+          // #tc015 nestedNode 外层 base 相对）；id-only 节点是**父词形位**
+          //（对象形/串塌缩由父渲染，随 value_chain 吃本节点 type-scoped
+          // base——#tc015 subjectReference "#subject-reference-id"）
+          // 完整新节点：scoped.previous 缺位 = propagate:true 类型作用域
+          // 存活（#tc026——子节点继承 scoped）；在 = 回退外层（#tc015
+          // nestedNode 外层 base 相对）；id-only 节点是父词形位随 value_chain
+          let v_ctx = match v {
+            ExpandedValue::Node(child) => {
+              let node_ctx = if scoped.previous is None {
+                scoped
+              } else {
+                active
+              }
+              if child.types.is_empty() &&
+                child.properties.is_empty() &&
+                child.reverse_props.is_empty() &&
+                child.graph is None &&
+                child.included is None &&
+                child.index is None {
+                value_chain
+              } else {
+                node_ctx
+              }
+            }
+            _ => value_chain
+          }
           let jv = match
-            compact_value_item(v, Some(td), value_chain, scoped, options) {
+            compact_value_item(v, Some(td), v_ctx, scoped, options) {
             Ok(out) => out
             Err(e) => return Err(e)
           }
@@ -1410,8 +1462,32 @@ fn compact_node_jv(
           let _ = is_bare
         }
         None => {
-          let jv = match
-            compact_value_item(v, None, value_chain, scoped, options) {
+          // 新节点对象回退同 chosen 位（id-only 子节点=父词形位随
+          // value_chain；完整新节点回退 active——#tc015 同判据）
+          // 完整新节点：scoped.previous 缺位 = propagate:true 类型作用域
+          // 存活（#tc026——子节点继承 scoped）；在 = 回退外层（#tc015
+          // nestedNode 外层 base 相对）；id-only 节点是父词形位随 value_chain
+          let v_ctx = match v {
+            ExpandedValue::Node(child) => {
+              let node_ctx = if scoped.previous is None {
+                scoped
+              } else {
+                active
+              }
+              if child.types.is_empty() &&
+                child.properties.is_empty() &&
+                child.reverse_props.is_empty() &&
+                child.graph is None &&
+                child.included is None &&
+                child.index is None {
+                value_chain
+              } else {
+                node_ctx
+              }
+            }
+            _ => value_chain
+          }
+          let jv = match compact_value_item(v, None, v_ctx, scoped, options) {
             Ok(out) => out
             Err(e) => return Err(e)
           }
@@ -1578,12 +1654,13 @@ fn compact_node_jv(
     // 落全 IRI）
     if leftovers.length() > 0 {
       let fallback_vocab = group_keys.length() == 0 && map_names.length() == 0
+      // 兜底键随键选择链（#tc016——type-scoped vocab 下 com 词形塌缩）
       let fallback_key = compact_iri_word(
         pair.0,
         false,
         fallback_vocab,
         true,
-        active,
+        scoped,
         options,
       )
 
@@ -1878,7 +1955,13 @@ fn compact_map_entry(
         }
         ExpandedValue::Value(lit) => {
           // 字面量 datatype 键化 → 值对象去 @type 对
-          let rendered_lit = compact_value_jv(lit, None, active, options)
+          let rendered_lit = compact_value_jv(
+            lit,
+            None,
+            active,
+            active,
+            options,
+          )
           match rendered_lit {
             JsonValue::Object(pairs) => {
               let stripped : Array[(String, JsonValue)] = []
@@ -2092,7 +2175,7 @@ fn compact_map_entry(
             index: None,
             included: lit.included,
           }
-          Ok(compact_value_jv(bare_lit, None, active, options))
+          Ok(compact_value_jv(bare_lit, None, active, active, options))
         }
         _ => Ok(JsonValue::Null)
       }
