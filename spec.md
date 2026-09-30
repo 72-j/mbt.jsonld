@@ -628,7 +628,7 @@ expand_standard/to_rdf 手写钩子），**不是模型 vs 引擎**——J2/J3 �
 |---|---|---|---|
 | expansion | 385（正 276 / 负 109） | ✅ **385/385 全 plain** | suite_expand_test pin（deferred=0）+ 值级对拍 |
 | toRDF | 467（正 345 / 负 106 / 句法 16） | ✅ **467/467 全 plain** | suite_tordf_test pin + 判定器（迷你 N-Quads 解析 + 集合同构） |
-| compact | 246（正 229 / 负 17） | 🚧 **225/246 plain**（正 210 + 负 15）/ deferred 21 在册 | suite_compact_test pin（deferred=21）+ canonical_for_suite 直比 + bnode 双射兜底 |
+| compact | 246（正 229 / 负 17） | 🚧 **228/246 plain**（正 213 + 负 15）/ deferred 18 在册 | suite_compact_test pin（deferred=18）+ canonical_for_suite 直比 + bnode 双射兜底 |
 | flatten | 58（正 57 / 负 1） | ✅ **56/58 plain**（正 55 + 负 1）/ deferred 2 在册 | suite_flatten_test pin（deferred=2）+ canonical_for_suite 直比 + bnode 双射兜底（isomorphic_for_suite——判定器自检四钉） |
 | fromRdf | 54 | ❌ 未实现 | ——（§8.39） |
 | html | 50 | ❌ 未实现 | ——（§8.39） |
@@ -1595,3 +1595,54 @@ deny-warn 65/65 绿、全仓 377 零回退、n3gen 12、子模块 124。
 **施工注记**：桶名单修补三轮失误（fmt 折行致替换锚静默 no-op ×2、
 误删 tc021/tc022 ×1）——**桶名单改动禁字符串替换锚，以 HEAD 基线
 程序化整块重建**（三对账法桶名单件的落实形态）。
+
+### 8.71 役33 开工钉：@none 簇（ttn01-03）根分类（2026-10-01；用户令——「同根」须钉清根型）
+
+**三例语义（oracle 摘录）**：term `@type: @none` 收编一切值形态，但值
+**恒值对象形**（串/数/布尔不加 @type、typed 保己 datatype、语言值保
+@language、节点引用保 {@id}）；容器语义照常（ttn02 无容器单值塌缩、
+ttn03 @set 保数组）。
+
+**根 = 边界（双义位），非未实现、非分叉**：
+- 非未实现：@none **存储位已预埋**（ttn02 批——上下文处理 @type 臂收
+  "@none" 关键字、datatype 位存 None、1.0 模式报错闸在案）；
+- 非分叉：REC 单义「显式无 coercion」，ttn01-03 oracle 三连一致，无
+  规范歧义可裁；
+- 病灶 = **datatype None 双义**：显式 @none 与「无 @type」在存储位合流，
+  消费位（裸形早退 / object_fit 值对象放行 / object_fit 节点引用放行 /
+  展开面 coercion 串数布三臂）全按「无 @type」走 ⇒ 裸吸发生（ttn01
+  现判即 bare 数组）。
+
+**修法 = keyword 形标记 `Some("@none")`**（与 @id/@vocab/@json 同族——
+datatype 位本就承载关键字形态，非新增布尔位、非改 None 语义）：
+- 展开面：@none 短路三处 coercion（串值原样随 term 语言/方向；数/布尔
+  原生保形归 None 臂）；
+- 压缩面：object_fit 值对象/节点两臂放行 "@none"；bare 形早退跳过；
+  bare_fit **自动闭**（"@none" 恒不等值 datatype，无需改）；
+- 容器/单值塌缩走既有通用位，零改动。
+
+**与既有 @none 机制的界线（三个同名不同位，互不混）**：language map 的
+@none 键（#t0030/#tm010——键位「无语言桶」）、t0089 无语言值辖域前置扫描
+（归组判据）、本簇 term 定义 @type @none（**值成形面**）。改动只在第四位，
+前两位既有 oracle（#t0030/#tm010/#t0089）同笔全量回归。
+
+### 8.72 @none 簇三例落成（2026-10-01 役33；225 → 228/246 plain，零回退）
+
+**钉的兑现（§8.71 根分类 = 边界·双义位）**：@none 存储位改 keyword 形
+标记 `Some("@none")`（与 @id/@vocab/@json 同族——datatype 位承载关键字
+形态的既有先例，非新增布尔位），消费位按形接闸：
+- **展开面三臂短路**：串值 coercion @none 早退（原样 + term 语言/方向
+  随 term）；数/布尔原生值关键字元组加 @none（raw 保形无 @type——
+  #ttn01 {"@value":1} 无 @type ✓）；不短路则 D 臂会误强转 datatype
+  "@none"（施工前静态查获）。
+- **压缩面四处**：object_fit 值对象/节点两臂放行（值恒对象形、节点
+  引用保形）；compact_value_jv 裸形早退跳过（none_no_coercion 位）；
+  bare_fit 自动闭（"@none" 恒不等值 datatype）零改动；容器/单值塌缩
+  走通用位零改动（ttn02 单值塌缩、ttn03 @set 保数组自动达成）。
+- **界线验证**：既有 @none 同名位（language map #t0030/#tm010 键位、
+  t0089 前置扫描）同笔全量回归零回退——三同名位互不混的钉兑现。
+
+**转正 3 例**：ttn01（不压缩值）/ttn02（无容器单值塌缩）/ttn03（@set
+保数组）。deferred 18：t0007/t0038/t0045/t0048/t0066/t0110/te002/
+tjs07/tjs09/tla01/tm007/tn006-009/tpr03/ts001/ts002（负例 te002/tpr03）。
+deny-warn 65/65 绿、全仓 377 零回退、n3gen 12、子模块 124、.mbti 无变化。
