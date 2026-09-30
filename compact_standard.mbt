@@ -241,6 +241,41 @@ fn literal_raw_is_scalar(lit : ExpandedLiteral) -> Bool {
 }
 
 ///|
+/// 语言标签等值（BCP47 大小写不敏感——#tla01 oracle："eN" ≡ "en"；
+/// ASCII 宽松折叠——语言子序列恒 ASCII）
+fn lang_tag_eq(a : String, b : String) -> Bool {
+  if a == b {
+    return true
+  }
+  if a.length() != b.length() {
+    return false
+  }
+  for i in 0..<a.length() {
+    let ca = a.get_char(i)
+    let cb = b.get_char(i)
+    match (ca, cb) {
+      (Some(x), Some(y)) =>
+        if ascii_fold_lower(x) != ascii_fold_lower(y) {
+          return false
+        }
+      _ => return false
+    }
+  }
+  true
+}
+
+///|
+/// ASCII 大小写折叠（lang_tag_eq 用——语言子序列恒 ASCII，A-Z ±32）
+fn ascii_fold_lower(c : Char) -> Int {
+  let v = c.to_int()
+  if v >= 65 && v <= 90 {
+    v + 32
+  } else {
+    v
+  }
+}
+
+///|
 /// 值适配判定（两遍分选核心——同 IRI 多 term 按值拆键：#t0006 datatype 失配
 /// term 弃用落前缀词、#t0015 五 term 按值归组、#t0002 纯 term 容语言值对象）：
 /// bare_fit = 该 term 可把值吸成裸形（datatype/language 吸收、@list 容器吸收、
@@ -312,7 +347,7 @@ fn compact_bare_fit(
           match td.language_mapping {
             Some(Set(lang)) =>
               match lit.language {
-                Some(l) => l == lang
+                Some(l) => lang_tag_eq(l, lang)
                 None => false
               }
             Some(Null) => lit.language is None
@@ -323,7 +358,8 @@ fn compact_bare_fit(
               // 展开丢 @type——#tc020 value-type；raw 标量 datatype 重展开
               // 自恢复不受此限）
               match lit.language {
-                Some(lang) => lang == active.default_language.unwrap_or("")
+                Some(lang) =>
+                  lang_tag_eq(lang, active.default_language.unwrap_or(""))
                 None =>
                   (
                     active.default_language is None ||
@@ -435,7 +471,7 @@ fn compact_value_jv(
         Some(Set(lang)) =>
           match literal.language {
             Some(l) =>
-              if l == lang {
+              if lang_tag_eq(l, lang) {
                 let dir_ok = match td.direction_mapping {
                   Some(Set(d)) => literal.direction == Some(d)
                   Some(Null) => literal.direction is None
@@ -501,7 +537,7 @@ fn compact_value_jv(
   // 语言态对齐（#t0015 v1 oracle——de 值在缺省 de 下裸形重展开带回同语言，
   // 安全；纯串无修饰且缺省在场则对象形也不安全，分选层已拒）
   let language_aligned = match literal.language {
-    Some(lang) => lang == active.default_language.unwrap_or("")
+    Some(lang) => lang_tag_eq(lang, active.default_language.unwrap_or(""))
     None => active.default_language is None
   }
   let scalar_language_immune = literal.raw is Some(_)
@@ -2403,13 +2439,17 @@ fn compact_list_bare_fit(
             _ => false
           }
           let lang_ok = match td.language_mapping {
-            Some(Set(lang)) => first_lang == Some(lang)
+            Some(Set(lang)) =>
+              match first_lang {
+                Some(fl) => lang_tag_eq(fl, lang)
+                None => false
+              }
             Some(Null) => first_lang is None
             None => {
               // 缺省对齐（termLL0 收缺省 de 项）；免注免疫（#t0018 [1,2]
               // 数值列、#t0024 termTL0 typed 列）
               let aligned = match first_lang {
-                Some(l) => l == active.default_language.unwrap_or("")
+                Some(l) => lang_tag_eq(l, active.default_language.unwrap_or(""))
                 None => active.default_language is None
               }
               first_immune || aligned
