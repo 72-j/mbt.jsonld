@@ -628,7 +628,7 @@ expand_standard/to_rdf 手写钩子），**不是模型 vs 引擎**——J2/J3 �
 |---|---|---|---|
 | expansion | 385（正 276 / 负 109） | ✅ **385/385 全 plain** | suite_expand_test pin（deferred=0）+ 值级对拍 |
 | toRDF | 467（正 345 / 负 106 / 句法 16） | ✅ **467/467 全 plain** | suite_tordf_test pin + 判定器（迷你 N-Quads 解析 + 集合同构） |
-| compact | 246（正 229 / 负 17） | 🚧 **236/246 plain**（正 221 + 负 15）/ deferred 10 在册 | suite_compact_test pin（deferred=10）+ canonical_for_suite 直比 + bnode 双射兜底 |
+| compact | 246（正 229 / 负 17） | 🚧 **237/246 plain**（正 221 + 负 16）/ deferred 9 在册 | suite_compact_test pin（deferred=9）+ canonical_for_suite 直比 + bnode 双射兜底 |
 | flatten | 58（正 57 / 负 1） | ✅ **56/58 plain**（正 55 + 负 1）/ deferred 2 在册 | suite_flatten_test pin（deferred=2）+ canonical_for_suite 直比 + bnode 双射兜底（isomorphic_for_suite——判定器自检四钉） |
 | fromRdf | 54 | ❌ 未实现 | ——（§8.39） |
 | html | 50 | ❌ 未实现 | ——（§8.39） |
@@ -1885,3 +1885,56 @@ Index 位），bares 面的 graph-object 值落 @included/单内容分支（发�
 deferred 10：t0007/t0038/t0045/t0066/te002/tn006-009/tpr03（负例
 te002/tpr03）。deny-warn 65/65 绿、全仓 377 零回退、n3gen 12、
 子模块 124、.mbti 无变化。
+
+### 8.86 个案 tpr03 落成（2026-10-01 役40；236 → 237/246 plain，零回退）
+
+**钉的兑现（§8.85 根型修订 = 边界·apply 吞错）**：compact_apply_type_scoped
+改 Result 贯穿——type-scoped 应用位的保护重定义报错（install_term_definition
+机械原样）直达 compact_document；两调用位同笔（compact_node_jv scoped
+推导位 Err 贯穿；役37 keyed_chain 位 Option 契约降 None——错误经兜底
+分选的 compact_node_jv（含同款 apply）重现不丢，注释在案）。全量回归
+零回退（type-scoped 面 tc/ttn 族原样绿——吞错改贯穿只影响真 invalid）。
+
+**转正 1 例（NEG）**：tpr03（type-scoped 覆写保护 term 须报错）。
+deferred 9：t0007/t0038/t0045/t0066/te002/tn006-009（负例 te002）。
+deny-warn 65/65 绿、全仓 377 零回退、n3gen 12、子模块 124、.mbti 无变化。
+
+### 8.85 役40 开工钉：个案三件独立性勘定（2026-10-01；用户令——独立则先做个案）
+
+- **tpr03：完全独立 ✓（本役施工）**。根型修订：§8.73 未实现 → **边界**
+  ——保护校验机械全在（install_term_definition + type_scoped 旗
+  override_protected=false），病灶 = **compact_apply_type_scoped 吞错**
+  （`Err(_) => ()`——保护重定义报错到不了 compact_document ⇒ neg-ok）。
+  修法 = apply 返回 Result 贯穿（scoped/keyed_chain 两调用位）。
+- **t0007：独立但深勘加量（本役不施工）**。修法面 = 值位 fit 裁定
+  （@id 强转 term 不收字面量 ⇒ object_fit 翻转）**+ 兜底键裁定**——
+  勘定发现：弃用 term 后 leftover 兜底走前缀步得 `ex:contains`，而
+  oracle 要**全 IRI**（被拒 term 不得经前缀复得键位）——两层裁定，
+  非单翻转。保持独立，专役一件。
+- **t0038：独立但同函数面（建议随 base 专役同笔）**。修法面 =
+  compact_iri_word **前缀步**（异形 mapping「body:」对 raw index 键的
+  词形生成）；base 专役重写 resolve_base_value/**base 步**——同函数
+  不同臂，同笔施工避免双触 compact_iri_word。
+- **排期结论**：三件均独立于 base/相对 IRI 的**语义面**（resolve/
+  base 步零依赖）；tpr03 即刻施工；t0007 专役一件；t0038 随 base
+  专役同笔。
+
+### 8.85 役40 开工钉：个案三件独立性勘定（2026-10-01；用户令——独立则先做个案）
+
+- **tpr03：完全独立 ✓（本役施工）**。根型修订：§8.73 未实现 → **边界**
+  ——保护校验机械全在（install_term_definition + type_scoped 旗
+  override_protected=false），病灶 = **compact_apply_type_scoped 吞错**
+  （`Err(_) => ()`——保护重定义报错到不了 compact_document ⇒ neg-ok）。
+  修法 = apply 返回 Result 贯穿（scoped/keyed_chain 两调用位）。
+- **t0007：独立但深勘加量（本役不施工）**。修法面 = 值位 fit 裁定
+  （@id 强转 term 不收字面量 ⇒ object_fit 翻转）**+ 兜底键裁定**——
+  勘定发现：弃用 term 后 leftover 兜底走前缀步得 `ex:contains`，而
+  oracle 要**全 IRI**（被拒 term 不得经前缀复得键位）——两层裁定，
+  非单翻转。保持独立，专役一件。
+- **t0038：独立但同函数面（建议随 base 专役同笔）**。修法面 =
+  compact_iri_word **前缀步**（异形 mapping「body:」对 raw index 键的
+  词形生成）；base 专役重写 resolve_base_value/**base 步**——同函数
+  不同臂，同笔施工避免双触 compact_iri_word。
+- **排期结论**：三件均独立于 base/相对 IRI 的**语义面**（resolve/
+  base 步零依赖）；tpr03 即刻施工；t0007 专役一件；t0038 随 base
+  专役同笔。
