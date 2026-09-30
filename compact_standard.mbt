@@ -1849,7 +1849,32 @@ fn compact_node_jv(
                 None => ()
               }
             }
-            pairs.push((name, JsonValue::Object(sub_pairs)))
+            // nest 接线（役43/#tn006-009——map 容器 × @nest 复合：map
+            // 对象入 nest 组并带 term 名中间键级 nestedindex→index→{…}；
+            // 纯 map 路由原样顶层出）
+            let map_nest = {
+              let mut found : String? = None
+              for mtd in map_tds {
+                if mtd.0 == name {
+                  found = mtd.1.nest
+                }
+              }
+              found
+            }
+            match map_nest {
+              Some(nest_term) =>
+                match nest_groups.get(nest_term) {
+                  Some(group) =>
+                    group.push((name, JsonValue::Object(sub_pairs)))
+                  None => {
+                    nest_groups[nest_term] = [
+                      (name, JsonValue::Object(sub_pairs)),
+                    ]
+                    nest_order.push(nest_term)
+                  }
+                }
+              None => pairs.push((name, JsonValue::Object(sub_pairs)))
+            }
           }
         None => ()
       }
@@ -2107,6 +2132,8 @@ fn compact_node_jv(
             None => ()
           }
         }
+        // 役42 施工勘误复回：reverse 映射组出键的原 push（拆错位 nest
+        // 接线时被一并抹除——#t0036 isKnownBy 顶层提升位）
         pairs.push((name, JsonValue::Object(sub_pairs)))
       }
       None => ()
