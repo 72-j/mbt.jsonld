@@ -2053,3 +2053,58 @@ deny-warn 65/65 绿、全仓 377 零回退、n3gen 12、子模块 124、.mbti �
 （@type×nest）/tn009（@id×nest）。deferred 1：t0038（前缀词形面专研）。
 **负例 17/17 全 plain**。deny-warn 65/65 绿、全仓 377 零回退、n3gen 12、
 子模块 124、.mbti 无变化。
+
+### 8.91 里程碑：deferred 1（2026-10-01 役43 收口；245/246 plain——最后一里内容）
+
+**里程碑**：245/246 plain，deferred 仅 **t0038** 一例。负例 17/17 全
+plain；六套件面（expand/toRDF/flatten/compact/对账三件套/判定器自检）
+全绿。
+
+**最后一里 = t0038 三核勘定（用户令三核）**：
+- **根型 = 分叉（待裁）**：oracle 要 map 形 term（title/body——
+  `@container: @index`）作 **@index 子键前缀源**（`title:/value` =
+  term「title」mapping `site-cd:node/article/title` 前缀 + `/value`
+  后缀）；而 REC 4.2.2 + #tp001/#tp005 判据 = **map 形缺省不可作前缀**。
+  规范字面与 oracle 相抵——非未实现（前缀步机械在、判据闸在）、非纯
+  边界（闸的放宽须裁「@index 子键位特例」条款），待裁。
+- **通用面 vs 个案**：模式（@index 子键 × 嵌套前缀 term 词形）通用，
+  套件仅此一例；修复 = @index 子键词形位的前缀资格特例 + tp 族全量
+  回归——中成本。
+- **收官判定**：**缺口有解释即合格**——解释在册（本条），t0038 可留
+  deferred，**不阻塞收官**；「246/246 全 plain」是目标非唯一目标。
+- **与 base 专役关系（勘正）**：§8.85 原判「随 base 专役同笔」——役42
+  base 步已重写收口且未触前缀步，**关系已变为独立批**（前缀步面独立，
+  无同笔必要）。
+- **裁定（2026-10-01 用户令）**：**留 deferred，不施工**。理由四条：
+  ①分叉（待裁）非真缺口——分叉的处理 = 入册不修复；②缺口有解释即
+  合格——解释在册（本条），可留 deferred 不阻塞收官；③修复中成本
+  不划算（@index 子键位前缀资格特例 + tp 族全量回归），且若裁「按
+  oracle」须动已绿的 #tp001/#tp005，成本更高；④246/246 是目标非唯一
+  目标——收官不是清空 deferred，是**每个 deferred 有解释**。
+
+### 8.92 JSON-LD 整体收官账（2026-10-01 役44；J 系全战役终态——每面有账、每个 deferred 有解释）
+
+**四套件面终态**（§8.38 复核表同源实算）：
+| 战役 | 套件 | 终态 | 收官依据 |
+|---|---|---|---|
+| J2 expansion | 385 | ✅ **385/385 全 plain**（deferred 0） | suite_expand pin 闭合；deferred 归零即收官 |
+| J3 toRDF | 467 | ✅ **467/467 全 plain**（J3.0 判定器 54/54 + J3.1 核心映射 + J3.2 数值典范形 + J3.3 JCS——nq_jcs 已落） | suite_tordf pin 闭合；#ter 族负例全过 |
+| flatten | 58 | ✅ **56/58 plain**，deferred 2 有解释 | t0044（compact 前置——compact 侧役16 已 plain，**flatten 侧复核 = 收官后小项**）；tin06（@nest 深研——役43 map×nest 已大进，**复核 = 收官后小项**） |
+| J6 compaction | 246 | ✅ **245/246 plain**，deferred 1 有解释 | t0038 裁定留 deferred（分叉待裁非真缺口，§8.91 四理由）；负例 17/17 全 plain |
+
+**门面**（非套件例，账面独立）：J4 对账三件套 **62/62**
+（interface_gate 表 handler↔mock / gen_gate 重生成逐字节 / j4_reconcile
+路由+步骤+iri_rules 行为值级）+ 判定器自检 7 件 + keyword_dispatch
+分叉账在案（§8.39 条 5——非红判据）。
+
+**总口径**：四套件 **1156 例，plain 1153（99.7%），deferred 3——全部
+有解释**（t0038 分叉待裁 §8.91 / flatten 复核项 ×2 本条）。
+
+**立案面终态（不排期，解释在案 §8.39）**：
+- 未实现立案：fromRdf 54（可借 src/ttl 解析面）、html 50（需引解析依赖）。
+- 依赖外立案：remote-doc 18（HTTP 面）、framing（上游套件另立）、
+  canonicalization（双路线决策树：A 引 rdf-canon 套件 / B 自建对拍
+  双件先行——触发 = 用户令或 VC 需求）。
+
+**收官判语**：零 deferred ≠ 零缺口；收官 = 每面有账、每个 deferred 有
+解释、每个缺口有立案——本账三条全数兑现。**JSON-LD 全战役收官**。
