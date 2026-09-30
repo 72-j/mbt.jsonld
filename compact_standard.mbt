@@ -442,7 +442,10 @@ fn compact_value_jv(
                   None => true
                 }
                 if dir_ok {
-                  return JsonValue::String(literal.value)
+                  return match literal.raw {
+                    Some(raw) => raw
+                    None => JsonValue::String(literal.value)
+                  }
                 }
               }
             None => ()
@@ -455,7 +458,10 @@ fn compact_value_jv(
               None => true
             }
             if dir_ok {
-              return JsonValue::String(literal.value)
+              return match literal.raw {
+                Some(raw) => raw
+                None => JsonValue::String(literal.value)
+              }
             }
           }
         _ => ()
@@ -465,11 +471,17 @@ fn compact_value_jv(
       match td.direction_mapping {
         Some(Set(d)) =>
           if literal.direction == Some(d) {
-            return JsonValue::String(literal.value)
+            return match literal.raw {
+              Some(raw) => raw
+              None => JsonValue::String(literal.value)
+            }
           }
         Some(Null) =>
           if literal.direction is None {
-            return JsonValue::String(literal.value)
+            return match literal.raw {
+              Some(raw) => raw
+              None => JsonValue::String(literal.value)
+            }
           }
         None => ()
       }
