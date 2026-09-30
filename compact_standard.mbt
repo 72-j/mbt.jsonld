@@ -1222,7 +1222,12 @@ fn compact_node_jv(
                   )
                   // shaped（§8.52——单内容节点对象 / 多内容 @included 包裹；
                   // graph_set 载体恒数组保形——#t0082 族 oracle）
-                  let shaped = if gtd.graph_set {
+                  let shaped = if gtd.graph_set &&
+                    gtd.graph_secondary is Some(_) {
+                    // 数组形仅映射面次级（#t0082——Index 位内容数组）；
+                    // bares 面.graph object 值走 @included 语义（#t0110
+                    // ——[#@graph,@set] 单成员 @included 包裹；#t0109
+                    // 同语义已绿于非 graph_set 路）
                     JsonValue::Array(content)
                   } else if content.length() == 1 {
                     content[0]
