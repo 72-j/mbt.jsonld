@@ -628,7 +628,7 @@ expand_standard/to_rdf 手写钩子），**不是模型 vs 引擎**——J2/J3 �
 |---|---|---|---|
 | expansion | 385（正 276 / 负 109） | ✅ **385/385 全 plain** | suite_expand_test pin（deferred=0）+ 值级对拍 |
 | toRDF | 467（正 345 / 负 106 / 句法 16） | ✅ **467/467 全 plain** | suite_tordf_test pin + 判定器（迷你 N-Quads 解析 + 集合同构） |
-| compact | 246（正 229 / 负 17） | 🚧 **220/246 plain**（正 205 + 负 15）/ deferred 26 在册 | suite_compact_test pin（deferred=26）+ canonical_for_suite 直比 + bnode 双射兜底 |
+| compact | 246（正 229 / 负 17） | 🚧 **225/246 plain**（正 210 + 负 15）/ deferred 21 在册 | suite_compact_test pin（deferred=21）+ canonical_for_suite 直比 + bnode 双射兜底 |
 | flatten | 58（正 57 / 负 1） | ✅ **56/58 plain**（正 55 + 负 1）/ deferred 2 在册 | suite_flatten_test pin（deferred=2）+ canonical_for_suite 直比 + bnode 双射兜底（isomorphic_for_suite——判定器自检四钉） |
 | fromRdf | 54 | ❌ 未实现 | ——（§8.39） |
 | html | 50 | ❌ 未实现 | ——（§8.39） |
@@ -1520,3 +1520,78 @@ compaction 后收尾账凭会话记忆写成——役次落账前必跑**三对�
 t0066/t0110/tc015/tc016/tc020/tc024/tc026/te002/tjs07/tjs09/tla01/
 tm007/tn006-009/tpr03/ts001/ts002/ttn01-03（负例 te002/tpr03）。
 deny-warn 65/65 绿、全仓 377 零回退、n3gen 12、子模块 124。
+
+### 8.69 役32 开工钉：deferred 26 分布清点 + base 多候选与词形级别关系（2026-10-01 役31 收口后清点；用户令）
+
+**分布六簇（26 例；负例 2）**：
+- **tc scoped 深层（5，役32 首簇——用户令「先 tc 深层」）**：tc015
+  （type-scoped base——§8.59 base 轨主 oracle）/tc016（type-scoped
+  vocab）/tc020（type-scoped @value 别名）/tc024（type+property-scoped
+  叠加、值对 previous context 裁断）/tc026（@propagate:true 存活节点界）。
+  侦察定性：五例全在 **apply/传导面**（scoped 套用链 + previous 回退），
+  不在排名面。
+- **base/相对 IRI（3）**：t0045（../ 逃逸、terms ignored）/t0066（相对
+  IRI 多形态——目录/文件/query/fragment 各归各）/te002（NEG——塌缩结果
+  scheme 撞车报错面）。
+- **@none/@type（3）**：ttn01-03（@type:@none 不压缩值 / 随容器出形）。
+- **nest×容器（4）**：tn006-009。
+- **@json 字面量（2）**：tjs07/09（@type @json 压缩/展开形）。
+- **杂项（9）**：t0007（external context 补入——役16 判「未实现」待钉）/
+  t0038（Drupal 复杂回环）/t0048（三候选偏好——null 映射 vs 无映射对
+  非串值）/t0110（@included）/tla01（list 全元素最特异 term）/tm007
+  （@type 上 scoped context）/tpr03（NEG——type-scoped 覆写保护 term）/
+  ts001/002（@context 数组值 / @set+兼容值并存）。
+
+**「base 多候选排名」与「词形级别 tie-break」关系钉（防与役31 混）**：
+- **同一排名，非另一排名**。役31 排名键三层 = 词长 → 词形级别 →
+  特异性位；「base 多候选」= 多候选词同落 base 相对形态（级别同为 3）
+  ——此时**词长层已分序**（不同 base 相对形式长度不同），级别层不加
+  不减。
+- **base 轨（§8.59）在排名之前**：它是上下文**归属链**（scoped @base vs
+  文档 base 的裁断），决定「拿哪个 base 塌缩」；排名只对归属后的词形
+  比较。tc015 病根在归属/传导面，不在排名面——役31 词形级别既不救济
+  也不干扰它。
+- **落码分界**：tc 深层改动落 apply_type_scoped / previous-context /
+  propagate 面 + 值渲染链；**役31 排名键冻结**（compact_rank_word_len /
+  compact_word_rank 不动——除非新 oracle 证明键缺维，届时另立新维走
+  §8.65 单维渐进）。
+
+### 8.70 tc 深层五例落成（2026-10-01 役32；220 → 225/246 plain，零回退）
+
+**六件落码**（compact_standard.mbt + expand_standard.mbt 各半——病灶一半在
+压缩链、一半在**展开面值对象文档序**）：
+1. **type mapping 无 vocab curie 形收留**（expand_standard @type 臂）：
+   无 vocab 时含冒号相对形原样收留（#tc024 "ex:Number"——与值 datatype
+   同串对上）；路径相对形拒（#ter23 "relative/iri" 无冒号）；空节点标号
+   恒拒（#ter13 "_:not-an-iri"）。oracle > 规范字面族又一例——REC 字面
+   「展开后须绝对 IRI」与 tc024 oracle 相抵，按三 oracle 切判别线。
+2. **值对象 @type 先至挂起回填**（expand_standard）：@type 在 @value 之前
+   出现时 literal 尚未建、datatype 赋值静默落空（#tc020 dt=None 根因，
+   R32EX 扩展层复现钉）——pending_dt 挂起、值对象收口回填；**文档序
+   依赖 bug，expand 套件全绿未覆盖（其输入 @value 均在前）**。
+3. **值对象性预扫**（has_value_key_shaped）：@type 臂分路不再依赖
+   is_value_object 的文档序置位——任一键展开为 @value 即值对象形态。
+4. **节点自身 @id 词形走 value_chain**（base 轨传导到位——#tc015
+   "#typed-id" 片段相对）；**新节点/父词形位双分**：完整子节点按
+   scoped.previous 裁断回退（在 ⇒ active；缺位 ⇒ propagate 存活继承
+   scoped——#tc026）；id-only 子节点 = 父词形位随 value_chain（#tc015
+   subjectReference）。
+5. **兜底键随键选择链**（leftover fallback_key 用 scoped——#tc016 com
+   词形塌缩）+ **shaping scoped-only 臂 @vocab 同权保**（#tc026 baz；
+   outer 同名案仍 outer 全权——#tc009 不变）。
+6. **bare_fit 纯 term 臂 typed 闸**（非 raw typed 字面量不可裸吸——
+   裸串重展开丢 @type；raw 标量 datatype 自恢复不受限）+ **值对象键
+   别名化**（@value/@type/@language/@direction/@index 键随 key_active
+   键链——#tc020 "value"/"type" 别名键）。
+
+**转正 5 例**：tc015（type-scoped base）/tc016（type-scoped vocab）/
+tc020（type-scoped @value 别名）/tc024（type+property-scoped 叠加）/
+tc026（@propagate 存活）。deferred 21：t0007/t0038/t0045/t0048/t0066/
+t0110/te002/tjs07/tjs09/tla01/tm007/tn006-009/tpr03/ts001/ts002/
+ttn01-03（负例 te002/tpr03）。
+deny-warn 65/65 绿、全仓 377 零回退、n3gen 12、子模块 124。
+. mbti 无变化（改动全在私有面）。
+
+**施工注记**：桶名单修补三轮失误（fmt 折行致替换锚静默 no-op ×2、
+误删 tc021/tc022 ×1）——**桶名单改动禁字符串替换锚，以 HEAD 基线
+程序化整块重建**（三对账法桶名单件的落实形态）。
