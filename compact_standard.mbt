@@ -223,48 +223,7 @@ fn compact_bare_fit(
 ) -> Bool {
   match value {
     ExpandedValue::List(items, index~) =>
-      // index 闸（#t0041 oracle——带 @index 的 list 不入 @list term）
-      if index is Some(_) {
-        false
-      } else if td.container is Some(List) {
-        // 方向感知 + 语言镜像（§8.48/#t0024——td 方向/语言映射按首项分选：
-        // #tdi03 方向、#t0024 语言，双 oracle 同构）
-        let first_lang = match items.get(0) {
-          Some(ExpandedValue::Value(lit)) => lit.language
-          _ => None
-        }
-        let first_dt = match items.get(0) {
-          Some(ExpandedValue::Value(lit)) => lit.datatype
-          _ => None
-        }
-        let lang_ok = match td.language_mapping {
-          Some(Set(lang)) => first_lang == Some(lang)
-          Some(Null) => first_lang is None
-          // None 映射 = 缺省对齐（#t0024——termLL0 收缺省 de 项，非全收）
-          None =>
-            match first_lang {
-              Some(l) => l == active.default_language.unwrap_or("")
-              None => active.default_language is None
-            }
-        }
-        // type 镜像（#t0024——termTL0/1/2 按 @type 分选：termTL1 @type type1
-        // 收 type1 项裸形；termTL0 无 @type 收 typed 值对象形）
-        let type_ok = match td.datatype {
-          Some(dt) => first_dt == Some(dt)
-          None => first_dt is None
-        }
-        let dir_ok = match td.direction_mapping {
-          Some(Set(d)) =>
-            match items.get(0) {
-              Some(ExpandedValue::Value(lit)) => lit.direction == Some(d)
-              _ => true
-            }
-          _ => true
-        }
-        lang_ok && dir_ok && type_ok
-      } else {
-        false
-      }
+      compact_list_bare_fit(items, index, td, active)
     ExpandedValue::Node(child) => {
       let id_only = child.types.is_empty() &&
         child.properties.is_empty() &&
@@ -529,6 +488,36 @@ fn compact_value_jv(
     None => ()
   }
   JsonValue::Object(pairs)
+}
+
+///|
+/// 排名估长器（无递归——断 compact_node_jv 定义环）：id_only 节点取压缩
+/// 词长；值取词长+8；list 取 300+项*8；非裸节点 400——排名仅需相对序，
+/// 精确长由选中后真渲染承担
+fn compact_rank_word_len(
+  v : ExpandedValue,
+  active : ActiveContext,
+  options : JsonLdOptions,
+) -> Int {
+  match v {
+    ExpandedValue::Node(child) =>
+      if child.types.is_empty() &&
+        child.properties.is_empty() &&
+        child.reverse_props.is_empty() &&
+        child.graph is None &&
+        child.included is None &&
+        child.index is None {
+        match child.id {
+          Some(id) =>
+            compact_iri_word(id, false, false, true, active, options).length()
+          None => 400
+        }
+      } else {
+        400
+      }
+    ExpandedValue::Value(lit) => lit.value.length() + 8
+    ExpandedValue::List(items, ..) => 300 + items.length() * 8
+  }
 }
 
 ///|
@@ -1101,17 +1090,20 @@ active, options,
             compact_object_fit(v, entry.1, active)
           }
           if fits {
-            let word_len = match compact_value_item(v, Some(entry.1), active, options) {
-              Ok(jv) => jv_render(jv).length()
-              Err(_) => 999999
-            }
-            // 特异性仅对纯串计（无 datatype）——language-mapping term
-            // 不得抢 typed 值（#t0015 oracle——v2(datatype t2) 归 term2
-            // 非 term5）
-            let specificity = match (entry.1.language_mapping, literal_datatype_of(v)) {
+            let word_len = compact_rank_word_len(v, active, options)
+            // 特异性双维（役30 第二维 datatype）：language-mapping term
+            // 不得抢 typed 值（#t0015）；td @type 与值 datatype 合 ⇒ +1
+            // （#t0024 oracle——type1 项归 termTL1 非 termLL0）
+            let v_dt = literal_datatype_of(v)
+            let spec_lang = match (entry.1.language_mapping, v_dt) {
               (Some(_), None) => 1
               _ => 0
             }
+            let spec_type = match (entry.1.datatype, v_dt) {
+              (Some(dt), Some(vdt)) => if dt == vdt { 1 } else { 0 }
+              _ => 0
+            }
+            let specificity = spec_lang + spec_type
             let better = match best {
               Some((_, _, bl, bs)) => word_len < bl || (word_len == bl && specificity > bs)
               None => true
@@ -1507,10 +1499,7 @@ active, options,
               Some(td) => {
                 let fits = compact_bare_fit(v, td, active)
                 if fits {
-                  let word_len = match compact_value_item(v, Some(td), active, options) {
-                    Ok(jv) => jv_render(jv).length()
-                    Err(_) => 999999
-                  }
+                  let word_len = compact_rank_word_len(v, active, options)
                   let better = match best {
                     Some((_, _, bl)) => word_len < bl
                     None => true
@@ -2041,5 +2030,60 @@ fn compact_node_graph_value_jv(
       Ok(JsonValue::Object(out))
     }
     _ => jv
+  }
+}
+
+///|
+/// list 值 bare 适配（役30 从 bare_fit 内联链抽出——顶层具名函数规避
+/// 深嵌套 match 文法坑）：index 闸 / @list 容器闸 / 语言镜像（含标量免疫）/
+/// type 镜像 / 方向闸
+fn compact_list_bare_fit(
+  items : Array[ExpandedValue],
+  index : String?,
+  td : TermDefinition,
+  active : ActiveContext,
+) -> Bool {
+  if index is Some(_) {
+    false
+  } else if td.container is Some(List) {
+    let first_lang = match items.get(0) {
+      Some(ExpandedValue::Value(lit)) => lit.language
+      _ => None
+    }
+    let first_dt = match items.get(0) {
+      Some(ExpandedValue::Value(lit)) => lit.datatype
+      _ => None
+    }
+    let first_scalar = match items.get(0) {
+      Some(ExpandedValue::Value(lit)) => lit.raw is Some(_)
+      _ => false
+    }
+    let lang_ok = match td.language_mapping {
+      Some(Set(lang)) => first_lang == Some(lang)
+      Some(Null) => first_lang is None
+      None => {
+        // 缺省对齐（termLL0 收缺省 de 项）；标量免疫（数值不受缺省注入）
+        let aligned = match first_lang {
+          Some(l) => l == active.default_language.unwrap_or("")
+          None => active.default_language is None
+        }
+        first_scalar || aligned
+      }
+    }
+    let type_ok = match td.datatype {
+      Some(dt) => first_dt == Some(dt)
+      None => first_dt is None
+    }
+    let dir_ok = match td.direction_mapping {
+      Some(Set(d)) =>
+        match items.get(0) {
+          Some(ExpandedValue::Value(lit)) => lit.direction == Some(d)
+          _ => true
+        }
+      _ => true
+    }
+    lang_ok && dir_ok && type_ok
+  } else {
+    false
   }
 }
