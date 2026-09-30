@@ -181,6 +181,11 @@ fn compact_iri_word(
           if rest.has_prefix("#") {
             return rest
           }
+          // query 相对（役42/#t0066——iri = doc URL + "?…" ⇒ "?…"，与
+          // fragment 规则对称）
+          if rest.has_prefix("?") {
+            return rest
+          }
         }
         // 边界 = base 目录位：尾 '/' 即用；否则剥最后一段取目录
         // （#t0076/#t0066 oracle——@base 为文档 URL 时 @id 相对化到同目录）
@@ -198,6 +203,114 @@ fn compact_iri_word(
         }
         if boundary.length() < iri.length() && iri.has_prefix(boundary) {
           return iri[boundary.length():].to_owned()
+        }
+        // ../ 上跳形（役42/#t0045 "../parent-node"/#t0066 "../"../../" 族——
+        // 同 scheme 同 authority 下按目录段回溯：ups = base 目录段数 −
+        // 公共段数；fragment/query 已被上两形截走）。十二点目标形见
+        // §8.88 勘定（tests/=1 上、root 文件=3 上——统一规则：
+        // 段级公共前缀对 base 目录段，均一成立）
+        // 上跳前提：iri 自带 path（authority 后有 "/"）——裸 authority
+        // （#t0076 "http://example.com"）恒绝对
+        let iri_has_path = match iri.find("//") {
+          Some(at) => iri[at + 2:].find("/") is Some(_)
+          None => false
+        }
+        let scheme_ok = match (colon_index(base), colon_index(iri)) {
+          (Some(b_at), Some(i_at)) =>
+            base[:b_at].to_owned() == iri[:i_at].to_owned()
+          _ => false
+        }
+        // 值位 id 词形限定（allow_vocab=false——@id 值渲染统一旗）；
+        // property 兜底键（fallback_vocab=true）走 vocab/相对形，不上跳
+        //（#t0095 oracle——vocab "" 相对键形不被 ../ 覆写）
+        if iri_has_path && scheme_ok && !allow_vocab {
+          let bp = match base.find("//") {
+            Some(at) => {
+              let rest = base[at + 2:].to_owned()
+              match rest.find("/") {
+                Some(slash) => rest[slash:].to_owned()
+                None => "/"
+              }
+            }
+            None => base
+          }
+          let ip = match iri.find("//") {
+            Some(at) => {
+              let rest = iri[at + 2:].to_owned()
+              match rest.find("/") {
+                Some(slash) => rest[slash:].to_owned()
+                None => "/" + rest
+              }
+            }
+            None => iri
+          }
+          let authority_ok = match (base.find("//"), iri.find("//")) {
+            (Some(b_at), Some(i_at)) => {
+              let b_rest = base[b_at + 2:].to_owned()
+              let i_rest = iri[i_at + 2:].to_owned()
+              let b_auth = match b_rest.find("/") {
+                Some(sl) => b_rest[:sl].to_owned()
+                None => b_rest
+              }
+              let i_auth = match i_rest.find("/") {
+                Some(sl) => i_rest[:sl].to_owned()
+                None => i_rest
+              }
+              b_auth == i_auth
+            }
+            _ => false
+          }
+          if authority_ok {
+            let segs_of = fn(pp : String) -> Array[String] {
+              let arr : Array[String] = []
+              let mut cur = ""
+              for i in 0..<pp.length() {
+                match pp.get_char(i) {
+                  Some('/') => {
+                    arr.push(cur)
+                    cur = ""
+                  }
+                  Some(ch) => cur = cur + ch.to_string()
+                  None => ()
+                }
+              }
+              arr.push(cur)
+              arr
+            }
+            let bd = segs_of(bp)
+            let it = segs_of(ip)
+            // bd pop 尾 ""（bp 尾斜杠目录标）；it 尾段是真实目标段——
+            // 不 pop（役42 施工勘误：误 pop 吃掉 parent-node ⇒ "../"）
+            if bd.length() > 0 {
+              let _ = bd.pop()
+            }
+            let mut k = 0
+            for i in 0..<bd.length() {
+              if i < it.length() {
+                if bd[i] == it[i] {
+                  k += 1
+                } else {
+                  break
+                }
+              } else {
+                break
+              }
+            }
+            let ups = bd.length() - k
+            let mut word = ""
+            for _ in 0..<ups {
+              word = word + "../"
+            }
+            for j in k..<it.length() {
+              word = word + it[j]
+              if j + 1 < it.length() {
+                word = word + "/"
+              }
+            }
+            if word != "" && word != iri {
+              return word
+            }
+          }
         }
       }
       None => ()
@@ -1038,6 +1151,46 @@ fn compact_property_values(
 }
 
 ///|
+/// 键位出口 scheme 撞名检测（役42/#te002 oracle——绝对 IRI 键的 scheme
+/// 恰为在册 term 名 ⇒ 重展开读成 curie、错 IRI，Err；term 名非绝对 IRI
+/// 形的键零涉）
+fn check_key_scheme_collision(
+  key : String,
+  pred : String,
+  active : ActiveContext,
+) -> Result[Unit, JsonLdError] {
+  if is_valid_absolute_iri(key) {
+    match colon_index(key) {
+      Some(at) => {
+        // 精化（役42 施工勘误——#t0006 前缀词 ex:term1 语法似绝对 IRI 且
+        // "ex" 在册，但重展开同于原 IRI 非撞）；撞 = scheme term 重展开
+        // **异于**原 IRI（#te002——tag:… 经 tag term → ns/tag/… ≠ 原 IRI）
+        let scheme = key[:at].to_owned()
+        match active.terms.get(scheme) {
+          Some(td) =>
+            match td.iri {
+              Some(td_iri) => {
+                let rest = key[at + 1:].to_owned()
+                if td_iri + rest != pred {
+                  return Err(
+                    JsonLdError::InvalidContext(
+                      "scheme collides with term name",
+                    ),
+                  )
+                }
+              }
+              None => ()
+            }
+          None => ()
+        }
+      }
+      None => ()
+    }
+  }
+  Ok(())
+}
+
+///|
 /// 属性对压缩（term 选择 + 值数组；键 = term 名或压缩 IRI）——正向与反转对
 /// 共用（反转位 term 选择走 td.reverse 匹配）
 fn compact_property_pair(
@@ -1055,6 +1208,12 @@ fn compact_property_pair(
   let key = match cands {
     cs if cs.length() > 0 => cs[0]
     _ => compact_iri_word(pred, true, true, true, active, options)
+  }
+  // 键位出口 scheme 撞名检测（役42/#te002——键位词为绝对 IRI 且其
+  // scheme 恰为在册 term 名：重展开读成 curie ⇒ 错 IRI，Err）
+  match check_key_scheme_collision(key, pred, active) {
+    Ok(_) => ()
+    Err(e) => return Err(e)
   }
   match compact_property_values(vals, td_opt, active, options) {
     Ok(jv) => Ok((key, jv))
@@ -1121,7 +1280,9 @@ fn compact_node_jv(
       // 存续；type-scoped 只管键选择，值词形随外层——双链分立同款）
       types.push(
         JsonValue::String(
-          compact_iri_word(t, true, true, true, active, options),
+          // @type 词形不走文档相对化（役42/#t0066——类型位只经 term/
+          // vocab，oracle 全绝对）
+          compact_iri_word(t, true, true, false, active, options),
         ),
       )
     }
@@ -1753,6 +1914,11 @@ fn compact_node_jv(
         scoped,
         options,
       )
+      // 键位出口 scheme 撞名检测（役42/#te002——leftover 兜底键同受检）
+      match check_key_scheme_collision(fallback_key, pair.0, active) {
+        Ok(_) => ()
+        Err(e) => return Err(e)
+      }
 
       let out = if options.compact_arrays && leftovers.length() == 1 {
         leftovers[0]
