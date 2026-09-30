@@ -628,7 +628,7 @@ expand_standard/to_rdf 手写钩子），**不是模型 vs 引擎**——J2/J3 �
 |---|---|---|---|
 | expansion | 385（正 276 / 负 109） | ✅ **385/385 全 plain** | suite_expand_test pin（deferred=0）+ 值级对拍 |
 | toRDF | 467（正 345 / 负 106 / 句法 16） | ✅ **467/467 全 plain** | suite_tordf_test pin + 判定器（迷你 N-Quads 解析 + 集合同构） |
-| compact | 246（正 229 / 负 17） | 🚧 **215/246 plain**（正 200 + 负 15）/ deferred 31 在册 | suite_compact_test pin（deferred=31）+ canonical_for_suite 直比 + bnode 双射兜底 |
+| compact | 246（正 229 / 负 17） | 🚧 **220/246 plain**（正 205 + 负 15）/ deferred 26 在册 | suite_compact_test pin（deferred=26）+ canonical_for_suite 直比 + bnode 双射兜底 |
 | flatten | 58（正 57 / 负 1） | ✅ **56/58 plain**（正 55 + 负 1）/ deferred 2 在册 | suite_flatten_test pin（deferred=2）+ canonical_for_suite 直比 + bnode 双射兜底（isomorphic_for_suite——判定器自检四钉） |
 | fromRdf | 54 | ❌ 未实现 | ——（§8.39） |
 | html | 50 | ❌ 未实现 | ——（§8.39） |
@@ -1427,17 +1427,96 @@ expand_standard/to_rdf 手写钩子），**不是模型 vs 引擎**——J2/J3 �
 - **「§8.65 规则」自指消解**：本条即规则本体（上三行）；「按 §8.65
   规则施工」= 按本纪律逐维渐进 + 闸/位关系（上二行）执行，非另有所指。
 
-### 8.66 datatype 维落成（2026-09-29 役30；208 → 214/246 plain，零回退）
+### 8.66 datatype 维落成（2026-09-29 役30；账面 208 → 214/246 plain、零回退——【役31 更正：实为 216 → 214（−2 真回退），见 §8.67】）
 - **单维渐进第一维全量落地**（§8.65 纪律执行——本维独立成批，未累积）：
   1. **估长器断环**（compact_rank_word_len 无递归——[4050] 定义环
      compact_node_jv→值渲染→排名→compact_node_jv 的解法）
   2. **特异性双维**：语言维（纯串）+ datatype 维（#t0015 v2 归 term2）
   3. **标量免疫入 List 语言闸**（#t0015 [1,2] 数值 list 归 term4）
   4. **type 镜像 + 语言镜像**（bare_fit List 臂——#t0024 termTL/LL 分选）
-- **转正 6 例**：t0015（语言/类型混合五 term 全对位）/t0018（混合值族）/
+- 【役31 撤销】**「转正 6 例」未发生**（探针六连红，实况见 §8.67）：
+  t0015/t0027 役16 即已在 plain；t0018/t0022/t0024/t0044 未迁入且现判
+  FAIL。原文存档：t0015（语言/类型混合五 term 全对位）/t0018（混合值族）/
   t0022（type-@set 1.0 门）/t0024（list 语言类型交叉）/t0027（@set 偏好）/
   t0044（reverse 双 term）
-- **deferred 32**：t0007/t0029/t0030（个案深研）、t0038（异形前缀）、
-  t0045（../ 逃逸）、t0048（三候选偏好）、t0066/0110（base 文档位）、
-  t0089（无语言值辖域已判已收例复核）、tla01/tn006-009/ts001-002/
-  ttn01-03/tpr03/te002
+- 【役31 勘正】**deferred 32 实际名单**：t0007（值位 id-term 取舍未实现）/
+  t0018/t0022/t0024/t0044（**役31 转正门四例**）/t0038（异形前缀）/
+  t0045（../ 逃逸）/t0048（三候选偏好）/t0057/t0061（**役30 回退例**——
+  役31 收复或成文更正）/t0066/t0110（base 文档位）/tc015/tc016/tc020/
+  tc024（scoped 值位深层）/tc026（@propagate 面）/te002（影响类纪律）/
+  tjs07/tjs09（@json 判定）/tla01（语言敏感 list）/tm007（type map
+  scoped 值链）/tn006-009（nest×容器）/tpr03（保护重定义交叉）/ts001/
+  ts002（数组容器出形）/ttn01-03（type-scoped 值成形序）。
+  原枚举含三幽灵（t0029/t0030/t0089——plain 在册绿，役16/17 撤销条在案）
+  且漏十四例
+
+### 8.67 役30 过收更正 + 役31 转正门正名（2026-09-30 役31 开工审计；探针实证）
+
+**审计三对账**（`git show --stat` + 桶名单提取 + 探针现判，判分与 harness
+同款）：
+- **「+6 转正」未发生，实为 −2 回退**：役30 diff 对 plain 数组只删无增——
+  移出 t0057/t0061（役27 时在册绿 ⇒ 役30 改动打破），216 → 214、30 → 32；
+  「零回退」不实。
+- **转正 6 例逐一证伪**：t0015/t0027 役16 即在 plain（役30 前后无迁移）；
+  t0018/t0022/t0024/t0044 不在数组且探针现判 FAIL（探针六连红）。
+- **deferred 枚举三幽灵漏十四**：t0029/t0030（役16 修平、役17 撤销条在案）
+  与 t0089（已收）一直 plain 在册绿；真名单见 §8.66 勘正行。
+
+**账实不符族·十（修法增补，编号对齐 ctx 族账——九 = §8.38 行旧）**：
+compaction 后收尾账凭会话记忆写成——役次落账前必跑**三对账**：
+`git show --stat`（diff 实况）× 套件 asserts（桶计数）× deferred 名单
+提取（枚举逐项对），三者在案才落账。
+
+**「t0024 转正门」正名（役31 开工钉——防对幽灵转正例重复做功）**：
+- 门 ≠ t0024 一例（t0024 并未转正）。**门 = 四例 t0018/t0022/t0024/t0044**
+  （deferred 在册、现判 FAIL）+ **t0057/t0061 收复**（修复或成文更正，
+  禁静默留 deferred）。
+- 机制残余 = **typed 值对象收集项 + type 特异性位**（役27 钉、役30 datatype
+  维 ±1 不救济此四例——探针为证；type 计位与收集项的分工按各例第一差异
+  施工中钉，渐进纪律 §8.65 不变）。
+- 成功判据：四例转正（plain 214 → 218，deferred 32 → 28）+ t0057/t0061
+  收复（→ 220/26）或成文更正留 deferred；deny-warn 全绿零回退。
+  【役31 收口达成：220/26——四例 + t0057/t0061 全转正（超判据：判据只
+  要求 218+收复或更正），见 §8.68】
+
+### 8.68 转正门六例落成（2026-10-01 役31；214 → 220/246 plain，零回退——基线 = §8.67 勘正后的 214/32 实况）
+
+**七件落码**（compact_standard.mbt 单文件）：
+1. **估长器按候选变**（compact_rank_word_len 加 td_opt——役30 断环把
+   「逐 term 词长」一并断了，t0057/t0061 回退根因）：id_only 节点取
+   **本 term 塌缩词**长（塌缩旗标与 compact_value_item 串塌缩臂逐字
+   同源——id_only 面即精确渲染长）；「相对序足够」原则不破——精确化
+   只到 IRI 词形层，不重入渲染。
+2. **词形级别 tie-break**（compact_word_rank：exact 0 < vocab 后缀 1 <
+   前缀词 2 < base 相对 3 < 全 IRI 4——窄旗标逐步试塌归类，无递归）：
+   #t0044 DefinedTerm exact 胜 base 相对（同长 11 字）。
+3. **List 闸分支形**（compact_list_bare_fit 与 Value 臂同构——datatype
+   分支优先）：@type term 只看**整列 uniform** datatype（语言不掺和）；
+   混合 typed 列不归 @type term。役30 的平行 AND（lang && type）是
+   v4/v5 列零候选的根因。
+4. **typed 值对象收集项**：无 @type term 恒容 typed 列（值对象形居裸
+   数组——#t0024 termTL0 混合列）+ 列的 uniform-datatype 计位
+   （literal_datatype_of List 分支——#t0018 term4/5、#t0024 TL1/TL2
+   排名位）+ 免注免疫扩到 typed（值对象带 @type 重展开不受缺省语言
+   注入——#t0024 termTL0 闸）。
+5. **标量禁入 @list 容器 term**（Value 臂 container List ⇒ false——
+   #t0018 v0.2/v0.3/标量归 plain term）。
+6. **无修饰纯串对象形放行**（缺省语言在场——#t0018 v0.3：对象形保住
+   无语言态）。
+7. **@reverse 逐值分键第二路**（compact_reverse_split_pairs 抽出双路
+   复用）：普通 term（@type @id/@vocab）在 @reverse 位同 IRI 双候选
+   按值拆键，出形保 @reverse 包裹——#t0044 dave→knows 全词、
+   DefinedTerm→knowsVocab exact 词。
+
+**键链穿参**（compact_value_item 加 key_active）：{"@id"} 对象形键随
+键选择链（#tc011——type-scoped 注销别名在值链仍活；键链生效即 "@id"
+字面保持）；property-scoped 对两链同权套用（「全参与」口径）。t0022
+（别名生效）与 tc011（注销生效）同一 site 两面，此前硬编码 "@id" 掩盖
+了双面。.mbti 补再生（ExpandedValue::List index~ 字段——役30 用而未
+再生，本笔同补）。
+
+**转正 6 例**：t0018/t0022/t0024/t0044（转正门四例）+ t0057/t0061
+（役30 回退例收复）。deferred 32 → 26：t0007/t0038/t0045/t0048/
+t0066/t0110/tc015/tc016/tc020/tc024/tc026/te002/tjs07/tjs09/tla01/
+tm007/tn006-009/tpr03/ts001/ts002/ttn01-03（负例 te002/tpr03）。
+deny-warn 65/65 绿、全仓 377 零回退、n3gen 12、子模块 124。
