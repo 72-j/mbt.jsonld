@@ -628,7 +628,7 @@ expand_standard/to_rdf 手写钩子），**不是模型 vs 引擎**——J2/J3 �
 |---|---|---|---|
 | expansion | 385（正 276 / 负 109） | ✅ **385/385 全 plain** | suite_expand_test pin（deferred=0）+ 值级对拍 |
 | toRDF | 467（正 345 / 负 106 / 句法 16） | ✅ **467/467 全 plain** | suite_tordf_test pin + 判定器（迷你 N-Quads 解析 + 集合同构） |
-| compact | 246（正 229 / 负 17） | 🚧 **233/246 plain**（正 218 + 负 15）/ deferred 13 在册 | suite_compact_test pin（deferred=13）+ canonical_for_suite 直比 + bnode 双射兜底 |
+| compact | 246（正 229 / 负 17） | 🚧 **234/246 plain**（正 219 + 负 15）/ deferred 12 在册 | suite_compact_test pin（deferred=12）+ canonical_for_suite 直比 + bnode 双射兜底 |
 | flatten | 58（正 57 / 负 1） | ✅ **56/58 plain**（正 55 + 负 1）/ deferred 2 在册 | suite_flatten_test pin（deferred=2）+ canonical_for_suite 直比 + bnode 双射兜底（isomorphic_for_suite——判定器自检四钉） |
 | fromRdf | 54 | ❌ 未实现 | ——（§8.39） |
 | html | 50 | ❌ 未实现 | ——（§8.39） |
@@ -1793,3 +1793,36 @@ OUR 键 = oracle 键为证）。语言吸收族全量回归零回退（#t0015 te
 deferred 13：t0007/t0038/t0045/t0066/t0110/te002/tla01/tm007/
 tn006-009/tpr03（负例 te002/tpr03）。
 deny-warn 65/65 绿、全仓 377 零回退、n3gen 12、子模块 124、.mbti 无变化。
+
+### 8.79 役37 开工钉：scoped 键簇 tm007 与役32 键链的「同族」定位（2026-10-01；用户令三线钉）
+
+- **同一机制**：键随键链——type-scoped 定义的 term 作子树键位词形
+  （"a" 是 Type scoped context 的 term，作内节点属性键）。
+- **不同 site**：役32 通的是 compact_value_item 的 {"@id"} 键位 + 属性
+  兜底键位 + 值对象键位；**tm007 的 site = compact_map_entry 的 Type 臂
+  值渲染位**——役32 未触及。
+- **形态同构**：type-scoped term 在子树键位的生效/失效判定（tc022 别名
+  生效 / tc011 注销失效 / tm007 生效）。
+
+**病灶（读码实证）**：Type 臂把 `types[0]` 剥去做 subkey，variant
+（types[1:]）渲染传**外层 active**——键化 type 的 type-scoped 定义在
+值渲染链上不存在（"a" 缺位 ⇒ 属性键落全 IRI）。**修法 = 键化 type 的
+scoped context 预套**（compact_apply_type_scoped([types[0]], active)
+作 variant 渲染链；subkey 词形仍随原 active 不动——tm020/tm022 旗据
+不扰）。多 type 与键化 type 的应用次序边缘挂账（无 oracle；REC 逆序
+语义在多 type + 双 scoped 定义时或有出入——遇 oracle 另钉）。
+
+### 8.80 scoped 键簇 tm007 落成（2026-10-01 役37；233 → 234/246 plain，零回退）
+
+**钉的兑现（§8.79 三线定位）**：Type 臂值渲染链改 keyed_chain——
+`compact_apply_type_scoped([types[0]], active)` 预套键化 type 的
+type-scoped 定义（variant 已剥 types[0]，内层 apply 见不到——补位）。
+三处换链（variant_bare 词形 / None-id 节点 / 常规节点渲染）；**subkey
+词形仍随原 active**（tm020/tm022 旗据零扰）。tm 族全量回归零回退
+（tm004 types[1:] 浅拷贝 / tm020/tm022 串塌缩原样绿）。多 type 次序
+边缘照 §8.79 挂账。
+
+**转正 1 例**：tm007（type map 值位的 scoped 键链）。deferred 12：
+t0007/t0038/t0045/t0066/t0110/te002/tla01/tn006-009/tpr03（负例
+te002/tpr03）。deny-warn 65/65 绿、全仓 377 零回退、n3gen 12、
+子模块 124、.mbti 无变化。
