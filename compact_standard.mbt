@@ -355,7 +355,8 @@ fn compact_object_fit(
     // （#t0006 term2 oracle：裸引用对象形落回 term 键）
     ExpandedValue::Node(_) =>
       match td.datatype {
-        Some(dt) => dt is ("@id" | "@vocab")
+        // @none 同权（#ttn01——节点引用对象形安全，无 coercion）
+        Some(dt) => dt is ("@id" | "@vocab" | "@none")
         None => true
       }
     ExpandedValue::Value(lit) => {
@@ -380,8 +381,9 @@ fn compact_object_fit(
         return false
       }
       match td.datatype {
-        // @id 型 term + 字面量：值对象形不被强转（仅裸串强转）——安全
-        Some("@id") | Some("@vocab") => true
+        // @id 型 term + 字面量：值对象形不被强转（仅裸串强转）——安全；
+        // @none 同权（#ttn01——值恒值对象形，object_fit 放行）
+        Some("@id") | Some("@vocab") | Some("@none") => true
         // datatype 版 term 与值态失配 → 无形可用（#t0006 oracle）
         Some(_) => false
         None =>
@@ -474,6 +476,12 @@ fn compact_value_jv(
     }
     None => ()
   }
+  // @none 显式无 coercion（#ttn01——term @type @none 下值恒值对象形，
+  // 裸形早退跳过；datatype None 双义的解 = keyword 形标记 Some("@none")）
+  let none_no_coercion = match td_opt {
+    Some(td) => td.datatype == Some("@none")
+    None => false
+  }
   let bare_datatype = match literal.datatype {
     Some(dt) => dt == "http://www.w3.org/2001/XMLSchema#string"
     None => true
@@ -485,7 +493,8 @@ fn compact_value_jv(
     None => active.default_language is None
   }
   let scalar_language_immune = literal.raw is Some(_)
-  if bare_datatype &&
+  if !none_no_coercion &&
+    bare_datatype &&
     (scalar_language_immune || language_aligned) &&
     literal.direction is None &&
     literal.index is None {

@@ -2532,60 +2532,73 @@ fn StandardExpander::expand_term_values_inner(
       match scoped.terms.get(term) {
         Some(term_definition) =>
           match term_definition.datatype {
-            Some(coercion) => {
-              let coerced : Result[ExpandedValue, JsonLdError] = if coercion
-                is "@id" {
-                match IriExpander::expand_iri(self, scoped, sv, true, false) {
-                  Ok(iri) =>
-                    Ok(
-                      ExpandedValue::Node(ExpandedNode::{
-                        id: Some(iri),
-                        types: [],
-                        properties: [],
-                        reverse_props: [],
-                        graph: None,
-                        included: None,
-                        index: None,
-                      }),
-                    )
-                  Err(e) => Err(e)
+            Some(coercion) =>
+              if coercion is "@none" {
+                // 显式无 coercion（#ttn01——@none 串值原样，语言/方向仍随 term）
+                let lit = ExpandedLiteral::{
+                  value: sv,
+                  datatype: None,
+                  language: term_language,
+                  direction: term_direction,
+                  raw: None,
+                  index: None,
+                  included: None,
                 }
-              } else if coercion is "@vocab" {
-                // @vocab coercion 构造点（#t0057 oracle：vocab miss 后落
-                // document-relative 位——base 解析）
-                match IriExpander::expand_iri(self, scoped, sv, true, true) {
-                  Ok(iri) =>
-                    Ok(
-                      ExpandedValue::Node(ExpandedNode::{
-                        id: Some(iri),
-                        types: [],
-                        properties: [],
-                        reverse_props: [],
-                        graph: None,
-                        included: None,
-                        index: None,
-                      }),
-                    )
-                  Err(e) => Err(e)
-                }
+                Ok([ExpandedValue::Value(lit)])
               } else {
-                Ok(
-                  ExpandedValue::Value(ExpandedLiteral::{
-                    value: sv,
-                    datatype: Some(coercion),
-                    language: None,
-                    direction: None,
-                    raw: None,
-                    index: None,
-                    included: None,
-                  }),
-                )
+                let coerced : Result[ExpandedValue, JsonLdError] = if coercion
+                  is "@id" {
+                  match IriExpander::expand_iri(self, scoped, sv, true, false) {
+                    Ok(iri) =>
+                      Ok(
+                        ExpandedValue::Node(ExpandedNode::{
+                          id: Some(iri),
+                          types: [],
+                          properties: [],
+                          reverse_props: [],
+                          graph: None,
+                          included: None,
+                          index: None,
+                        }),
+                      )
+                    Err(e) => Err(e)
+                  }
+                } else if coercion is "@vocab" {
+                  // @vocab coercion 构造点（#t0057 oracle：vocab miss 后落
+                  // document-relative 位——base 解析）
+                  match IriExpander::expand_iri(self, scoped, sv, true, true) {
+                    Ok(iri) =>
+                      Ok(
+                        ExpandedValue::Node(ExpandedNode::{
+                          id: Some(iri),
+                          types: [],
+                          properties: [],
+                          reverse_props: [],
+                          graph: None,
+                          included: None,
+                          index: None,
+                        }),
+                      )
+                    Err(e) => Err(e)
+                  }
+                } else {
+                  Ok(
+                    ExpandedValue::Value(ExpandedLiteral::{
+                      value: sv,
+                      datatype: Some(coercion),
+                      language: None,
+                      direction: None,
+                      raw: None,
+                      index: None,
+                      included: None,
+                    }),
+                  )
+                }
+                match coerced {
+                  Ok(v) => Ok([v])
+                  Err(e) => Err(e)
+                }
               }
-              match coerced {
-                Ok(v) => Ok([v])
-                Err(e) => Err(e)
-              }
-            }
             None => {
               let lit = ExpandedLiteral::{
                 value: sv,
@@ -2623,7 +2636,8 @@ fn StandardExpander::expand_term_values_inner(
       }
       let lit = match dt {
         Some(coercion) =>
-          if coercion is ("@id" | "@vocab" | "@json") {
+          // @none 同族不转原生值（#ttn01——数/布尔 raw 保形无 @type）
+          if coercion is ("@id" | "@vocab" | "@json" | "@none") {
             ExpandedLiteral::{
               value: "\{nv}",
               datatype: None,
@@ -2666,7 +2680,8 @@ fn StandardExpander::expand_term_values_inner(
       }
       let lit = match dt {
         Some(coercion) =>
-          if coercion is ("@id" | "@vocab") {
+          // @none 同族不转原生值（#ttn01 同上）
+          if coercion is ("@id" | "@vocab" | "@none") {
             // @id/@vocab coercion 不转原生值（#t0088 同族）
             ExpandedLiteral::{
               value: "\{bv}",
@@ -3636,7 +3651,9 @@ fn StandardExpander::process_expanded_term_definition(
               if options.processing_mode is JsonLd10 {
                 return Err(JsonLdError::InvalidContext("invalid type mapping"))
               }
-              td_datatype = None
+              // keyword 形标记（役33——None 与「无 @type」双义的解；消费位
+              // 按形接闸：coercion 短路/object_fit 放行/bare 早退跳过）
+              td_datatype = Some("@none")
             } else {
               // 关键字形态原样（"@id"/"@vocab"/"@json"——丁批）；其余 vocab 展开
               let expanded = if t is ("@id" | "@vocab" | "@json") {
@@ -3660,7 +3677,7 @@ fn StandardExpander::process_expanded_term_definition(
               //（#tc024 oracle——"ex:Number" 前缀未定义，与值 datatype 同串
               // 对上）；路径相对形拒（#ter23 oracle——"relative/iri" 无冒号
               // invalid）；空节点标号恒拒（#ter13 oracle——"_:not-an-iri"）
-              if !(expanded is ("@id" | "@vocab" | "@json") ||
+              if !(expanded is ("@id" | "@vocab" | "@json" | "@none") ||
                 is_valid_absolute_iri(expanded) ||
                 (
                   vocab is None &&
