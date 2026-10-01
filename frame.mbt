@@ -920,9 +920,12 @@ fn frame_invoke(
         }
         state.embed_stack.push(id)
         // keyword 位拷贝（REC "If property is a keyword, add"——展开 IR
-        // 中 @type/@index 居专字段）
+        // 中 @type/@index 居专字段）；types 去重（F2 并集重复——t0057
+        // "ex:T","ex:T" oracle；匹配 contains 语义本集）
         for wanted in node.types {
-          output.types.push(wanted)
+          if !output.types.contains(wanted) {
+            output.types.push(wanted)
+          }
         }
         if node.index is Some(_) {
           output.index = node.index
@@ -1039,13 +1042,31 @@ fn frame_invoke(
                     ExpandedValue::Node(ref_node) =>
                       match ref_node.id {
                         Some(ref_id) => {
-                          let sub_frame : ExpandedNode = match
-                            list_patterns.get(0) {
-                            Some(ExpandedValue::Node(pattern)) => pattern
-                            _ =>
-                              frame_synthesized_pattern(
-                                embed, explicit, require_all,
-                              )
+                          // 子帧 = 帧 list pattern 首个 node pattern；pattern
+                          // 全为值 pattern ⇒ 节点项不配不收（t0057 node2
+                          // oracle——值 pattern 不嵌节点）；pattern 缺 ⇒ 合成
+                          // 帧继承旗（t0055）
+                          let mut node_pattern : ExpandedNode? = None
+                          for one_pattern in list_patterns {
+                            match one_pattern {
+                              ExpandedValue::Node(pn) =>
+                                if !frame_is_value_pattern(pn) {
+                                  node_pattern = Some(pn)
+                                  break
+                                }
+                              _ => ()
+                            }
+                          }
+                          let sub_frame : ExpandedNode = match node_pattern {
+                            Some(pattern) => pattern
+                            None =>
+                              if list_patterns.is_empty() {
+                                frame_synthesized_pattern(
+                                  embed, explicit, require_all,
+                                )
+                              } else {
+                                continue
+                              }
                           }
                           let saved_embedded = state.embedded
                           state.embedded = true
@@ -1059,6 +1080,34 @@ fn frame_invoke(
                         }
                         None => ()
                       }
+                    ExpandedValue::Value(_) => {
+                      // 值项按帧 list pattern 过滤（t0057 oracle——非配项
+                      // 不进输出；pattern 缺/空 = 全收——t0055）
+                      let mut kept = list_patterns.is_empty()
+                      for one_pattern in list_patterns {
+                        match (one_pattern, listitem) {
+                          (
+                            ExpandedValue::Value(pattern_lit),
+                            ExpandedValue::Value(lit),
+                          ) =>
+                            if frame_literal_matches(pattern_lit, lit) {
+                              kept = true
+                            }
+                          (
+                            ExpandedValue::Node(pattern_node),
+                            ExpandedValue::Value(lit),
+                          ) =>
+                            if frame_is_value_pattern(pattern_node) &&
+                              frame_value_pattern_matches(pattern_node, lit) {
+                              kept = true
+                            }
+                          _ => ()
+                        }
+                      }
+                      if kept {
+                        out_items.push(listitem)
+                      }
+                    }
                     _ => out_items.push(listitem)
                   }
                 }
@@ -1418,7 +1467,89 @@ pub fn frame_document(
       unwrapped.push(rewritten)
     }
   }
-  // ⑦ prune bnodes（mode≠1.0）：随 tp 簇批（本批 1.0 例不触）
+  // ⑦ prune bnodes（REC——mode≠1.0：仅现一次于性质值位的 bnode @id 摘除
+  // ——tp 族 + t0056 id-less 节点面；0 次现（无值位引用）亦摘）
+  let is_10 = match options.processing_mode {
+    JsonLd10 => true
+    JsonLd11 => false
+  }
+  if !is_10 {
+    let counts : Map[String, Int] = Map([])
+    fn count_values(value : ExpandedValue) -> Unit {
+      match value {
+        ExpandedValue::Node(n) => {
+          match n.id {
+            Some(id) =>
+              if nq_term_is_bnode(id) {
+                counts[id] = counts.get(id).or(0) + 1
+              }
+            None => ()
+          }
+          for pair in n.properties {
+            for v in pair.1 {
+              count_values(v)
+            }
+          }
+          match n.graph {
+            Some(items) =>
+              for item in items {
+                count_values(item)
+              }
+            None => ()
+          }
+        }
+        ExpandedValue::List(items, ..) =>
+          for item in items {
+            count_values(item)
+          }
+        ExpandedValue::Value(_) => ()
+      }
+    }
+    for result in results {
+      match result {
+        ExpandedValue::Node(n) =>
+          for pair in n.properties {
+            for v in pair.1 {
+              count_values(v)
+            }
+          }
+        _ => ()
+      }
+    }
+    fn prune_ids(value : ExpandedValue) -> Unit {
+      match value {
+        ExpandedValue::Node(n) => {
+          match n.id {
+            Some(id) =>
+              if nq_term_is_bnode(id) && counts.get(id).or(0) <= 1 {
+                n.id = None
+              }
+            None => ()
+          }
+          for pair in n.properties {
+            for v in pair.1 {
+              prune_ids(v)
+            }
+          }
+          match n.graph {
+            Some(items) =>
+              for item in items {
+                prune_ids(item)
+              }
+            None => ()
+          }
+        }
+        ExpandedValue::List(items, ..) =>
+          for item in items {
+            prune_ids(item)
+          }
+        ExpandedValue::Value(_) => ()
+      }
+    }
+    for result in results {
+      prune_ids(result)
+    }
+  }
   // ⑨ compaction（frame @context；compactArrays/compactToRelative 旗透传）
   let compacted_items : Array[JsonValue] = []
   for result in unwrapped {

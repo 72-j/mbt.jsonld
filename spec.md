@@ -2632,3 +2632,12 @@ prune 随后收官。
 #t0056-58（list 匹配产出形）——白盒探针法（probe_*_wbtest 内联语料直查
 subject map / matched）为本次定位主手法，探针即写即删。全仓 **405/405**
 绿（门含 43+49=92 闭合 pin）。
+
+**§8.102-续二 役51 收割续（2026-10-02）**：47/92 plain 真绿（+4：
+#t0019 旗继承附带修复 / #t0056 prune bnodes 臂兑现（REC mode≠1.0 仅现
+一次的 bnode @id 摘除——tp 族机制同笔落）/ #t0057/58 部分机制（types
+去重、list 值项按帧 pattern 过滤、节点项撞值 pattern 不嵌）。**余差
+留册**：#t0057/58 @graph 序（bnode 铸号序 vs oracle 序——unordered
+「any order」的 oracle 序勘定未竟）与 I 项过滤残差；#t0015 三病；
+#t0029 别名 reverse 二次病根。**施工勘误**：replace 无 assert 静默空转
+（fmt 重排致锚不中——t0019 编辑空转一轮）⇒ 批量编辑须 assert+计数复核。
