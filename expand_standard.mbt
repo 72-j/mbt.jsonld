@@ -951,6 +951,79 @@ fn StandardExpander::expand_object(
         _ => ()
       }
     }
+    // frameExpansion reverse-term pattern 保形（役52——t0029 判定面）：
+    // term 定义带 @reverse ⇒ 值位是**反向 pattern**（非反向 map）——{}
+    // 通配/@default 保形入 reverse_props（键 = td 的 reverse IRI）。字面
+    // "@reverse" 键（t0028 map 形）走原臂不受扰
+    if options.frame_expansion && !frame_value_pattern {
+      match current.terms.get(pair.0) {
+        Some(term_definition) =>
+          match term_definition.reverse {
+            Some(rev) => {
+              let rev_pattern : ExpandedNode = match pair.1 {
+                JsonValue::Object(value_pairs) => {
+                  let mut has_default_key = false
+                  let default_raw : Array[JsonValue] = []
+                  let mut has_value_key = false
+                  for vp in value_pairs {
+                    if vp.0 is "@default" {
+                      has_default_key = true
+                      match vp.1 {
+                        JsonValue::Array(items) =>
+                          for item in items {
+                            default_raw.push(item)
+                          }
+                        single => default_raw.push(single)
+                      }
+                    }
+                    if vp.0 is "@value" {
+                      has_value_key = true
+                    }
+                  }
+                  if has_default_key && !has_value_key {
+                    let default_values : Array[ExpandedValue] = []
+                    for raw in default_raw {
+                      match self.frame_preserve_default(current, raw, options) {
+                        Ok(values) =>
+                          for v in values {
+                            default_values.push(v)
+                          }
+                        Err(e) => return Err(e)
+                      }
+                    }
+                    {
+                      id: None,
+                      types: [],
+                      properties: [("@default", default_values)],
+                      reverse_props: [],
+                      graph: None,
+                      included: None,
+                      index: None,
+                    }
+                  } else {
+                    match
+                      StandardExpander::expand_element(
+                        self,
+                        current,
+                        pair.1,
+                        _active_property,
+                        options,
+                      ) {
+                      Ok(ExpandedValue::Node(pattern_node)) => pattern_node
+                      _ => frame_empty_pattern()
+                    }
+                  }
+                }
+                _ => frame_empty_pattern()
+              }
+              reverse_props.push((rev, [ExpandedValue::Node(rev_pattern)]))
+              continue
+            }
+            None => ()
+          }
+        None => ()
+      }
+    }
     if !routes_to_keyword {
       // frameExpansion 保形（帧旗批——spec §8.96）：帧内性质位对象值
       // ①含 @default 键 ⇒ 默认对象 pattern（其余条目忽略——REC Framing

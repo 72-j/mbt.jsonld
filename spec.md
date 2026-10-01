@@ -2652,3 +2652,12 @@ type 的计数/排序二次勘定——@type 位引用未入 prune 计数面 + @
 #tp046/49（graph 族——named-graph 递归臂，随役52）；#t0057/58（@graph 序
 勘定未竟）；#t0015（三病——重铸号臂已落，余 coercion 值形/序）；#t0029
 （别名 reverse 二次病根）。全仓 **405/405** 绿。
+
+**§8.103 役52（2026-10-02）**：named-graph 递归臂落成（REC "graph map 有
+id 条目"三支——帧无 @graph ⇒ 递归除非 @merged；帧有 @graph ⇒ 首值子帧；
+Graph 父位变体入节点 graph 槽；graphName 变异-恢复）——**#t0046/47 真绿**
+；别名 reverse 修兑现（frameExpansion 下 reverse-term 值位 = 反向 pattern
+保形入 reverse_props——**#t0029 真绿**）。**留册**：#t0048/49/50/tp046/
+tp049（合并图内容并集深度——graph 内容经 node.graph 注册面与 F2 graph-
+scoped 键的互作二次勘定）；#tg010（bnode 未命名图）；余前册各例。全仓
+405/405。

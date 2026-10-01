@@ -11,8 +11,9 @@
 ///|
 /// framing 状态（REC framing state——骨架面：旗字段随 frameExpansion 批进）
 priv struct FrameState {
-  /// "@default"（frame 顶层 @graph ⇒ frameDefault）| "@merged"（缺省）
-  graph_name : String
+  /// "@default"（frame 顶层 @graph ⇒ frameDefault）| "@merged"（缺省）；
+  /// mut（named-graph 递归位换名——§8.103，变异-恢复）
+  mut graph_name : String
   /// graph map（REC Node Map Generation 产物）：graph 名 → subject id → 节点
   graph_map : Map[String, Map[String, ExpandedNode]]
   /// 无 id 节点铸号器（flatten_fresh_bnode 同款 "_:bN"；输入标签避撞预扫
@@ -167,6 +168,8 @@ priv enum FrameParent {
   Prop(ExpandedNode, String)
   /// @reverse 配得数组 / list 递归输出数组（§8.101）
   Values(Array[ExpandedValue])
+  /// named graph 递归父位（§8.103——值入节点 graph 槽）
+  Graph(ExpandedNode)
 }
 
 ///|
@@ -208,6 +211,11 @@ fn frame_parent_add(parent : FrameParent, value : ExpandedValue) -> Unit {
     Top(arr) => arr.push(value)
     Prop(node, property) => frame_output_add(node, property, value)
     Values(arr) => arr.push(value)
+    Graph(node) =>
+      match node.graph {
+        Some(items) => items.push(value)
+        None => node.graph = Some([value])
+      }
   }
 }
 
@@ -985,6 +993,48 @@ fn frame_invoke(
             None => ()
           }
         }
+        // named graph 递归（§8.103——REC："If graph map in state has an
+        // entry for id"：帧无 @graph ⇒ 递归除非 graphName=@merged；帧有
+        // @graph ⇒ 子帧 = 首值（缺 ⇒ 合成），id 为 @merged/@default 不递归；
+        // 递归 = graphName=id + embedded=false + 子 subjects + Graph 父位）
+        if state.graph_map.contains(id) {
+          let frame_has_graph = frame_node.graph is Some(_)
+          let mut recurse = true
+          let graph_subframe : ExpandedNode = if !frame_has_graph {
+            if state.graph_name == "@merged" {
+              recurse = false
+              frame_empty_pattern()
+            } else {
+              frame_synthesized_pattern(embed, explicit, require_all)
+            }
+          } else {
+            match frame_node.graph {
+              Some(items) =>
+                match items.get(0) {
+                  Some(ExpandedValue::Node(pattern)) => pattern
+                  _ => frame_synthesized_pattern(embed, explicit, require_all)
+                }
+              None => frame_synthesized_pattern(embed, explicit, require_all)
+            }
+          }
+          if recurse {
+            let saved_graph_name = state.graph_name
+            let saved_embedded = state.embedded
+            state.graph_name = id
+            state.embedded = false
+            let graph_subjects = match state.graph_map.get(id) {
+              Some(nodes) => {
+                let keys = nodes.keys().collect()
+                keys.sort()
+                keys
+              }
+              None => []
+            }
+            frame_invoke(state, graph_subjects, graph_subframe, Graph(output))
+            state.embedded = saved_embedded
+            state.graph_name = saved_graph_name
+          }
+        }
         state.embed_stack.push(id)
         // keyword 位拷贝（REC "If property is a keyword, add"——展开 IR
         // 中 @type/@index 居专字段）；types 去重（F2 并集重复——t0057
@@ -1553,7 +1603,7 @@ pub fn frame_document(
           match n.id {
             Some(id) =>
               if nq_term_is_bnode(id) {
-                counts[id] = counts.get(id).or(0) + 1
+                counts[id] = counts.get(id).unwrap_or(0) + 1
               }
             None => ()
           }
@@ -1586,7 +1636,7 @@ pub fn frame_document(
           match n.id {
             Some(id) =>
               if nq_term_is_bnode(id) {
-                counts[id] = counts.get(id).or(0) + 1
+                counts[id] = counts.get(id).unwrap_or(0) + 1
               }
             None => ()
           }
@@ -1604,7 +1654,7 @@ pub fn frame_document(
         ExpandedValue::Node(n) => {
           match n.id {
             Some(id) =>
-              if nq_term_is_bnode(id) && counts.get(id).or(0) <= 1 {
+              if nq_term_is_bnode(id) && counts.get(id).unwrap_or(0) <= 1 {
                 n.id = None
               }
             None => ()
