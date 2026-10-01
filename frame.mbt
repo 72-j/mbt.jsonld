@@ -842,6 +842,73 @@ fn frame_replace_embed_with_ref(
 }
 
 ///|
+/// 输入 bnode 重铸号（役52——tp021/t0015 oracle：输入 bnode 标签全换新
+/// _:bN——节点 id 位与 @type 位同一映射保持一致；seen 表跨树一致；铸号
+/// 器与 frame_register 共享（state 先建）⇒ 零碰撞）
+fn frame_relabel_bnodes(
+  state : FrameState,
+  value : ExpandedValue,
+  seen : Map[String, String],
+) -> Unit {
+  match value {
+    ExpandedValue::Node(n) => {
+      match n.id {
+        Some(id) =>
+          if nq_term_is_bnode(id) {
+            let fresh = match seen.get(id) {
+              Some(f) => f
+              None => {
+                let f = frame_fresh_bnode(state)
+                seen[id] = f
+                f
+              }
+            }
+            n.id = Some(fresh)
+          }
+        None => ()
+      }
+      for i, t in n.types {
+        if nq_term_is_bnode(t) {
+          let fresh = match seen.get(t) {
+            Some(f) => f
+            None => {
+              let f = frame_fresh_bnode(state)
+              seen[t] = f
+              f
+            }
+          }
+          n.types[i] = fresh
+        }
+      }
+      for pair in n.properties {
+        for v in pair.1 {
+          frame_relabel_bnodes(state, v, seen)
+        }
+      }
+      match n.graph {
+        Some(items) =>
+          for item in items {
+            frame_relabel_bnodes(state, item, seen)
+          }
+        None => ()
+      }
+      match n.included {
+        Some(incs) =>
+          for inc in incs {
+            frame_relabel_bnodes(state, ExpandedValue::Node(inc), seen)
+          }
+        None => ()
+      }
+    }
+    ExpandedValue::List(items, ..) =>
+      for item in items {
+        frame_relabel_bnodes(state, item, seen)
+      }
+    ExpandedValue::Value(_) => ()
+  }
+}
+
+///|
 /// Framing Algorithm（REC 骨架）：matched 码点序枚举 → output 节点装配
 /// （keyword 位拷贝 + 性质位：值对象直追加 / node reference 子帧递归嵌入）
 /// → parent 收账。旗覆写（requireAll/explicit）+ explicit 收编门 + 帧缺位
@@ -1447,6 +1514,11 @@ pub fn frame_document(
     embedded_map: Map([]),
     last_locations: Map([]),
   }
+  // 输入 bnode 重铸号（先于注册——tp021/t0015 面）
+  let relabel_seen : Map[String, String] = Map([])
+  for value in values {
+    frame_relabel_bnodes(state, value, relabel_seen)
+  }
   for value in values {
     let _ = frame_register(state, "@default", value)
   }
@@ -1507,12 +1579,23 @@ pub fn frame_document(
     }
     for result in results {
       match result {
-        ExpandedValue::Node(n) =>
+        ExpandedValue::Node(n) => {
+          // 自身 @id 计入（tp020 oracle 定音——top 步骤 bnode 两处现
+          // （自身 @id + instructions 值位）⇒ 不摘；t0056 无值位引用者
+          // 计 1 ⇒ 摘）
+          match n.id {
+            Some(id) =>
+              if nq_term_is_bnode(id) {
+                counts[id] = counts.get(id).or(0) + 1
+              }
+            None => ()
+          }
           for pair in n.properties {
             for v in pair.1 {
               count_values(v)
             }
           }
+        }
         _ => ()
       }
     }

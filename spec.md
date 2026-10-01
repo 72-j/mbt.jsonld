@@ -634,7 +634,7 @@ expand_standard/to_rdf 手写钩子），**不是模型 vs 引擎**——J2/J3 �
 | fromRdf | 54 | ❌ 未实现 | ——（§8.39） |
 | html | 50 | ❌ 未实现 | ——（§8.39） |
 | remote-doc | 18 | ⭕ 依赖外 | ——（§8.39：HTTP fetch 面） |
-| framing | 92（正 89 / 负 3，官方套件在仓 @ 3bf782ba） | 🚧 **43/92 plain**（役49 匹配语法 + 役50 embed 状态机批收官；deferred 49 逐簇在册 §8.100） | suite_frame_test pin（43+49=92 闭合）+ canonical 直比 + bnode 兜底 |
+| framing | 92（正 89 / 负 3，官方套件在仓 @ 3bf782ba） | 🚧 **48/92 plain**（役51 收割：embed/reverse/list/prune 面；deferred 44 逐簇在册 §8.102 系） | suite_frame_test pin（43+49=92 闭合）+ canonical 直比 + bnode 兜底 |
 | 对账三件套 | —— | ✅ 62/62 | interface_gate（表 handler↔mock）+ gen_gate（重生成逐字节）+ j4_reconcile（路由/步骤/iri_rules 行为+值级） |
 | 判定器自检 | —— | ✅ 7 件 | tordf_judge_test（转义/解析/同构语义正反例 + 套件文件自同构） |
 | 预载通道 | —— | ✅ | loader_preload_test（BFS 预载 + join 键一致） |
@@ -2641,3 +2641,14 @@ subject map / matched）为本次定位主手法，探针即写即删。全仓 *
 「any order」的 oracle 序勘定未竟）与 I 项过滤残差；#t0015 三病；
 #t0029 别名 reverse 二次病根。**施工勘误**：replace 无 assert 静默空转
 （fmt 重排致锚不中——t0019 编辑空转一轮）⇒ 批量编辑须 assert+计数复核。
+
+
+**§8.102-续三 役51 终（2026-10-02；用户令「提交 入库」——四笔已推 origin）**：
+48/92 plain 真绿（+1：#tp020 prune 计数定音——**自身 @id 计入**，top 步骤
+bnode 两处现不摘、t0056 无引用者摘；+1：#tp050 bnode 别名 @id 直接过）。
+**入账**：输入 bnode 重铸号臂落成（tp021/t0015 面——id 位与 @type 位同一
+seen 映射、铸号器与 register 共享零碰撞）。**余红在册**：#tp021（bnode-in-
+type 的计数/排序二次勘定——@type 位引用未入 prune 计数面 + @graph 序）；
+#tp046/49（graph 族——named-graph 递归臂，随役52）；#t0057/58（@graph 序
+勘定未竟）；#t0015（三病——重铸号臂已落，余 coercion 值形/序）；#t0029
+（别名 reverse 二次病根）。全仓 **405/405** 绿。
