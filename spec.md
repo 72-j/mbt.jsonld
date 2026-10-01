@@ -2731,3 +2731,14 @@ embedded_map 时序）。**输入勘定**：t0015-in **无 @context**（全 IRI 
 508 两段式（[6] type-only + [7] systolic）+ [8] vital_signs 引用——F2 并
 集/最全者胜路径已核对无误。探针序列已写：map 508 实态 → 递归出口值形 →
 compact 入参。55/92 锁绿不变。全仓 405/405。
+
+
+**§8.111 t0015 探针战果 + 两 oracle 张力（2026-10-02）**：最小复现（简化）
+全对 ⇒ 病在真实增量；忠实复现（重复 record + 深链 + 三段 vs）红——探针
+实证 map 全对（vs types 经 [9] 并入 ✓）而 **vs 顶位轮消失 + belongsTo/
+bloodPressure 串塌缩**。**两 oracle 张力（真设计题）**：t0014（bnode 顶位
+轮重嵌 ⇒ 每顶层树重置）vs t0015（record 在 vs 顶位轮**只出引用** ⇒ 不重
+置）——差异轴 = **数据环上的祖先**（vs→record→vs：record 全嵌会经
+hasStatement 再拉 vs 一轮 = 真环）。jsonld.js uniqueEmbeds 的真实粒度
+（每顶层重置 vs 祖先敏感）下一手以 t0014/t0015 双 oracle 反推定音。
+55/92 锁绿不变；全仓 405/405。
