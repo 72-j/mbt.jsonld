@@ -634,7 +634,7 @@ expand_standard/to_rdf 手写钩子），**不是模型 vs 引擎**——J2/J3 �
 | fromRdf | 54 | ❌ 未实现 | ——（§8.39） |
 | html | 50 | ❌ 未实现 | ——（§8.39） |
 | remote-doc | 18 | ⭕ 依赖外 | ——（§8.39：HTTP fetch 面） |
-| framing | 92（正 89 / 负 3，官方套件在仓 @ 3bf782ba） | 🚧 **48/92 plain**（役51 收割：embed/reverse/list/prune 面；deferred 44 逐簇在册 §8.102 系） | suite_frame_test pin（43+49=92 闭合）+ canonical 直比 + bnode 兜底 |
+| framing | 92（正 89 / 负 3，官方套件在仓 @ 3bf782ba） | 🚧 **55/92 plain**（役52 收割：graph 族 + 别名 reverse + 哨兵修；deferred 37 逐簇在册 §8.102-108 系） | suite_frame_test pin（43+49=92 闭合）+ canonical 直比 + bnode 兜底 |
 | 对账三件套 | —— | ✅ 62/62 | interface_gate（表 handler↔mock）+ gen_gate（重生成逐字节）+ j4_reconcile（路由/步骤/iri_rules 行为+值级） |
 | 判定器自检 | —— | ✅ 7 件 | tordf_judge_test（转义/解析/同构语义正反例 + 套件文件自同构） |
 | 预载通道 | —— | ✅ | loader_preload_test（BFS 预载 + join 键一致） |
@@ -2712,3 +2712,13 @@ I 滤 oracle）——值项过滤过宽已回正；节点项滤的 skip 已在�
 frame_invoke 的 output.id 来源，疑 preserve ref 链上某处 node_id_of()
 的空串回流）。机制预期：帧无 @graph + @merged ⇒ 不递归 ⇒ 壳 = {} +
 prune 摘 @id ⇒ preserve = {}（oracle 兑付路径全通，唯 Some("") 拦路）。
+
+
+**§8.109 哨兵合龙（2026-10-02；用户三步走第一手兑付）**：泄漏现行抓获
+——compact_value_item 的 id_only 渲染 `None ⇒ ""`（compact 套件零触面：
+无 id 无内容嵌套节点在展开位即自由浮动弃置，此臂为 framing prune 新开
+面）⇒ 修 = **None ⇒ 空对象**——**#tp046/#tp049 真绿**（用户 ROI 判定
+兑现：一轮合龙并顺带覆盖 tp049）。55/92 plain，全仓 405/405。余册：
+#t0015（未上——锚点 fmt 漂移，下轮补）/ t0057-58（list 节点项未明路径
++ isomorphic 集合语义已备）/ tg010 / tp021 / t0051/64/68-70/teo01/tin/
+tra/负例 3（末役）。

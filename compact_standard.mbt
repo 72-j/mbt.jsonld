@@ -1034,7 +1034,11 @@ fn compact_value_item(
         )
         let word = match child.id {
           Some(id) => compact_iri_word(id, false, false, true, active, options)
-          None => ""
+          // None ⇒ 空 id_only 节点 = **空对象**（tp046 oracle——prune 摘
+          // @id 后的壳；旧渲染 None ⇒ "" 泄漏哨兵——§8.108 探针钉兑付。
+          // compact 套件零触面：无 id 无内容的嵌套节点在展开位即自由浮
+          // 动弃置，此臂为 framing prune 新开面）
+          None => return Ok(JsonValue::Object([]))
         }
         let word = if word.has_prefix("@") { "./" + word } else { word }
         return Ok(JsonValue::Object([(id_key, JsonValue::String(word))]))
