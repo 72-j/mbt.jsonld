@@ -2722,3 +2722,12 @@ prune 摘 @id ⇒ preserve = {}（oracle 兑付路径全通，唯 Some("") 拦�
 #t0015（未上——锚点 fmt 漂移，下轮补）/ t0057-58（list 节点项未明路径
 + isomorphic 集合语义已备）/ tg010 / tp021 / t0051/64/68-70/teo01/tin/
 tra/负例 3（末役）。
+
+
+**§8.110 t0015 勘定（2026-10-02）**：实差 = belongsTo/bloodPressure 双双
+**串塌缩**（id-only 引用未走嵌——embed 未触发的条件未明：合成空帧
+match-all 应嵌；疑点 = frame @type 清单与 508/509/CodedValue 的匹配面或
+embedded_map 时序）。**输入勘定**：t0015-in **无 @context**（全 IRI 形）、
+508 两段式（[6] type-only + [7] systolic）+ [8] vital_signs 引用——F2 并
+集/最全者胜路径已核对无误。探针序列已写：map 508 实态 → 递归出口值形 →
+compact 入参。55/92 锁绿不变。全仓 405/405。
