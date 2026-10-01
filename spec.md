@@ -2764,3 +2764,14 @@ REF ⇒ 疑点收敛到 **embed_key 构造或 matched 序**（重置位代码已
 embed 状态机本体经套件证明可见性无误，探针写法问题）。**下一手**：包内
 开 `frame_debug` pub 调试入口（返回追迹串——合法 debug 面，免探针语义坑）
 直取 t0015 判定链；list 节点项 skip 未明路径同批。55/92 锁绿不变。
+
+
+**§8.114 frame_debug 破案（2026-10-02）**：调试入口落地（pub frame_debug
+——管线复刻 probe 位开，TURN/REF/RESULTS 全追迹）+ 黑箱探针直取真输入
+判定链——**破案：同节点双键分裂**。map 实态：CodedValue = b3（title-only
+壳）与 b4（全形）并存；BP = b6（裸壳，vs.bloodPressure 指向它 ⇒ 串塌缩）
+与 b0（全形）并存——**重铸号/注册的键统一有真 bug**（部分节点先遇注册占
+键，全形节点后到却落了新键——fullest-wins 只在**同键**内生效，跨键失灵）。
+**下一手**：键统一修（relabeled id 与 register mint 的映射一致性）——
+预期连锁 t0015/t0057 的 id 面残余。55/92 锁绿不变（frame_debug 为新增
+合法诊断面，.mbti 增量）。全仓 405/405。

@@ -988,7 +988,13 @@ fn frame_invoke(
         let embed_key = state.graph_name + "|" + id
         match state.probe {
           Some(t) => {
-            let line = "TURN id=" + id + " map=" + state.embedded_map.length().to_string() + " stack=" + state.embed_stack.length().to_string() + "\n"
+            let line = "TURN id=" +
+              id +
+              " map=" +
+              state.embedded_map.length().to_string() +
+              " stack=" +
+              state.embed_stack.length().to_string() +
+              "\n"
             state.probe = Some(t + line)
           }
           None => ()
@@ -1002,13 +1008,17 @@ fn frame_invoke(
         if state.embedded {
           let circular = state.embed_stack.contains(id)
           if embed is Never || circular {
-          match state.probe {
-            Some(t) => {
-              let line = "  REF(never-or-circ) id=" + id + " circ=" + circular.to_string() + "\n"
-              state.probe = Some(t + line)
+            match state.probe {
+              Some(t) => {
+                let line = "  REF(never-or-circ) id=" +
+                  id +
+                  " circ=" +
+                  circular.to_string() +
+                  "\n"
+                state.probe = Some(t + line)
+              }
+              None => ()
             }
-            None => ()
-          }
             // 恒引用 / 环上 ⇒ {@id} 引用发射（t0011/30 never、g003 环 oracle）
             frame_parent_add(parent, frame_reference(id))
             continue
@@ -1745,3 +1755,186 @@ pub fn frame_document(
   Ok(JsonValue::Object(body_pairs))
 }
 
+///|
+/// framing 调试入口（役52 诊断面——tp046/t0015 判定链直取；收官时裁去
+/// 或转正由用户定）：管线复刻 frame_document（probe 位开），返回 TURN/
+/// REF 判定追迹 + 结果树形貌。与 frame_document 的镜像同步责任在改二者
+/// 的同一笔（debug 面漂移不伤正确性，只伤追迹保真）。
+pub fn frame_debug(
+  input_text : String,
+  frame_text : String,
+  options : JsonLdOptions,
+) -> String {
+  let trace = StringBuilder()
+  let values = match expand_top_values(input_text, options) {
+    Ok(v) => {
+      trace.write_string("top values: " + v.length().to_string() + "\n")
+      v
+    }
+    Err(e) => return "expand err: " + debug_show_error(e)
+  }
+  let merge_ctx : MergeCtx = { anon: 0, seen: Map([]), }
+  for value in values {
+    let _ = nq_merge_same_id(value, merge_ctx, "")
+  }
+  trace.write_string("after merge+relabel+register\n")
+  let state : FrameState = {
+    graph_name: if has_top_level_graph(frame_text) {
+      "@default"
+    } else {
+      "@merged"
+    },
+    graph_map: Map([]),
+    bnode_counter: 0,
+    embedded: false,
+    embed_stack: [],
+    embedded_map: Map([]),
+    last_locations: Map([]),
+    probe: Some(""),
+  }
+  let relabel_seen : Map[String, String] = Map([])
+  for value in values {
+    frame_relabel_bnodes(state, value, relabel_seen)
+  }
+  for value in values {
+    let _ = frame_register(state, "@default", value)
+  }
+  let sm = frame_subject_map(state)
+  let keys = sm.keys().collect()
+  keys.sort()
+  for k in keys {
+    match sm.get(k) {
+      Some(n) => {
+        trace.write_string(
+          "[" +
+          k +
+          "] types=" +
+          n.types.length().to_string() +
+          " props=" +
+          n.properties.length().to_string() +
+          "\n",
+        )
+        for pair in n.properties {
+          for v in pair.1 {
+            match v {
+              ExpandedValue::Node(c) =>
+                trace.write_string(
+                  "    " +
+                  pair.0 +
+                  " -> node [" +
+                  probe_id_text(c) +
+                  "] types=" +
+                  c.types.length().to_string() +
+                  " props=" +
+                  c.properties.length().to_string() +
+                  "\n",
+                )
+              ExpandedValue::Value(lit) =>
+                trace.write_string(
+                  "    " + pair.0 + " -> value \"" + lit.value + "\"\n",
+                )
+              ExpandedValue::List(_, ..) =>
+                trace.write_string("    " + pair.0 + " -> list\n")
+            }
+          }
+        }
+      }
+      None => ()
+    }
+  }
+  let frame_expanded = match expand_top_values(frame_text, options) {
+    Ok(v) => v
+    Err(e) => return "frame expand err: " + debug_show_error(e)
+  }
+  let frame_root : ExpandedNode = match frame_expanded.get(0) {
+    Some(ExpandedValue::Node(pattern)) => pattern
+    _ => frame_empty_pattern()
+  }
+  let results : Array[ExpandedValue] = []
+  frame_invoke(state, keys, frame_root, Top(results))
+  let probe_dump = match state.probe {
+    Some(t) => t
+    None => "(none)"
+  }
+  trace.write_string("TURN/REF TRACE\n" + probe_dump + "\n")
+  trace.write_string("RESULTS\n")
+  for r in results {
+    match r {
+      ExpandedValue::Node(n) => {
+        trace.write_string(
+          "  top [" +
+          probe_id_text(n) +
+          "] types=" +
+          n.types.length().to_string() +
+          " props=" +
+          n.properties.length().to_string() +
+          "\n",
+        )
+        for pair in n.properties {
+          for v in pair.1 {
+            match v {
+              ExpandedValue::Node(c) =>
+                trace.write_string(
+                  "    " +
+                  pair.0 +
+                  " -> node [" +
+                  probe_id_text(c) +
+                  "] types=" +
+                  c.types.length().to_string() +
+                  " props=" +
+                  c.properties.length().to_string() +
+                  "\n",
+                )
+              ExpandedValue::Value(lit) =>
+                trace.write_string(
+                  "    " + pair.0 + " -> value \"" + lit.value + "\"\n",
+                )
+              ExpandedValue::List(_, ..) =>
+                trace.write_string("    " + pair.0 + " -> list\n")
+            }
+          }
+        }
+      }
+      _ => trace.write_string("  top non-node\n")
+    }
+  }
+  trace.to_string()
+}
+
+///|
+fn probe_id_text(n : ExpandedNode) -> String {
+  match n.id {
+    Some(i) => i
+    None => "None"
+  }
+}
+
+///|
+fn debug_show_error(e : JsonLdError) -> String {
+  match e {
+    JsonLdError::Unsupported(msg) => "unsupported: " + msg
+    JsonLdError::InvalidValue(msg) => "invalid value: " + msg
+    JsonLdError::Syntax(msg) => "syntax: " + msg
+    JsonLdError::InvalidContext(msg) => "invalid context: " + msg
+    JsonLdError::InvalidIri(msg) => "invalid iri: " + msg
+    JsonLdError::InvalidList(msg) => "invalid list: " + msg
+    JsonLdError::ContextOverflow(msg) => "context overflow: " + msg
+  }
+}
+
+///|
+/// 帧顶层 @graph 判定（frame_debug 用——原文直查）
+fn has_top_level_graph(frame_text : String) -> Bool {
+  match parse_json(frame_text) {
+    Ok(JsonValue::Object(pairs)) => {
+      let mut has = false
+      for pair in pairs {
+        if pair.0 is "@graph" {
+          has = true
+        }
+      }
+      has
+    }
+    _ => false
+  }
+}
