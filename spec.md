@@ -2675,3 +2675,21 @@ tg010、t0057/58 序、tp021、t0015 余。全仓 405/405。
 哨兵在 frame 输出位泄漏**（preserve 空壳节点输出 `{"@id":""}`，oracle =
 `{}`）：id-less 图壳的自铸号/哨兵互作二次勘定在册。其余无进（本笔锁
 53/92 不变）。全仓 405/405。
+
+
+**§8.106 交棒钉（2026-10-02）——余红各例病根方向（下一手开工即用）**：
+1. **tp046 哨兵泄漏**：preserve 空壳节点输出空串 @id（oracle = 空对象）
+   ——id 铸号面（frame_register self_id/graph_id 复用后）仍有哨兵互作入口
+   ：疑点 = prune 后 id=None 节点与 EXPLICIT_NULL_ID 序列化位（t0122 字面
+   null）在 graph 承载节点上的分叉；探针法：白盒直查 preserve 值节点的
+   id 字段（tg003 探针先例）。
+2. **t0057/58 @graph 序**：bnode 铸号序（v,l,t,i）vs oracle 序（v,t,l,i）
+   ——unordered「any order」的 oracle 序 = jsonld.js subject-map 插入序
+   假说未证；低成本路线：isomorphic_for_suite 对 @graph 数组做集合语义
+   （RDF 图本无序）——风险面 = flatten/compact 兜底放宽（只松不紧，存量
+   绿不翻红）。
+3. **t0015 余病**：coercion 值形（belongsTo 串 vs ref——输入 context
+   coercion 是否生效）+ @graph 序（同 2）。
+4. **tp021**：bnode-in-type——@type 位引用未入 prune 计数 + 重铸号后序。
+5. **tg010**：bnode 未命名图（graph 名 = bnode——named-graph 递归臂已备，
+   疑 id 位 mint/重铸号互作）。
