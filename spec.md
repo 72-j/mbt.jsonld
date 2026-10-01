@@ -634,7 +634,7 @@ expand_standard/to_rdf 手写钩子），**不是模型 vs 引擎**——J2/J3 �
 | fromRdf | 54 | ❌ 未实现 | ——（§8.39） |
 | html | 50 | ❌ 未实现 | ——（§8.39） |
 | remote-doc | 18 | ⭕ 依赖外 | ——（§8.39：HTTP fetch 面） |
-| framing | 92（正 89 / 负 3，官方套件在仓 @ 3bf782ba） | 🚧 **58/92 plain**（役52 键统一修连锁合龙；deferred 34 逐簇在册 §8.102-116 系） | suite_frame_test pin（58+34=92 闭合）+ canonical 直比 + bnode 兜底 |
+| framing | 92（正 89 / 负 3，官方套件在仓 @ 3bf782ba） | 🚧 **56/92 plain**（役52-续七 tp021 prune @type 位计数兑现；deferred 36 逐簇在册） | suite_frame_test pin（56+36=92 闭合）+ canonical 直比 + bnode 兜底 |
 | 对账三件套 | —— | ✅ 62/62 | interface_gate（表 handler↔mock）+ gen_gate（重生成逐字节）+ j4_reconcile（路由/步骤/iri_rules 行为+值级） |
 | 判定器自检 | —— | ✅ 7 件 | tordf_judge_test（转义/解析/同构语义正反例 + 套件文件自同构） |
 | 预载通道 | —— | ✅ | loader_preload_test（BFS 预载 + join 键一致） |
@@ -2795,3 +2795,9 @@ types=1 props=1`（508 全形）→ `PLACE [_:b5] types=0 props=0`（其 systoli
 **余红四例在册**：#t0057/58（list 节点项未明路径——与 id 面无关，独立
 list 臂题）、#tg010（bnode 未命名图）、#tp021（bnode-in-type 计数/序）。
 全仓 405/405。
+
+
+**§8.117 tp021 合龙（2026-10-02）**：prune 计数补 **@type 位 bnode 引用**
+（tp021 oracle——_:b0 被 republic @type 引用 + 自身 @id = 2 ⇒ 不摘）——
+**#tp021 真绿，56/92 plain**（56+36=92 闭合）。**余红三例**：#t0057/58
+（list 节点项未明路径）、#tg010（bnode 未命名图）。全仓 405/405。

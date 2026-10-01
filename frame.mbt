@@ -1652,6 +1652,13 @@ pub fn frame_document(
               }
             None => ()
           }
+          // @type 位 bnode 引用同计入（tp021 oracle——_:b0 被 republic 的
+          // @type 引用 + 自身 @id = 2 ⇒ 不摘）
+          for t in n.types {
+            if nq_term_is_bnode(t) {
+              counts[t] = counts.get(t).unwrap_or(0) + 1
+            }
+          }
           for pair in n.properties {
             for v in pair.1 {
               count_values(v)
