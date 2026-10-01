@@ -2775,3 +2775,14 @@ embed 状态机本体经套件证明可见性无误，探针写法问题）。**
 **下一手**：键统一修（relabeled id 与 register mint 的映射一致性）——
 预期连锁 t0015/t0057 的 id 面残余。55/92 锁绿不变（frame_debug 为新增
 合法诊断面，.mbti 增量）。全仓 405/405。
+
+
+**§8.115 键分裂流水实锤（2026-10-02）**：MINT/PLACE 全流水落 trace
+（frame_debug + probe15_test 再生器随仓）。**实锤片段**：`PLACE [_:b0]
+types=1 props=1`（508 全形）→ `PLACE [_:b5] types=0 props=0`（其 systolic
+引用落到 **b5 新键**，应为 b1）；bp/vs 同族——**ref 节点的 id 在 relabel
+时未被改写（遍历面缺失或对象二相性），register 端 fresh-mint 补位 ⇒ 双键
+分裂**。已排除：relabel seen-map 命中逻辑、F2 并集共享性、遍历序。下一手
+三选一收口：(a) relabel 遍历面补全（挂 graph/included 之外的漏点定位）；
+(b) register 端兜底（mint 前查 relabel_seen 反查表）；(c) 键归一后处理
+（注册毕按 original-label 合并双键）。55/92 锁绿不变；全仓 405/405。

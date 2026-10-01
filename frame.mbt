@@ -37,7 +37,19 @@ priv struct FrameState {
 fn frame_fresh_bnode(state : FrameState) -> String {
   let term = "_:b\{state.bnode_counter}"
   state.bnode_counter += 1
+  match state.probe {
+    Some(t) => state.probe = Some(t + "MINT " + term + "\n")
+    None => ()
+  }
   term
+}
+
+///|
+fn frame_trace(state : FrameState, line : String) -> Unit {
+  match state.probe {
+    Some(t) => state.probe = Some(t + line + "\n")
+    None => ()
+  }
 }
 
 ///|
@@ -137,6 +149,10 @@ fn frame_register(
           fresh
         }
       }
+      frame_trace(
+        state,
+        "PLACE [" + self_id + "] graph=" + graph_name + " types=" + node.types.length().to_string() + " props=" + node.properties.length().to_string(),
+      )
       if !nodes.contains(self_id) {
         nodes[self_id] = node
       } else {
