@@ -2742,3 +2742,15 @@ bloodPressure 串塌缩**。**两 oracle 张力（真设计题）**：t0014（bn
 hasStatement 再拉 vs 一轮 = 真环）。jsonld.js uniqueEmbeds 的真实粒度
 （每顶层重置 vs 祖先敏感）下一手以 t0014/t0015 双 oracle 反推定音。
 55/92 锁绿不变；全仓 405/405。
+
+
+**§8.112 t0015 仪器轮止损（2026-10-02）**：FrameState 探针位仪器化一轮
+未达（多坑齐发：match 内联 [3800] / size deprecated / 锚点互咬致 invoke
+体残缺）——**git checkout 回绿**（55/92 不变）。**已确证事实链**（下一
+手直接用）：①t0015 oracle = **每顶层重置生效**（vs 顶位轮把 record 全嵌
+、hasStatement 环位串塌缩——与 t0014 无张力，前判"两 oracle 张力"是我方
+输出误导下的误读）；②ours[1] 的 belongsTo/bloodPressure 双 REF ⇒
+vs 顶位轮时 embedded_map **仍含 record/508** ⇒ 重置已clear 但判定仍走
+REF ⇒ 疑点收敛到 **embed_key 构造或 matched 序**（重置位代码已目检无误）
+；③下一手：FrameState 探针位重做（本轮教训：探针加位用**追加式**不在原
+位插入、避开 [3800]/deprecated 双坑），trace TURN/REF 两判定点。
