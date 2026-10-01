@@ -2693,3 +2693,12 @@ tg010、t0057/58 序、tp021、t0015 余。全仓 405/405。
 4. **tp021**：bnode-in-type——@type 位引用未入 prune 计数 + 重铸号后序。
 5. **tg010**：bnode 未命名图（graph 名 = bnode——named-graph 递归臂已备，
    疑 id 位 mint/重铸号互作）。
+
+
+**§8.107 役52-续三（2026-10-02）**：序勘定低成本路线**落成**——
+isomorphic_for_suite 对 @graph 数组做集合语义（jv_sort_graph_arrays 规范
+化排序，canonical 直比不受扰、只松不紧）。**新勘定**：t0057 list 项规则
+精化——值项**恒收**（node4 非配 V 留 oracle）、节点项配才收（node2 非配
+I 滤 oracle）——值项过滤过宽已回正；节点项滤的 skip 已在册但该 I 项仍入
+输出的**未明路径**在册（list 臂唯一出口已核）。t0057/58 留册退 deferred。
+全仓 405/405。

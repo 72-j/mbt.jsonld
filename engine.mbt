@@ -460,8 +460,12 @@ fn json_total_compare(a : JsonValue, b : JsonValue) -> Int {
 /// 值**：回溯最坏 = n! 次全文档重标规范渲染，8! = 40320 次为可接受上界；
 /// 套件实测最大 4 标签（#t0038，24 排列），8 留 4 倍标签余量。
 pub fn isomorphic_for_suite(ours : JsonValue, expected : JsonValue) -> Bool {
-  let ours_canon = jv_render(canonical_for_suite(ours))
-  let expected_canon = jv_render(canonical_for_suite(expected))
+  // @graph 数组集合语义（役52 交棒钉兑现——RDF 图无序；framing unordered
+  // oracle 序不判定。只松不紧：canonical 直比通道不受扰，兜底面放宽）
+  let ours_norm = jv_sort_graph_arrays(ours)
+  let expected_norm = jv_sort_graph_arrays(expected)
+  let ours_canon = jv_render(canonical_for_suite(ours_norm))
+  let expected_canon = jv_render(canonical_for_suite(expected_norm))
   if ours_canon == expected_canon {
     return true
   }
@@ -477,6 +481,48 @@ pub fn isomorphic_for_suite(ours : JsonValue, expected : JsonValue) -> Bool {
   let right = lb.keys().collect()
   right.sort()
   jv_bnode_assign(left, right, 0, Map([]), Map([]), ours, expected_canon)
+}
+
+///|
+/// @graph 数组排序规范化（役52 序勘定低成本路线）：对象含 @graph 键且值
+/// 为数组 ⇒ 元素按 canonical 词形排序（深走全树）；其余结构原样递归
+fn jv_sort_graph_arrays(value : JsonValue) -> JsonValue {
+  match value {
+    JsonValue::Object(pairs) => {
+      let new_pairs : Array[(String, JsonValue)] = []
+      for pair in pairs {
+        new_pairs.push((pair.0, jv_sort_graph_arrays(pair.1)))
+      }
+      for i, pair in new_pairs {
+        if pair.0 == "@graph" {
+          match pair.1 {
+            JsonValue::Array(items) => {
+              let keyed : Array[(String, JsonValue)] = []
+              for item in items {
+                keyed.push((jv_render(canonical_for_suite(item)), item))
+              }
+              keyed.sort_by(fn(a, b) { String::compare(a.0, b.0) })
+              let sorted : Array[JsonValue] = []
+              for kv in keyed {
+                sorted.push(kv.1)
+              }
+              new_pairs[i] = (pair.0, JsonValue::Array(sorted))
+            }
+            _ => ()
+          }
+        }
+      }
+      JsonValue::Object(new_pairs)
+    }
+    JsonValue::Array(items) => {
+      let new_items : Array[JsonValue] = []
+      for item in items {
+        new_items.push(jv_sort_graph_arrays(item))
+      }
+      JsonValue::Array(new_items)
+    }
+    _ => value
+  }
 }
 
 ///|

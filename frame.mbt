@@ -1216,34 +1216,7 @@ fn frame_invoke(
                         }
                         None => ()
                       }
-                    ExpandedValue::Value(_) => {
-                      // 值项按帧 list pattern 过滤（t0057 oracle——非配项
-                      // 不进输出；pattern 缺/空 = 全收——t0055）
-                      let mut kept = list_patterns.is_empty()
-                      for one_pattern in list_patterns {
-                        match (one_pattern, listitem) {
-                          (
-                            ExpandedValue::Value(pattern_lit),
-                            ExpandedValue::Value(lit),
-                          ) =>
-                            if frame_literal_matches(pattern_lit, lit) {
-                              kept = true
-                            }
-                          (
-                            ExpandedValue::Node(pattern_node),
-                            ExpandedValue::Value(lit),
-                          ) =>
-                            if frame_is_value_pattern(pattern_node) &&
-                              frame_value_pattern_matches(pattern_node, lit) {
-                              kept = true
-                            }
-                          _ => ()
-                        }
-                      }
-                      if kept {
-                        out_items.push(listitem)
-                      }
-                    }
+                    ExpandedValue::Value(_) => out_items.push(listitem)
                     _ => out_items.push(listitem)
                   }
                 }
