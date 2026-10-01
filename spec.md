@@ -634,7 +634,7 @@ expand_standard/to_rdf 手写钩子），**不是模型 vs 引擎**——J2/J3 �
 | fromRdf | 54 | ❌ 未实现 | ——（§8.39） |
 | html | 50 | ❌ 未实现 | ——（§8.39） |
 | remote-doc | 18 | ⭕ 依赖外 | ——（§8.39：HTTP fetch 面） |
-| framing | 92（正 89 / 负 3，官方套件在仓 @ 3bf782ba） | 🚧 **55/92 plain**（役52 收割：graph 族 + 别名 reverse + 哨兵修；deferred 37 逐簇在册 §8.102-108 系） | suite_frame_test pin（43+49=92 闭合）+ canonical 直比 + bnode 兜底 |
+| framing | 92（正 89 / 负 3，官方套件在仓 @ 3bf782ba） | 🚧 **58/92 plain**（役52 键统一修连锁合龙；deferred 34 逐簇在册 §8.102-116 系） | suite_frame_test pin（58+34=92 闭合）+ canonical 直比 + bnode 兜底 |
 | 对账三件套 | —— | ✅ 62/62 | interface_gate（表 handler↔mock）+ gen_gate（重生成逐字节）+ j4_reconcile（路由/步骤/iri_rules 行为+值级） |
 | 判定器自检 | —— | ✅ 7 件 | tordf_judge_test（转义/解析/同构语义正反例 + 套件文件自同构） |
 | 预载通道 | —— | ✅ | loader_preload_test（BFS 预载 + join 键一致） |
@@ -2786,3 +2786,12 @@ types=1 props=1`（508 全形）→ `PLACE [_:b5] types=0 props=0`（其 systoli
 三选一收口：(a) relabel 遍历面补全（挂 graph/included 之外的漏点定位）；
 (b) register 端兜底（mint 前查 relabel_seen 反查表）；(c) 键归一后处理
 （注册毕按 original-label 合并双键）。55/92 锁绿不变；全仓 405/405。
+
+
+**§8.116 键统一修合龙（2026-10-02）**：relabel seen 表 **fresh 标签身份
+自映**（`seen[f] = f`——已铸标签再遇 = 命中自身，不再二次铸号改写共享节
+点）——双键分裂根因封堵。**连锁合龙**：#t0015（三病怪）、#tp046、#tp049
+（graph×prune 互作）三例真绿；**58/92 plain**（58+34=92 闭合 pin）。
+**余红四例在册**：#t0057/58（list 节点项未明路径——与 id 面无关，独立
+list 臂题）、#tg010（bnode 未命名图）、#tp021（bnode-in-type 计数/序）。
+全仓 405/405。

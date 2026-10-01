@@ -151,7 +151,14 @@ fn frame_register(
       }
       frame_trace(
         state,
-        "PLACE [" + self_id + "] graph=" + graph_name + " types=" + node.types.length().to_string() + " props=" + node.properties.length().to_string(),
+        "PLACE [" +
+        self_id +
+        "] graph=" +
+        graph_name +
+        " types=" +
+        node.types.length().to_string() +
+        " props=" +
+        node.properties.length().to_string(),
       )
       if !nodes.contains(self_id) {
         nodes[self_id] = node
@@ -903,6 +910,9 @@ fn frame_relabel_bnodes(
               Some(f) => f
               None => {
                 let f = frame_fresh_bnode(state)
+                // fresh 标签身份自映（键统一勘定——已铸标签再遇 = 命中自身，
+                // 不再二次铸号改写共享节点 ⇒ 双键分裂根因封堵）
+                seen[f] = f
                 seen[id] = f
                 f
               }
@@ -917,6 +927,7 @@ fn frame_relabel_bnodes(
             Some(f) => f
             None => {
               let f = frame_fresh_bnode(state)
+              seen[f] = f
               seen[t] = f
               f
             }
