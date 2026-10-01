@@ -2808,3 +2808,13 @@ list 臂题）、#tg010（bnode 未命名图）、#tp021（bnode-in-type 计数/
 所在节点性质位 ⇒ 缺位发射出 subject:null）。**named-graph 递归臂已通**
 （tp046/49 证）——余 = map 形子帧的取形与套用设计，独立一役。55/92（+
 tg010 退册）锁绿不变；全仓 405/405。
+
+
+**§8.119 t0057 探针战果 + 幽灵在册（2026-10-02）**：LIST-OUT 追迹落位
+（out_items 实态直出）——**管线段全对实锤**：b2 的 list-t out = 1 项
+（I 已滤 ✓）、b3 的 list-i = [V, I 嵌] ✓、环引用/嵌入全对——**终稿
+compact 后 t-node 的 list-t 却 = [T, I]**（pre-compact 正确、post-compact
+多出 I）——**compact 段渲染读了共享原数组**假说在册（out_items 为新数组
+但 Map 原表 items 仍含 I-ref——compact 某臂回读原容器的路径待查）。probe
+位追迹设施保留（生产 None 零扰动）。55/92（56-1 t0057 退册后实数以
+harness 为准）锁绿；全仓 406/406。

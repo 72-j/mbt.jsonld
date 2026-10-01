@@ -1225,6 +1225,10 @@ fn frame_invoke(
                   None => []
                 }
                 let out_items : Array[ExpandedValue] = []
+                frame_trace(
+                  state,
+                  "  LIST " + property + " patterns=" + list_patterns.length().to_string() + " items=" + items.length().to_string(),
+                )
                 for listitem in items {
                   match listitem {
                     ExpandedValue::Node(ref_node) =>
@@ -1244,6 +1248,25 @@ fn frame_invoke(
                                 }
                               _ => ()
                             }
+                          }
+                          match node_pattern {
+                            Some(_) =>
+                              frame_trace(
+                                state,
+                                "  LISTITEM node-embed " + ref_id,
+                              )
+                            None =>
+                              if list_patterns.is_empty() {
+                                frame_trace(
+                                  state,
+                                  "  LISTITEM synth-embed " + ref_id,
+                                )
+                              } else {
+                                frame_trace(
+                                  state,
+                                  "  LISTITEM DROP " + ref_id,
+                                )
+                              }
                           }
                           let sub_frame : ExpandedNode = match node_pattern {
                             Some(pattern) => pattern
@@ -1271,6 +1294,31 @@ fn frame_invoke(
                     ExpandedValue::Value(_) => out_items.push(listitem)
                     _ => out_items.push(listitem)
                   }
+                }
+                match state.probe {
+                  Some(t) => {
+                    let n_s = StringBuilder()
+                    for oi in out_items {
+                      match oi {
+                        ExpandedValue::Value(lit) => {
+                          n_s.write_string("V(")
+                          n_s.write_string(lit.value)
+                          n_s.write_string(") ")
+                        }
+                        ExpandedValue::Node(nn) => {
+                          n_s.write_string("N(")
+                          n_s.write_string(probe_id_text(nn))
+                          n_s.write_string(") ")
+                        }
+                        ExpandedValue::List(_, ..) =>
+                          n_s.write_string("L ")
+                      }
+                    }
+                    state.probe = Some(
+                      t + "  LIST-OUT " + property + " n=" + out_items.length().to_string() + " [" + n_s.to_string() + "]\n",
+                    )
+                  }
+                  None => ()
                 }
                 frame_output_add(
                   output,
