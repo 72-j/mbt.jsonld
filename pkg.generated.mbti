@@ -130,6 +130,7 @@ pub(all) struct JsonLdOptions {
   compact_arrays : Bool
   compact_to_relative : Bool
   frame_expansion : Bool
+  omit_graph : Bool
 }
 
 pub(all) struct JsonLdQuad {

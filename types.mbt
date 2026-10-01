@@ -38,6 +38,10 @@ pub(all) struct JsonLdOptions {
   /// Expansion 缺省 false；frame_document 内部对 frame 展开置 true，输入
   /// 展开恒 false
   frame_expansion : Bool
+  /// framing 面（J5——spec §8.99 embed 批）：顶层 @graph 包裹豁免——REC
+  /// JsonLdOptions/omitGraph 缺省 false（恒包裹）；true ⇒ 单节点不包裹
+  /// （tg001 manifest 件）
+  omit_graph : Bool
 }
 
 ///|

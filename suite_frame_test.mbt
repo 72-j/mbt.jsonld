@@ -21,10 +21,13 @@ async test "framing suite harness: manifest-driven buckets" {
   }
   // 已迁移例（plain 桶）——首役 #t0001 起逐役增长；deferred = 未落码例
   // （逐簇解释见 spec §8.93 勘 4 簇表 + 各役落账）
-  // 役48 帧旗批（spec §8.97）：#t0002/03/04 直配+空配 + #t0005 explicit
-  // + #t0009 default/omitDefault/嵌套默认 + #t0001 冒烟
+  // 役49 匹配语法批（spec §8.98）：match-none/wildcard/@id-@type pattern/
+  // requireAll/default-only/value pattern 十簇 + 帧旗批 + 冒烟
   let migrated : Array[String] = [
-    "#t0001", "#t0002", "#t0003", "#t0004", "#t0005", "#t0009",
+    "#t0001", "#t0002", "#t0003", "#t0004", "#t0005", "#t0009", "#t0023", "#t0024",
+    "#t0025", "#t0026", "#t0027", "#t0031", "#t0032", "#t0033", "#t0034", "#t0035",
+    "#t0036", "#t0037", "#t0038", "#t0039", "#t0040", "#t0041", "#t0042", "#t0043",
+    "#t0044", "#t0045",
   ]
   let deferred : Array[String] = []
   let plain : Array[String] = []
@@ -112,8 +115,8 @@ async test "framing suite harness: manifest-driven buckets" {
       deferred.push(id)
     }
   }
-  assert_eq(deferred.length(), 86)
-  assert_eq(plain.length(), 6)
+  assert_eq(deferred.length(), 66)
+  assert_eq(plain.length(), 26)
 }
 
 ///|
@@ -158,5 +161,6 @@ fn frame_options_for(
     compact_arrays: opts.compact_arrays,
     compact_to_relative: opts.compact_to_relative,
     frame_expansion: false,
+    omit_graph: false,
   }
 }

@@ -123,6 +123,7 @@ fn options_for(
     compact_arrays,
     compact_to_relative,
     frame_expansion: false,
+    omit_graph: false,
   }
 }
 

@@ -879,6 +879,22 @@ fn StandardExpander::expand_object(
     Ok(next) => next
     Err(e) => return Err(e)
   }
+  // frameExpansion 值 pattern 预扫（spec §8.97 值 pattern 批）：对象含
+  // @value/@type/@language 任一**非串形**成分（{} 通配 / 数组清单）⇒ 本对象
+  // 为值 pattern 模式——三键全走成分保形（String 形亦保形，免撞值对象
+  // datatype/language 门；t0036-45 判定面）
+  let mut frame_value_pattern = false
+  if options.frame_expansion {
+    for scan_pair in pairs {
+      match scan_pair.0 {
+        "@value" | "@type" | "@language" =>
+          if !(scan_pair.1 is JsonValue::String(_)) {
+            frame_value_pattern = true
+          }
+        _ => ()
+      }
+    }
+  }
   for pair in pairs {
     // null IRI 映射 term（"term": null / {"@id": null}——scoped-context 批）：
     // IRI 展开返回 null ⇒ 键整体丢弃（REC 5.1.2：expanded property 为 null 即
@@ -900,6 +916,41 @@ fn StandardExpander::expand_object(
     }
     // 关键字位判定按归一键：字面关键字与别名 term 汇流
     let routes_to_keyword = expanded_key.get_char(0) is Some('@')
+    // 值 pattern 成分保形（值 pattern 模式——三键含 String 形全保形：
+    // @type 串须 IRI 展开、@value/@language 串词形；{} 通配 = 空 pattern
+    // 标桩；数组 = 清单摊开；null = 无）
+    if frame_value_pattern {
+      match expanded_key {
+        "@value" | "@type" | "@language" => {
+          let component_values : Array[ExpandedValue] = []
+          match pair.1 {
+            JsonValue::Array(items) =>
+              for item in items {
+                match
+                  self.frame_value_pattern_component(
+                    current, expanded_key, item,
+                  ) {
+                  Ok(Some(one)) => component_values.push(one)
+                  Ok(None) => ()
+                  Err(e) => return Err(e)
+                }
+              }
+            single_value =>
+              match
+                self.frame_value_pattern_component(
+                  current, expanded_key, single_value,
+                ) {
+                Ok(Some(one)) => component_values.push(one)
+                Ok(None) => ()
+                Err(e) => return Err(e)
+              }
+          }
+          properties.push((expanded_key, component_values))
+          continue
+        }
+        _ => ()
+      }
+    }
     if !routes_to_keyword {
       // frameExpansion 保形（帧旗批——spec §8.96）：帧内性质位对象值
       // ①含 @default 键 ⇒ 默认对象 pattern（其余条目忽略——REC Framing
@@ -1119,7 +1170,40 @@ fn StandardExpander::expand_object(
               Err(e) => return Err(e)
             }
           _ =>
-            return Err(JsonLdError::InvalidValue("@id value must be a string"))
+            if options.frame_expansion {
+              // @id 位 pattern 保形（帧旗批——t0032/33 判定面）：数组 IRI
+              // 清单（逐 IRI 当前 context 展开）/ `{}` 通配（空 pattern 标桩）
+              let id_patterns : Array[ExpandedValue] = []
+              match pair.1 {
+                JsonValue::Array(items) =>
+                  for item in items {
+                    match item {
+                      JsonValue::String(iri) =>
+                        match
+                          IriExpander::expand_iri(
+                            self, current, iri, true, false,
+                          ) {
+                          Ok(expanded) =>
+                            id_patterns.push(literal_of(expanded, None))
+                          Err(e) => return Err(e)
+                        }
+                      JsonValue::Object(_) =>
+                        id_patterns.push(
+                          ExpandedValue::Node(frame_empty_pattern()),
+                        )
+                      _ => ()
+                    }
+                  }
+                JsonValue::Object(_) =>
+                  id_patterns.push(ExpandedValue::Node(frame_empty_pattern()))
+                _ => ()
+              }
+              properties.push(("@id", id_patterns))
+            } else {
+              return Err(
+                JsonLdError::InvalidValue("@id value must be a string"),
+              )
+            }
         }
       }
       // @type 双侧：值对象内 = datatype（coercion 形态 A）；节点侧 = 类型数组。
@@ -1128,6 +1212,46 @@ fn StandardExpander::expand_object(
       // #tc014/#tc018 oracle）。值对象性预扫（#tc020——@type 在 @value 之前
       // 出现时 is_value_object 尚未置位，文档序依赖 ⇒ 键形态先判）
       "@type" => {
+        // frameExpansion @type 位 pattern 保形（帧旗批——t0031 match-none /
+        // {} 通配判定面）：数组（IRI 清单，可混 {} 通配）/ 对象 {} 通配 ⇒
+        // properties @ 键（空数组 = match-none 保形）；串形走 types 字段
+        // 原路（t0005/t0026 oracle 不扰）
+        if options.frame_expansion {
+          let pattern_form = match pair.1 {
+            JsonValue::Array(_) => true
+            JsonValue::Object(_) => true
+            _ => false
+          }
+          if pattern_form {
+            let type_patterns : Array[ExpandedValue] = []
+            match pair.1 {
+              JsonValue::Array(items) =>
+                for item in items {
+                  match item {
+                    JsonValue::String(t) =>
+                      match
+                        IriExpander::expand_iri(
+                          self, type_scoped_context, t, true, true,
+                        ) {
+                        Ok(expanded) =>
+                          type_patterns.push(literal_of(expanded, None))
+                        Err(e) => return Err(e)
+                      }
+                    JsonValue::Object(_) =>
+                      type_patterns.push(
+                        ExpandedValue::Node(frame_empty_pattern()),
+                      )
+                    _ => ()
+                  }
+                }
+              JsonValue::Object(_) =>
+                type_patterns.push(ExpandedValue::Node(frame_empty_pattern()))
+              _ => ()
+            }
+            properties.push(("@type", type_patterns))
+            continue
+          }
+        }
         if StandardExpander::has_value_key_shaped(self, current, pairs) {
           is_value_object = true
         }
@@ -1821,8 +1945,9 @@ fn StandardExpander::append_collection_item(
       match expanded {
         Some(ExpandedValue::Node(node)) =>
           // 图内容 free-floating 门（#t0001 同族——@id-only/无属性节点弃；
-          // graph 字段节点不受此门（is_free_floating 已扩）
-          if is_free_floating(node) {
+          // graph 字段节点不受此门（is_free_floating 已扩））；frameExpansion
+          // 豁免——@id-only 帧根/子 pattern 合法（t0032 判定面）
+          if is_free_floating(node) && !options.frame_expansion {
             ()
           } else {
             out.push(ExpandedValue::Node(node))
@@ -5053,5 +5178,31 @@ fn StandardExpander::frame_preserve_default(
         Ok(v) => Ok([v])
         Err(e) => Err(e)
       }
+  }
+}
+
+///|
+/// 值 pattern 成分保形（spec §8.97 值 pattern 批）：`{}` 通配 = 空 pattern
+/// 标桩；串 → 值（@type 位 IRI 经 type-scoped 展开，余词形）；null = 无
+/// （None）；数组位由调用方摊开后逐项入此
+fn StandardExpander::frame_value_pattern_component(
+  self : StandardExpander,
+  active : ActiveContext,
+  key : String,
+  raw : JsonValue,
+) -> Result[ExpandedValue?, JsonLdError] {
+  match raw {
+    JsonValue::Object(_) => Ok(Some(ExpandedValue::Node(frame_empty_pattern())))
+    JsonValue::Null => Ok(None)
+    JsonValue::String(word) =>
+      if key == "@type" {
+        match IriExpander::expand_iri(self, active, word, true, true) {
+          Ok(expanded) => Ok(Some(literal_of(expanded, None)))
+          Err(e) => Err(e)
+        }
+      } else {
+        Ok(Some(literal_of(word, None)))
+      }
+    _ => Ok(None)
   }
 }

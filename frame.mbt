@@ -18,6 +18,17 @@ priv struct FrameState {
   /// 无 id 节点铸号器（flatten_fresh_bnode 同款 "_:bN"；输入标签避撞预扫
   /// 随 bnode 簇批补）
   mut bnode_counter : Int
+  /// embedded 旗（REC "copy of state with embedded=true" 的变异-恢复等价
+  /// ——DFS 单链无交织面；§8.99 embed 状态机）
+  mut embedded : Bool
+  /// embed 路径栈（环检测 = 目标 id ∈ 栈；顶位主体入栈、递归推入/弹出）
+  embed_stack : Array[String]
+  /// 已嵌账（键 = graph|id；**每顶层匹配树重置**——t0014 bnode 两树各嵌
+  /// 全形 oracle 定音辖域）
+  embedded_map : Map[String, Bool]
+  /// @last 前嵌位账（键 = graph|id → (parent 节点, 性质)——替换走性质位
+  /// 值组扫描）
+  last_locations : Map[String, (ExpandedNode, String)]
 }
 
 ///|
@@ -251,43 +262,104 @@ fn frame_node_matches(
   frame_node : ExpandedNode,
   require_all : Bool,
 ) -> Bool {
-  // 语义性质位 = 非 @ 键性质（framing 旗/@default pattern 键不算——REC
-  // "no other keywords are considered"；旗-only pattern = 空帧全配）
-  let mut has_semantic_property = false
+  let node_id = node_id_of(node)
+  // match-none 性质位节点级预检（REC："node does not match if values is
+  // not empty and the value of property in frame is match none"——#t0023
+  // Sub2 出局 oracle；值缺位不否决，走缺位发射）
   for pair in frame_node.properties {
-    if !(pair.0.get_char(0) is Some('@')) {
-      has_semantic_property = true
-      break
+    if pair.0.get_char(0) is Some('@') {
+      continue
     }
-  }
-  let frame_empty = frame_node.id is None &&
-    frame_node.types.is_empty() &&
-    !has_semantic_property
-  if frame_empty {
-    return true
-  }
-  // @id 位硬过滤（骨架：单 IRI 直配——数组/通配形随 frameExpansion 批）
-  match frame_node.id {
-    Some(frame_id) => if frame_id != node_id_of(node) { return false }
-    None => ()
-  }
-  // @type 位硬过滤（IRI 清单任配）
-  if !frame_node.types.is_empty() {
-    let mut type_match = false
-    for wanted in frame_node.types {
-      if node.types.contains(wanted) {
-        type_match = true
-        break
-      }
-    }
-    if !type_match {
+    if pair.1.is_empty() && !frame_node_values(node, pair.0).is_empty() {
       return false
     }
   }
+  // @id 位硬过滤：pattern 形（frameExpansion 保形——t0032/33）优先，单 IRI
+  // 形（id 字段）回落
+  let id_patterned = frame_property_values(frame_node, "@id") is Some(_)
+  match frame_property_values(frame_node, "@id") {
+    Some(id_patterns) => {
+      let mut id_match = false
+      for pattern in id_patterns {
+        match pattern {
+          ExpandedValue::Value(lit) =>
+            if lit.value == node_id {
+              id_match = true
+            }
+          ExpandedValue::Node(wild) =>
+            if frame_is_wildcard_pattern(wild) {
+              id_match = true
+            }
+          _ => ()
+        }
+      }
+      if !id_match {
+        return false
+      }
+    }
+    None =>
+      match frame_node.id {
+        Some(frame_id) => if frame_id != node_id { return false }
+        None => ()
+      }
+  }
+  // @type 位硬过滤：pattern 形（IRI 清单任配 / {} 通配须有型 / 空清单
+  // match-none 须无型——t0031）优先，types 字段形回落（t0005/t0026）
+  let type_patterned = frame_property_values(frame_node, "@type") is Some(_)
+  match frame_property_values(frame_node, "@type") {
+    Some(type_patterns) => {
+      let mut type_match = type_patterns.is_empty() && node.types.is_empty()
+      for pattern in type_patterns {
+        match pattern {
+          ExpandedValue::Value(lit) =>
+            if node.types.contains(lit.value) {
+              type_match = true
+            }
+          ExpandedValue::Node(wild) =>
+            if frame_is_wildcard_pattern(wild) && !node.types.is_empty() {
+              type_match = true
+            }
+          _ => ()
+        }
+      }
+      if !type_match {
+        return false
+      }
+    }
+    None =>
+      if !frame_node.types.is_empty() {
+        let mut type_match = false
+        for wanted in frame_node.types {
+          if node.types.contains(wanted) {
+            type_match = true
+            break
+          }
+        }
+        if !type_match {
+          return false
+        }
+      }
+  }
+  // 语义位 = 非 @ 键性质 ∪ pattern 形 @id/@type（旗/@default 键不算——REC
+  // "no other keywords are considered"；全无 = 帧空/旗-only 即配）
+  let has_types_or_id = !frame_node.types.is_empty() || frame_node.id is Some(_)
+  let mut has_semantic = id_patterned || type_patterned || has_types_or_id
+  for pair in frame_node.properties {
+    if !(pair.0.get_char(0) is Some('@')) {
+      has_semantic = true
+      break
+    }
+  }
+  if !has_semantic {
+    return true
+  }
   // 性质位记账：@id/@type 到此必已配（计入 any/all）；pattern 递归判余位
   let mut all_match = true
-  let mut any_match = frame_node.id is Some(_) || !frame_node.types.is_empty()
-  let mut saw_semantic = false
+  let mut any_match = id_patterned ||
+    type_patterned ||
+    !frame_node.types.is_empty() ||
+    frame_node.id is Some(_)
+  let mut saw_semantic = id_patterned || type_patterned
   for pair in frame_node.properties {
     if pair.0.get_char(0) is Some('@') {
       continue
@@ -330,31 +402,304 @@ fn frame_property_matches(
   require_all : Bool,
 ) -> Bool {
   let values = frame_node_values(node, property)
+  // match-none（空 pattern 清单）：值缺位 = 配（有值已在节点级预检出局
+  // ——t0023 双向 oracle）
+  if patterns.is_empty() {
+    return values.is_empty()
+  }
   for pattern in patterns {
     match pattern {
-      ExpandedValue::Node(pattern_node) => {
-        let value_subjects : Array[String] = []
+      ExpandedValue::Value(pattern_lit) =>
+        // 串/词形 pattern = 精确值 pattern（t0036：v/t/l 全等）
         for item in values {
           match item {
-            ExpandedValue::Node(ref_node) =>
-              match ref_node.id {
-                Some(ref_id) => value_subjects.push(ref_id)
-                None => ()
+            ExpandedValue::Value(lit) =>
+              if frame_literal_matches(pattern_lit, lit) {
+                return true
               }
             _ => ()
           }
         }
-        let matched = frame_matching(
-          state, value_subjects, pattern_node, require_all,
-        )
-        if !matched.is_empty() {
-          return true
+      ExpandedValue::Node(pattern_node) =>
+        if frame_is_value_pattern(pattern_node) {
+          // 值 pattern（@value/@type/@language 成分——t0037-45）
+          for item in values {
+            match item {
+              ExpandedValue::Value(lit) =>
+                if frame_value_pattern_matches(pattern_node, lit) {
+                  return true
+                }
+              _ => ()
+            }
+          }
+        } else {
+          let mut has_iri_props = false
+          for pp in pattern_node.properties {
+            if !(pp.0.get_char(0) is Some('@')) {
+              has_iri_props = true
+              break
+            }
+          }
+          let has_id_or_type = pattern_node.id is Some(_) ||
+            !pattern_node.types.is_empty()
+          if !has_iri_props && !has_id_or_type {
+            // 通配/默认-only 形：{} 有值即配（t0023 ex:q / t0024）；@-键
+            // -only（@default/@旗）恒配——缺位走发射（t0025 requireAll
+            // 三节点全配 oracle；#t0009 p4 复验）
+            if pattern_node.properties.is_empty() {
+              if !values.is_empty() {
+                return true
+              }
+            } else {
+              return true
+            }
+          } else {
+            // node pattern 递归：值位 references 的 id 下代匹配非空
+            let value_subjects : Array[String] = []
+            for item in values {
+              match item {
+                ExpandedValue::Node(ref_node) =>
+                  match ref_node.id {
+                    Some(ref_id) => value_subjects.push(ref_id)
+                    None => ()
+                  }
+                _ => ()
+              }
+            }
+            let matched = frame_matching(
+              state, value_subjects, pattern_node, require_all,
+            )
+            if !matched.is_empty() {
+              return true
+            }
+          }
         }
-      }
       _ => ()
     }
   }
   false
+}
+
+///|
+/// 通配 pattern 判（`{}`——无 id/types/properties 全空）
+fn frame_is_wildcard_pattern(pattern_node : ExpandedNode) -> Bool {
+  pattern_node.id is None &&
+  pattern_node.types.is_empty() &&
+  pattern_node.properties.is_empty()
+}
+
+///|
+/// 值 pattern 判（含 @value/@type/@language 保形键——frameExpansion 值
+/// pattern 模式产物）
+fn frame_is_value_pattern(pattern_node : ExpandedNode) -> Bool {
+  for pair in pattern_node.properties {
+    match pair.0 {
+      "@value" | "@type" | "@language" => return true
+      _ => ()
+    }
+  }
+  false
+}
+
+///|
+/// 精确值 pattern 配（串 pattern 展开 Value——v/t/l 全等；语言折叠比对）
+fn frame_literal_matches(
+  pattern : ExpandedLiteral,
+  lit : ExpandedLiteral,
+) -> Bool {
+  let value_ok = pattern.value == lit.value
+  let type_ok = match (pattern.datatype, lit.datatype) {
+    (Some(a), Some(b)) => a == b
+    (None, None) => true
+    _ => false
+  }
+  let lang_ok = match (pattern.language, lit.language) {
+    (Some(a), Some(b)) => lang_tag_eq(a, b)
+    (None, None) => true
+    _ => false
+  }
+  value_ok && type_ok && lang_ok
+}
+
+///|
+/// 值 pattern 配（REC Value Pattern Matching——成分缺位 = 值须无该成分
+///（t0045 p 位只留 plain oracle）；{} 通配位 = 有成分即配（须值位非空成
+/// 分）；空清单 = match-none（值须无成分——t0040/t0041）；清单 = 任配
+///（t0042）；语言折叠（t0045 "R"↔"r"））
+fn frame_value_pattern_matches(
+  pattern_node : ExpandedNode,
+  lit : ExpandedLiteral,
+) -> Bool {
+  // v 位（v1 恒非空 ⇒ 无 @value 键 = 不配）
+  let v_ok = match frame_property_values(pattern_node, "@value") {
+    None => false
+    Some(components) => {
+      let mut wildcard = false
+      let mut listed = false
+      for component in components {
+        match component {
+          ExpandedValue::Value(component_lit) =>
+            if component_lit.value == lit.value {
+              listed = true
+            }
+          ExpandedValue::Node(wild) =>
+            if frame_is_wildcard_pattern(wild) {
+              wildcard = true
+            }
+          _ => ()
+        }
+      }
+      wildcard || listed
+    }
+  }
+  // t 位
+  let t_ok = match frame_property_values(pattern_node, "@type") {
+    None => lit.datatype is None
+    Some(components) => {
+      let mut wildcard = false
+      let mut listed = false
+      for component in components {
+        match component {
+          ExpandedValue::Value(component_lit) =>
+            match lit.datatype {
+              Some(dt) => if component_lit.value == dt { listed = true }
+              None => ()
+            }
+          ExpandedValue::Node(wild) =>
+            if frame_is_wildcard_pattern(wild) {
+              wildcard = true
+            }
+          _ => ()
+        }
+      }
+      (wildcard && lit.datatype is Some(_)) ||
+      listed ||
+      (lit.datatype is None && components.is_empty())
+    }
+  }
+  // l 位（折叠）
+  let l_ok = match frame_property_values(pattern_node, "@language") {
+    None => lit.language is None
+    Some(components) => {
+      let mut wildcard = false
+      let mut listed = false
+      for component in components {
+        match component {
+          ExpandedValue::Value(component_lit) =>
+            match lit.language {
+              Some(tag) =>
+                if lang_tag_eq(component_lit.value, tag) {
+                  listed = true
+                }
+              None => ()
+            }
+          ExpandedValue::Node(wild) =>
+            if frame_is_wildcard_pattern(wild) {
+              wildcard = true
+            }
+          _ => ()
+        }
+      }
+      (wildcard && lit.language is Some(_)) ||
+      listed ||
+      (lit.language is None && components.is_empty())
+    }
+  }
+  v_ok && t_ok && l_ok
+}
+
+///|
+/// 值位 pattern 过滤（invoke 收值门——t0045 非配值不收）：无 pattern 全收；
+/// match-none 不收；精确/值 pattern 按配收；通配/node pattern 位值照收
+fn frame_value_kept(
+  frame_node : ExpandedNode,
+  property : String,
+  item : ExpandedValue,
+) -> Bool {
+  let lit = match item {
+    ExpandedValue::Value(value_lit) => value_lit
+    _ => return true
+  }
+  match frame_property_values(frame_node, property) {
+    None => true
+    Some(patterns) =>
+      match patterns.get(0) {
+        None => false
+        Some(ExpandedValue::Value(pattern_lit)) =>
+          frame_literal_matches(pattern_lit, lit)
+        Some(ExpandedValue::Node(pattern_node)) =>
+          if frame_is_value_pattern(pattern_node) {
+            frame_value_pattern_matches(pattern_node, lit)
+          } else {
+            true
+          }
+        Some(_) => true
+      }
+  }
+}
+
+///|
+/// embed 策略（§8.99 状态机——帧旗 @embed per-invocation 读帧；词形归一：
+/// @always→Always / @once|true|缺省→Once / @never|false→Never / @last→Last
+/// ——Last 仅 1.0（t0059 oracle）；值域校验随负例批）
+priv enum EmbedPolicy {
+  Always
+  Once
+  Never
+  Last
+}
+
+///|
+fn frame_embed_policy(frame_node : ExpandedNode) -> EmbedPolicy {
+  match frame_flag_word(frame_node, "@embed") {
+    Some("@always") => Always
+    Some("@never") => Never
+    Some("false") => Never
+    Some("@last") => Last
+    _ => Once
+  }
+}
+
+///|
+/// node reference 装配（{@id} 形——embed 三支的引用发射）
+fn frame_reference(id : String) -> ExpandedValue {
+  ExpandedValue::Node({
+    id: Some(id),
+    types: [],
+    properties: [],
+    reverse_props: [],
+    graph: None,
+    included: None,
+    index: None,
+  })
+}
+
+///|
+/// @last 前嵌位替换：性质位值组中 id 全形节点原地换引用（t0059 oracle——
+/// "replaces previous embed values with node reference"）
+fn frame_replace_embed_with_ref(
+  parent_node : ExpandedNode,
+  property : String,
+  id : String,
+) -> Unit {
+  for pair in parent_node.properties {
+    if pair.0 == property {
+      for i, item in pair.1 {
+        match item {
+          ExpandedValue::Node(embedded) =>
+            match embedded.id {
+              Some(embedded_id) =>
+                if embedded_id == id {
+                  pair.1[i] = frame_reference(id)
+                }
+              None => ()
+            }
+          _ => ()
+        }
+      }
+      return
+    }
+  }
 }
 
 ///|
@@ -370,8 +715,8 @@ fn frame_invoke(
   frame_node : ExpandedNode,
   parent : FrameParent,
 ) -> Unit {
-  // 帧旗覆写（REC 步 2——帧内 @requireAll/@explicit 覆写本帧子树；词形
-  // "true"/"false" 自 frameExpansion 保形。@embed 旗随 embed 状态机批读取）
+  // 帧旗覆写（REC 步 2——帧内 @requireAll/@explicit/@embed 覆写本帧子树；
+  // 词形 "true"/"false" 自 frameExpansion 保形）
   let require_all = match frame_flag_word(frame_node, "@requireAll") {
     Some("true") => true
     _ => false
@@ -380,11 +725,22 @@ fn frame_invoke(
     Some("true") => true
     _ => false
   }
+  let embed = frame_embed_policy(frame_node)
   let matched = frame_matching(state, subjects, frame_node, require_all)
   let subject_map = frame_subject_map(state)
   for id in matched {
     match subject_map.get(id) {
       Some(node) => {
+        // @once/@last 辖域 = 每顶层匹配树（t0014 bnode 两树各嵌全形 oracle
+        // ——顶位进树前重置三账）
+        match parent {
+          Top(_) => {
+            state.embedded_map.clear()
+            state.embed_stack.clear()
+            state.last_locations.clear()
+          }
+          _ => ()
+        }
         let output : ExpandedNode = {
           id: Some(id),
           types: [],
@@ -394,6 +750,36 @@ fn frame_invoke(
           included: None,
           index: None,
         }
+        // embed 三支（REC Framing Algorithm 序；§8.99 状态机）
+        let embed_key = state.graph_name + "|" + id
+        // 支一：顶位（embedded=false）且已嵌 ⇒ 跳过不添（named-graph 递归
+        // 位——本批不触，graph 批落）
+        if !state.embedded && state.embedded_map.contains(embed_key) {
+          continue
+        }
+        // 支二/三：递归位（embedded=true）
+        if state.embedded {
+          let circular = state.embed_stack.contains(id)
+          if embed is Never || circular {
+            // 恒引用 / 环上 ⇒ {@id} 引用发射（t0011/30 never、g003 环 oracle）
+            frame_parent_add(parent, frame_reference(id))
+            continue
+          }
+          if embed is Once && state.embedded_map.contains(embed_key) {
+            // 树内已嵌 ⇒ 引用（前嵌留全形；t0013 oracle）
+            frame_parent_add(parent, frame_reference(id))
+            continue
+          }
+        }
+        // @last：前嵌位原地换引用（t0059 oracle），新位全嵌
+        if embed is Last {
+          match state.last_locations.get(embed_key) {
+            Some((old_parent, old_property)) =>
+              frame_replace_embed_with_ref(old_parent, old_property, id)
+            None => ()
+          }
+        }
+        state.embed_stack.push(id)
         // keyword 位拷贝（REC "If property is a keyword, add"——展开 IR
         // 中 @type/@index 居专字段）
         for wanted in node.types {
@@ -425,18 +811,75 @@ fn frame_invoke(
                   None => frame_empty_pattern()
                 }
                 match ref_node.id {
-                  Some(ref_id) =>
+                  Some(ref_id) => {
+                    // REC "copy of state with embedded=true"——变异-恢复
+                    // 等价（DFS 单链）
+                    let saved_embedded = state.embedded
+                    state.embedded = true
                     frame_invoke(
                       state,
                       [ref_id],
                       sub_frame,
                       Prop(output, property),
                     )
+                    state.embedded = saved_embedded
+                  }
                   None => ()
                 }
               }
               ExpandedValue::Value(_) =>
-                frame_output_add(output, property, item)
+                // 值位 pattern 过滤（值 pattern 精确/通配/match-none——
+                // t0036-45/t0023 判定面）
+                if frame_value_kept(frame_node, property, item) {
+                  // 语言 pattern 配值小写规范形（t0045 oracle——REC Value
+                  // Pattern Matching 双侧小写规范的输出侧显形；拷贝发，
+                  // 不扰 subject map 原值）
+                  let mut lowered = false
+                  match frame_property_values(frame_node, property) {
+                    Some(patterns) =>
+                      match patterns.get(0) {
+                        Some(ExpandedValue::Node(pattern_node)) =>
+                          if frame_is_value_pattern(pattern_node) &&
+                            frame_property_values(pattern_node, "@language")
+                            is Some(_) {
+                            match item {
+                              ExpandedValue::Value(value_lit) => {
+                                frame_output_add(
+                                  output,
+                                  property,
+                                  ExpandedValue::Value(
+                                    frame_language_lowered_lit(value_lit),
+                                  ),
+                                )
+                                lowered = true
+                              }
+                              _ => ()
+                            }
+                          }
+                        Some(ExpandedValue::Value(pattern_lit)) =>
+                          if pattern_lit.language is Some(_) {
+                            match item {
+                              ExpandedValue::Value(value_lit) => {
+                                frame_output_add(
+                                  output,
+                                  property,
+                                  ExpandedValue::Value(
+                                    frame_language_lowered_lit(value_lit),
+                                  ),
+                                )
+                                lowered = true
+                              }
+                              _ => ()
+                            }
+                          }
+                        _ => ()
+                      }
+                    None => ()
+                  }
+                  if !lowered {
+                    frame_output_add(output, property, item)
+                  }
+                }
               ExpandedValue::List(_, ..) =>
                 // list 位骨架：整体拷贝（list 内 pattern 递归——t0055-58 批）
                 frame_output_add(output, property, item)
@@ -459,26 +902,31 @@ fn frame_invoke(
           if already {
             continue
           }
-          let property_frame : ExpandedNode = match frame_pair.1.get(0) {
-            Some(ExpandedValue::Node(pattern)) => pattern
-            _ => continue
+          // 性质帧：pattern 首值；match-none 形（空清单——t0023 ex:p）=
+          // 无帧（无 @default/@omitDefault 可读 ⇒ 发 "@null"）
+          let property_frame : ExpandedNode? = match frame_pair.1.get(0) {
+            Some(ExpandedValue::Node(pattern)) => Some(pattern)
+            _ => None
           }
-          let omit = match frame_flag_word(property_frame, "@omitDefault") {
-            Some("true") => true
-            _ => false
+          let omit = match property_frame {
+            Some(pf) => frame_flag_word(pf, "@omitDefault") is Some("true")
+            None => false
           }
           if omit {
             continue
           }
-          let preserved : Array[ExpandedValue] = match
-            frame_property_values(property_frame, "@default") {
-            Some(default_values) => {
-              let copy : Array[ExpandedValue] = []
-              for v in default_values {
-                copy.push(v)
+          let preserved : Array[ExpandedValue] = match property_frame {
+            Some(pf) =>
+              match frame_property_values(pf, "@default") {
+                Some(default_values) => {
+                  let copy : Array[ExpandedValue] = []
+                  for v in default_values {
+                    copy.push(v)
+                  }
+                  copy
+                }
+                None => [literal_of("@null", None)]
               }
-              copy
-            }
             None => [literal_of("@null", None)]
           }
           frame_output_add(
@@ -496,6 +944,15 @@ fn frame_invoke(
           )
         }
         frame_parent_add(parent, ExpandedValue::Node(output))
+        let _ = state.embed_stack.pop()
+        state.embedded_map[embed_key] = true
+        match parent {
+          Prop(parent_node, parent_property) =>
+            if embed is Last {
+              state.last_locations[embed_key] = (parent_node, parent_property)
+            }
+          _ => ()
+        }
       }
       None => ()
     }
@@ -596,6 +1053,33 @@ fn frame_null_walk(value : JsonValue) -> JsonValue {
 }
 
 ///|
+/// 语言标签小写（ASCII 折叠——lang_tag_eq 同族；语言子序列恒 ASCII）
+fn frame_lower_tag(tag : String) -> String {
+  let builder = StringBuilder()
+  for c in tag {
+    builder.write_char(ascii_fold_lower(c).unsafe_to_char())
+  }
+  builder.to_string()
+}
+
+///|
+/// 语言小写规范值拷贝（framing 发射位——不扰 subject map 原值）
+fn frame_language_lowered_lit(lit : ExpandedLiteral) -> ExpandedLiteral {
+  {
+    value: lit.value,
+    datatype: lit.datatype,
+    language: match lit.language {
+      Some(tag) => Some(frame_lower_tag(tag))
+      None => None
+    },
+    direction: lit.direction,
+    raw: lit.raw,
+    index: lit.index,
+    included: lit.included,
+  }
+}
+
+///|
 /// framing 文档入口（J5——spec §8.93 勘定 / §8.94 立桩 / §8.95 首役落码）：
 /// ①expand(input) ②F2 同 id 预合并（flatten 同源）③frame 原文 @context
 /// 抽取 + 展开（骨架 = 常规展开；frameExpansion 保形批随帧旗簇）④
@@ -658,6 +1142,7 @@ pub fn frame_document(
     compact_arrays: options.compact_arrays,
     compact_to_relative: options.compact_to_relative,
     frame_expansion: true,
+    omit_graph: false,
   }
   let frame_expanded = match expand_top_values(frame_text, frame_options) {
     Ok(v) => v
@@ -682,6 +1167,10 @@ pub fn frame_document(
     },
     graph_map: Map([]),
     bnode_counter: 0,
+    embedded: false,
+    embed_stack: [],
+    embedded_map: Map([]),
+    last_locations: Map([]),
   }
   for value in values {
     let _ = frame_register(state, "@default", value)
@@ -716,12 +1205,34 @@ pub fn frame_document(
       _ => ()
     }
   }
-  // ⑩ wrap：数组恒 → {@graph: [...]}（omitGraph 缺省 false——空 results
-  // 亦包裹，#t0003 oracle `{"@context":…,"@graph":[]}` 勘定修正——役47
-  // 骨架的 length()>0 守卫是误判）
+  // ⑩ wrap 三分（oracle 规则——1.0 恒 @graph 包裹：t0001/02/04/05/09；
+  // 1.1：空 ⇒ `@graph:[]`（t0003）、单 ⇒ 解包直出（t0023/26/31/32/34/35）、
+  // 多 ⇒ 包裹（t0033）——1.1 单解包 = compaction compactArrays 单节点
+  // 解包行为经 frame() 管线的显形）
   let body_pairs : Array[(String, JsonValue)] = []
-  let graph_key = compact_iri_word("@graph", true, false, true, active, options)
-  body_pairs.push((graph_key, JsonValue::Array(compacted_items)))
+  let is_10 = match options.processing_mode {
+    JsonLd10 => true
+    JsonLd11 => false
+  }
+  if compacted_items.length() == 1 && !is_10 {
+    match compacted_items[0] {
+      JsonValue::Object(pairs) =>
+        for pair in pairs {
+          body_pairs.push(pair)
+        }
+      other => {
+        let graph_key = compact_iri_word(
+          "@graph", true, false, true, active, options,
+        )
+        body_pairs.push((graph_key, JsonValue::Array([other])))
+      }
+    }
+  } else {
+    let graph_key = compact_iri_word(
+      "@graph", true, false, true, active, options,
+    )
+    body_pairs.push((graph_key, JsonValue::Array(compacted_items)))
+  }
   // @context 原文逐字回填（空 context 不发射——compact_document 同款；
   // t0018 无帧 context 例对拍时校）
   let context_empty = match frame_inner {

@@ -108,7 +108,8 @@ fn expand_top_values(
           _ => continue
         }
         match expanded {
-          Ok(Some(value)) => push_top_value(out, value)
+          Ok(Some(value)) =>
+            push_top_value(out, value, frame_expansion=options.frame_expansion)
           Ok(None) => ()
           Err(e) => return Err(e)
         }
@@ -123,7 +124,8 @@ fn expand_top_values(
         options,
       )
       match expanded {
-        Ok(Some(value)) => push_top_value(out, value)
+        Ok(Some(value)) =>
+          push_top_value(out, value, frame_expansion=options.frame_expansion)
         Ok(None) => ()
         Err(e) => return Err(e)
       }
@@ -136,7 +138,8 @@ fn expand_top_values(
         None,
       )
       match expanded {
-        Ok(value) => push_top_value(out, value)
+        Ok(value) =>
+          push_top_value(out, value, frame_expansion=options.frame_expansion)
         Err(e) => return Err(e)
       }
     }
@@ -147,7 +150,11 @@ fn expand_top_values(
 ///|
 /// 顶层元素选择（serialize_top 同款判据，ExpandedValue 直收——J3.1 抽取注记
 /// 见 expand_top_values）
-fn push_top_value(out : Array[ExpandedValue], value : ExpandedValue) -> Unit {
+fn push_top_value(
+  out : Array[ExpandedValue],
+  value : ExpandedValue,
+  frame_expansion? : Bool = false,
+) -> Unit {
   match value {
     // 顶层值对象即弃（#t0045："Top-level value objects are removed"）
     ExpandedValue::Value(_) => ()
@@ -163,8 +170,9 @@ fn push_top_value(out : Array[ExpandedValue], value : ExpandedValue) -> Unit {
         for item in graph_items {
           out.push(item)
         }
-      } else if is_free_floating(node) {
-        () // 顶层 free-floating 节点即弃（#t0001 同族）
+      } else if is_free_floating(node) && !frame_expansion {
+        // 顶层 free-floating 节点即弃（#t0001 同族）；frameExpansion 豁免
+        // ——@id-only 帧根是合法 pattern（t0032 判定面：弃则空帧全配）
       } else {
         out.push(value)
       }
@@ -216,6 +224,13 @@ fn is_free_floating(node : ExpandedNode) -> Bool {
   // 套件均无此形在册案例，零回归面）
   node.index is None
 }
+// 豁免清单沿革（第五位，2026-10-01 framing 役49）：frameExpansion 模式下
+// @id-only 帧根/子 pattern 不弃（t0032 判定面——弃则帧空全配）。
+// **族核（用户核）**：与前四位**不同族**——前四位（graph/included/reverse/
+// index）是「内容承载节点」**普适豁免**（任何模式下该节点都有意义）；本位是
+// **模式条件豁免**（同一 @id-only 节点在常规展开仍弃，仅 frameExpansion 保）。
+// 故不作普适判扩展，走调用点 `!options.frame_expansion` 旁路（push_top_value
+// + 集合位两门），is_free_floating 本体零改动。
 
 ///|
 /// ExpandedValue → 展开形态 JsonValue（对拍通道；J2 按覆盖面扩展）

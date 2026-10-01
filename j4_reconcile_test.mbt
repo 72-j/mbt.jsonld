@@ -24,6 +24,7 @@ fn j4_expand_eq(doc : String, expected : String) -> Bool {
     compact_arrays: true,
     compact_to_relative: true,
     frame_expansion: false,
+    omit_graph: false,
   }
   let result = @jsonld.expand_document(doc, options)
   let actual = match result {
@@ -245,6 +246,7 @@ async test "J4: torf steps value-level (entry hook + emit passthrough)" {
     compact_arrays: true,
     compact_to_relative: true,
     frame_expansion: false,
+    omit_graph: false,
   }
   let doc = "{\"@id\":\"http://ex/s\",\"http://ex/p\":[{\"@value\":\"v\"}]}"
   let quads = match @jsonld.to_rdf_document(doc, options) {

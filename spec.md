@@ -36,7 +36,7 @@
 
 ## 4 表结构（`jsonld_gen.toml`；字段形制承 src/fsm TOML 2.0，schema 独立）
 口径绑定器 = `src/fsm/jsonld_toml_gen.mbt`（`parse_jsonld_gen` / `validate_jsonld_gen` /
-`emit_jsonld_gen`；统一入口落 src/fsm，低耦合只依赖通用 `hnlyxiaobing/toml` 库，不碰 FsmIR）。
+`emit_jsonld_gen`；统一入口落 src/fsm，低耦合只依赖通用 `moonbit-community/toml` 库，不碰 FsmIR）。
 词表封闭、引用完整、步骤图无环（递归红线钉子）、规则顺序连续、handler_hook 须为
 `Trait::method` 形——均由 validate 把关（drift = 红）。
 ### [[steps]] 步骤表
@@ -157,6 +157,7 @@ vs #t0115/#t0116[1.0] 同 vocab 输入异判定）；@value:null 族 = 值对象
 | #tjs13 vs RFC 8785 §3.2.3 字面 | 键序定义分叉 | JCS 键序：套件 oracle = **Unicode 码点序**（U+F8DF < U+1F602）vs RFC 字面「UTF-16 码元序」（D83D < F8DF） | 码点序胜出——nq_key_compare 逐码点自实现（const §5 String::compare 假序同日禁用） |
 | toRdf @reverse vs REC §6.3 反转形 | 展开词形分叉 | 引擎 = **t0042 保形**（@reverse 映射保留）vs REC 字面反转形（node 获反向属性） | 保形胜出——reverse 批 oracle 沿袭；J4 fixture 首写按 REC 记忆错一处实证 |
 | flatten te001 vs free-floating 字面弃置 | 弃置位分叉 | free-floating（@id-only 弃）是否豁免 **@index**：oracle 要求 @id+@index 裸节点**必达合并面**（te001「Conflicting indexes」负例——弃则冲突不可见，负例永不可红） | **@index 豁免胜出**——is_free_floating 增 `index is None` 位；expand/toRdf 套件无此形在册案例（零回归面实测） |
+| framing wrap 三分 vs REC frame() 字面 | 展开包裹分叉（**processingMode × 匹配数**；2026-10-01 役49 收录） | 1.0 恒 `@graph` 包裹（t0001-09）；1.1：空⇒`@graph:[]`（t0003）/ **单⇒解包直出**（t0023/26/31/32/34/35）/ 多⇒包裹（t0033） | oracle 胜出——1.1 单解包 = compaction compactArrays 单节点解包行为经 frame() 管线的显形。**同判两修史**：役47「恒包裹（空亦包）」与 §8.96「恒包裹修正」皆被判错再修——**前判错根因 = 版本没分**（前两批判定面只进 1.0 oracle：t0001/03/04/05/09 全 1.0），表症 = 「单匹配」情况未单独成例进面；役49 1.1 oracle 进面才定三分 |
 | **scoped 来源分叉族**（族维度 = **scoped 来源**——type-scoped vs property-scoped；2026-09-29 役3 收录） | | | |
 | #tc009 vs #tc013 | **scoped 来源分叉**（同形异判对——同一定义 `baz:{"@type":"@vocab"}` 分置 type-scoped / property-scoped） | type-scoped 定义的 term **只作键名**、datatype/container/language 不参与值成形（#tc009 值保 `{@id}` 对象形）；property-scoped 全参与值成形（#tc013 @vocab 型塌缩 vocab 相对词 "buzz"） | 双 oracle 各自成立——scoped context 双链分立的实证（机制账 §8.44） |
 | **族判据** | | | **规范字面与套件 oracle 冲突时，套件 oracle 为权威**——规范是解释起点，套件是判定终点；分叉必须在账（两例皆入册），禁静默择一 |
@@ -633,7 +634,7 @@ expand_standard/to_rdf 手写钩子），**不是模型 vs 引擎**——J2/J3 �
 | fromRdf | 54 | ❌ 未实现 | ——（§8.39） |
 | html | 50 | ❌ 未实现 | ——（§8.39） |
 | remote-doc | 18 | ⭕ 依赖外 | ——（§8.39：HTTP fetch 面） |
-| framing | 92（正 89 / 负 3，官方套件未引入） | 🔎 前置勘定毕——路线 A 成立，可开工（§8.93） | ——（勘定 §8.93：官方 json-ld-framing 套件对拍） |
+| framing | 92（正 89 / 负 3，官方套件在仓 @ 3bf782ba） | 🚧 **43/92 plain**（役49 匹配语法 + 役50 embed 状态机批收官；deferred 49 逐簇在册 §8.100） | suite_frame_test pin（43+49=92 闭合）+ canonical 直比 + bnode 兜底 |
 | 对账三件套 | —— | ✅ 62/62 | interface_gate（表 handler↔mock）+ gen_gate（重生成逐字节）+ j4_reconcile（路由/步骤/iri_rules 行为+值级） |
 | 判定器自检 | —— | ✅ 7 件 | tordf_judge_test（转义/解析/同构语义正反例 + 套件文件自同构） |
 | 预载通道 | —— | ✅ | loader_preload_test（BFS 预载 + join 键一致） |
@@ -2428,3 +2429,148 @@ frameExpansion 保形三臂 + explicit 门 + @preserve 发射/解包 + @null 走
 **下一手**：匹配语法簇开通（#t0023-45 面——wildcard/match-none 值位形、
 @id/@type 位数组/通配/`@default` 形、value pattern 三位、list pattern
 #t0055-58 顺批）；`@embed` 旗读取随 embed 状态机批（旗保形已备）。
+### 8.98 役49 落成（2026-10-01；用户令「继续」——匹配语法批，6→26/92 plain，零回退）
+
+**批判定面（+20）**：#t0023（match-none 双向——Sub2 节点级出局 + Sub1 ex:p
+缺位发 null）/ #t0024（通配 any + 缺位默认）/ #t0025（requireAll 下
+@default-only 恒配——三节点全配）/ #t0026/27（explicit 1.1 单解包 +
+match-none 缺位 null）/ #t0031（@type match-none 只配无型节点）/
+#t0032/33（@id 单 IRI 串形 + 数组清单形）/ #t0034（=t0023 复形）/
+#t0035（深 node pattern）/ #t0036-45（值 pattern 十例：精确串形、
+@value/@type/@language 通配、match-none、清单任配、非配值过滤、
+语言小写规范形）——**26 plain / 66 deferred**（26+66=92 闭合）。
+
+**落码**：
+
+- **匹配器五臂重构**（frame_node_matches/frame_property_matches）：①
+  match-none 节点级预检（REC "node does not match… aborted"——有值即否决
+  整节点，值缺位走缺位发射）；②@id pattern 形（数组 IRI 清单/`{}` 通配；
+  串形 id 字段原路）；③@type pattern 形（空清单=match-none 只配无型、
+  `{}` 通配须有型、IRI 清单任配；串形 types 字段原路）；④通配/默认-only
+  双形（`{}` 有值即配；@-键-only 恒配——t0025 requireAll oracle 定音）
+  ；⑤值 pattern 三成分 + 串 pattern 精确形。语义位计算含 pattern 形
+  @id/@type；旗/@default 键恒非语义。
+- **值 pattern 展开批**（expand_object）：预扫（@value/@type/@language 任
+  一非串成分 ⇒ 值 pattern 模式）+ 三键成分保形（@type 串 IRI 经
+  type-scoped 展开、`{}` 通配 = 空 pattern 标桩、数组摊开、null = 无）
+  ——String 形亦保形，免撞值对象 datatype/language 门。
+- **值位收值门**（frame_value_kept）：无 pattern 全收 / match-none 不收 /
+  精确与值 pattern 按配收 / 通配与 node pattern 位值照收（t0045 非配值
+  不收 oracle）。
+- **语言小写规范形发射**：语言 pattern 配值出小写拷贝（t0045 `"R"`→`"r"`
+  oracle——REC Value Pattern Matching 双侧小写规范的输出侧显形；拷贝发
+  不扰 subject map 原值；`ascii_fold_lower`+`unsafe_to_char` 复用）。
+- **自由浮动门 frameExpansion 豁免**：@id-only 帧根是合法 pattern（t0032
+  勘定：弃则帧空全配双节点出局）——`push_top_value` + 集合位两门同笔加
+  `frame_expansion` 旁路。
+- **wrap 三分**（勘定再修正）：1.0 恒 `@graph` 包裹（t0001-09）；1.1：
+  空 ⇒ `@graph:[]`（t0003）、**单 ⇒ 解包直出**（t0023/26/31/32/34/35）、
+  多 ⇒ 包裹（t0033）——1.1 单解包 = compaction compactArrays 单节点解包
+  行为经 frame() 管线的显形（役47「恒包裹」与 §8.96「恒包裹修正」均被
+  本批 1.1 oracle 再修正——1.0/1.1 分叉定音）。
+- **@preserve 发射 match-none 形**：空清单性质帧 = 无帧（无 @default/
+  @omitDefault 可读）⇒ 发 `"@null"`（t0023 ex:p oracle）。
+
+**施工勘误四笔**：①`any_match` 初值把非 @ 性质计入「已配」——初值只许
+id/type 形（硬过滤已过者）；②`is` 或模式 fmt 括错形复发（役48 勘误 2
+同族）——平铺 `==` 析取最稳；③`Char::from_int` deprecated ⇒
+`Int::unsafe_to_char`（ASCII 折叠域恒合法码位）；④多行 Bool 表达式
+`let` 经 fmt 断行成裸语句（[4139] 同族）——长 Bool 条件先提中间变量。
+
+**门**：`moon test src/jsonld` **66/66**；全仓 **378/378 零回退**；
+`moon fmt`/`moon info` 已跑；`.mbti` **零扰动**（本役无新 pub 面）。
+**未提交面** = 役49 四文件（engine/expand_standard/frame/suite_frame_test
+）——套件与 frame_expansion 字段已由用户自提（`8f1cb14`，役45-46 面）。
+勘定注记一条：快照内 `index.html` 为上游 tarball 符号链接（→
+manifest.html），`8f1cb14` 未收（`find -type f` 口径不含 symlink，
+SHA256SUMS 自洽）——harness 不读它，删除或转正常文件由用户定夺。
+**下一手**：embed 状态机批（#t0011/13-15/30/59-60 + tg 环族 10）+
+@reverse 双例（#t0028/29）+ list 匹配（#t0055-58）。
+
+### 8.99 役50 开工钉：embed 状态机定义 + tg 环族勘定（2026-10-01；用户钉两处——状态定义写清、同根/异形勘清，防「逐例修」）
+
+**embed 状态机（状态定义三清）**：
+
+- **四策略语义**（帧旗 `@embed` per-invocation 读帧——REC 步 2 覆写位；词形
+  归一：`@always`→Always / `@once`|`true`|缺省→Once / `@never`|`false`→Never
+  / `@last`→Last（仅 1.0——t0059 oracle）；值域校验（他值 ⇒ invalid @embed
+  value）随负例批）：
+  - `@always`：恒全嵌——**兄弟位重嵌合法**（g002 chapter 两处全形），
+    唯环上拒绝（栈内 id ⇒ 引用）。
+  - `@once`：**每顶层匹配树一嵌**（t0014 定音——bnode 在 a 树与顶层 b 树
+    各嵌全形；「existing embedded」辖域 = 顶层树，非全局非 per-parent）；
+    树内再现 ⇒ 引用。
+  - `@never`：递归位（embedded=true）恒引用 `{@id}`（t0011/30——性质弃）；
+    顶位（matched 主体）不受支（帧配的主体照常全嵌——REC 三支都以
+    embedded=true 为前提）。
+  - `@last`：树内再现 ⇒ **前嵌位原地替换为引用** + 新位全嵌（位置账 =
+    (parent, property) 记录，替换走性质位值组扫描）。
+- **环检测**：embed 路径栈（`embed_stack`——顶位主体入栈，递归推入/弹出）
+  ；「circular reference would be created」= 目标 id ∈ 当前栈。三支序 =
+  REC 原文：①embedded=false 且已嵌 ⇒ 跳过不添（named-graph 递归位——本批
+  不触）；②embedded=true 且 (Never ∨ 环) ⇒ 加 `{@id}` 引用；③embedded=true
+  且 Once 且已嵌 ⇒ 加 `{@id}` 引用。
+- **已嵌替换规则**：@last 前嵌位替换（上）；@once 不替换（前嵌留全形、
+  后现出引用）；@always 不替换（多全形并存）。embedded 旗 = REC「copy of
+  state with embedded=true」的变异-恢复等价（递归前置 true、返回恢复——
+  DFS 单链无交织面）。
+- **随批旗面**：`JsonLdOptions.omit_graph : Bool`（REC 同名——tg001
+  manifest 件；true ⇒ 单节点不 @graph 包裹，wrap 三分加第四态）+
+  harness `frame_options_for` 解析 manifest omitGraph。
+
+**tg 环族同根/异形勘定（g001-010；文件名 gNNN——tg 为 manifest id 前缀）**：
+
+- **同根**：全族同走本状态机（旗读位 = 子帧 `@embed`；三支序；栈；每顶层
+  树重置）。@always 主导（g001-009 全带）。
+- **异形**（环拓扑轴）：g002 兄弟重嵌无环（chapter 两处全形）/ g003 直环
+  （book.topic→library）/ g004-g006 间环（经 @set / 嵌套两级）/ g007 深链
+  无环 / g008 复杂纠缠（多环交叠）/ g009 自相似递归无环（异节点）/
+  g010 **bnode 未命名图**（须 named-graph 递归臂——**随 graph 批**，
+  本批 defer）；g001 = library 例 + **omitGraph=true**（单节点不包裹）。
+- 本批判定面 = **#t0011/13/14/15/19/30/59/60 + #tg001-009**（17 例）；
+  tg010 随 graph 批（named-graph 递归臂 + t0046-50）。
+
+### 8.100 役50 落成（2026-10-01；用户拍「开役50」——embed 状态机批）
+
+**役50 落成（§8.100 续）**：17 例全数一次过——**43/92 plain**（43+49=92
+闭合），`moon test src/jsonld` 66/66，全仓 **378/378 零回退**，`moon fmt`/
+`moon info` 已跑；`.mbti` 增量 = `omit_graph : Bool` 一行（embed 批随批旗
+面）。§8.99 状态机钉（四策略/三支序/栈/每顶层树重置辖域）对照 17 oracle
+**零修正兑付**——钉先于码的批次定性成立。
+
+**施工勘误两笔**：①常量枚举 `==` 与 `derive(Eq)` 互斥怪癖（`==` 报缺
+Eq ⇒ 加 derive(Eq) 又报 unused——**改 `is` 构造器模式最稳**，两报皆消）
+；②Map/Array 字段经索引/元素变更不触 `unused_mut`（`mut` 仅字段重绑
+需要——`embedded_map`/`embed_stack` 去 mut）。
+
+**范围注记**：@reverse 双例（#t0028/29）与 list 匹配四例（#t0055-58）
+移役51（本役 embed 状态机为唯一硬骨头，独立成笔；reverse 走 flattened
+subjects 反扫臂、list 走 @list pattern 递归臂，机制互不咬）。tg010 随
+graph 批（named-graph 递归臂 + #t0046-50）。
+
+**未提交面** = 役49 四文件 + 役50 三文件（frame/suite_frame_test/
+types+engine/expansion 字面量组）。建议提交语（用户定拆合）：
+`feat(jsonld J5 役49-50 匹配语法+embed 状态机批)：26→43/92 plain（含
+index.html 符号链接删除），全仓 378 零回退`。**下一手（役51）**：
+@reverse 双例 + list 匹配四例 + graph 族 #t0046-50（named-graph 递归
+臂 + per-graph wrap）+ tg010；余 #t0051/64/68-70/teo01/tin/tra/负例/
+prune 随后收官。
+
+**役50 收官（2026-10-01，用户令）——收官三验 + 判语**：
+
+1. **门终验**（收官时点实跑）：`moon fmt`/`moon info` 净；`moon test
+   src/jsonld` **66/66**；全仓 `moon test` **378/378 零回退**；`.mbti`
+   终态增量 = `omit_graph : Bool` 一行（本役唯一可见面）。
+2. **账面**：§8.99 钉（四策略/三支序/栈/每顶层树辖域 + tg 同根异形勘定）
+   对照 17 oracle 零修正兑付；§8.38 复核表 framing 行随役更新（43/92）；
+   deferred 49 逐簇去向在册（reverse 2 + list 4 + graph 5 + tg010 +
+   t0051/64/68-70/teo01/tin 3 + tra 3 + 负例 3 + prune 5 + 余 8——随
+   役51/graph 批/末役三批清）。
+3. **施正反两面**：正 = 钉先于码（状态机一次过 17 例、批次定性再次成立）
+   + 三处核落位（同形异判表/AGENTS pitfalls 五点/豁免清单族核）；反 =
+   常量枚举 `==`/derive(Eq) 互斥怪癖绕行（`is` 模式）入册。
+
+**收官判语**：embed 状态机 = 全战役最后一块硬骨头，一次过收官——余下
+（reverse/list/graph/杂簇/负例/prune）皆组合面，无未钉机制。framing 面
+从「依赖外立案」到 43/92 plain 历六役（45-50），每役钉先行、判定面同笔
+、账内分列。**待用户令：役51（reverse + list + graph 族）**。
