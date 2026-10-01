@@ -95,13 +95,10 @@ fn frame_register(
         }
         None => ()
       }
-      // 性质位抽取（原位替换为 reference）
-      for pair in node.properties {
-        for i, item in pair.1 {
-          pair.1[i] = frame_register(state, graph_name, item)
-        }
-      }
-      // 自身注册（首见胜）
+      // 自身注册**先于下走**（后向边勘定——tg003 根因：后向 reference 在
+      // 祖先自注册前递归，把裸引用抢注进图字典，first-wins 随即弃真节点
+      // ⇒ subject map 空壳、匹配全空）。先注册真节点，后向边命中 contains
+      // 即跳过；F2 预合并已保证同 id 全节点单点
       let self_id = match node.id {
         Some(id) =>
           if id == EXPLICIT_NULL_ID {
@@ -121,6 +118,33 @@ fn frame_register(
       }
       if !nodes.contains(self_id) {
         nodes[self_id] = node
+      } else {
+        // 最全者胜（后向边占位勘定二——tg005 根因：后向 reference 先注
+        // 册成裸壳，真节点后到被 first-wins 挡外 ⇒ 空壳匹配不上。F2 预
+        // 合并保证同 id 至多一个全节点 ⇒ 全节点到即换、裸引用互不换）
+        let existing = match nodes.get(self_id) {
+          Some(e) => e
+          None => node
+        }
+        let existing_bare = existing.types.is_empty() &&
+          existing.properties.is_empty() &&
+          existing.reverse_props.is_empty() &&
+          existing.graph is None &&
+          existing.included is None
+        let node_bare = node.types.is_empty() &&
+          node.properties.is_empty() &&
+          node.reverse_props.is_empty() &&
+          node.graph is None &&
+          node.included is None
+        if existing_bare && !node_bare {
+          nodes[self_id] = node
+        }
+      }
+      // 性质位抽取（原位替换为 reference；map 条目 = 同对象，原位变更可见）
+      for pair in node.properties {
+        for i, item in pair.1 {
+          pair.1[i] = frame_register(state, graph_name, item)
+        }
       }
       // 原位留 node reference
       ExpandedValue::Node({
@@ -154,6 +178,23 @@ fn frame_output_add(
 ) -> Unit {
   for pair in node.properties {
     if pair.0 == property {
+      // Value 精确同形去重（t0059 oracle——F2 并集把两处同 id 的同名值并
+      // 出重复；REC node map 语义值本集；framing 局部去重不动共享合并面）
+      match value {
+        ExpandedValue::Value(new_lit) =>
+          for existing in pair.1 {
+            match existing {
+              ExpandedValue::Value(old_lit) =>
+                if old_lit.value == new_lit.value &&
+                  old_lit.datatype == new_lit.datatype &&
+                  old_lit.language == new_lit.language {
+                  return
+                }
+              _ => ()
+            }
+          }
+        _ => ()
+      }
       pair.1.push(value)
       return
     }
@@ -211,6 +252,36 @@ fn frame_empty_pattern() -> ExpandedNode {
     included: None,
     index: None,
   }
+}
+
+///|
+/// 合成帧（REC："create a new frame using a new map with properties for
+/// @embed, @explicit and @requireAll **taken from** embed, explicit and
+/// requireAll"——子帧缺位时合成帧继承当前旗——tg007 bookmark 副本 topics
+/// 全嵌 oracle 定音：非继承则 @once 化引用）
+fn frame_synthesized_pattern(
+  embed : EmbedPolicy,
+  explicit : Bool,
+  require_all : Bool,
+) -> ExpandedNode {
+  let pattern = frame_empty_pattern()
+  let embed_word = match embed {
+    Always => "@always"
+    Once => "@once"
+    Never => "@never"
+    Last => "@last"
+  }
+  pattern.properties.push(("@embed", [literal_of(embed_word, None)]))
+  pattern.properties.push(
+    ("@explicit", [literal_of(if explicit { "true" } else { "false" }, None)]),
+  )
+  pattern.properties.push(
+    (
+      "@requireAll",
+      [literal_of(if require_all { "true" } else { "false" }, None)],
+    ),
+  )
+  pattern
 }
 
 ///|
@@ -412,7 +483,7 @@ fn frame_property_matches(
   }
   for pattern in patterns {
     match pattern {
-      ExpandedValue::List(patterns_in_list, ..) => {
+      ExpandedValue::List(patterns_in_list, ..) =>
         // list pattern 臂（§8.101——t0056-58 any-item-any-pattern 定音；
         // 整表输出不滤）。list-vs-list 交叉，任项配即配
         for item in values {
@@ -439,7 +510,6 @@ fn frame_property_matches(
             _ => ()
           }
         }
-      }
       ExpandedValue::Value(pattern_lit) =>
         // 串/词形 pattern = 精确值 pattern（t0036：v/t/l 全等）
         for item in values {
@@ -683,7 +753,7 @@ fn frame_list_item_matches(
         ExpandedValue::Value(lit) => frame_literal_matches(pattern_lit, lit)
         _ => false
       }
-    ExpandedValue::Node(pattern_node) => {
+    ExpandedValue::Node(pattern_node) =>
       if frame_is_value_pattern(pattern_node) {
         match listitem {
           ExpandedValue::Value(lit) =>
@@ -697,14 +767,12 @@ fn frame_list_item_matches(
           ExpandedValue::Node(ref_node) =>
             match ref_node.id {
               Some(ref_id) =>
-                !frame_matching(state, [ref_id], pattern_node, require_all)
-                .is_empty()
+                !frame_matching(state, [ref_id], pattern_node, require_all).is_empty()
               None => false
             }
           _ => false
         }
       }
-    }
     ExpandedValue::List(_, ..) => false
   }
 }
@@ -877,9 +945,11 @@ fn frame_invoke(
                   Some(fvs) =>
                     match fvs[0] {
                       ExpandedValue::Node(pattern) => pattern
-                      _ => frame_empty_pattern()
+                      _ =>
+                        frame_synthesized_pattern(embed, explicit, require_all)
                     }
-                  None => frame_empty_pattern()
+                  None =>
+                    frame_synthesized_pattern(embed, explicit, require_all)
                 }
                 match ref_node.id {
                   Some(ref_id) => {
@@ -955,7 +1025,7 @@ fn frame_invoke(
                 // list 位（§8.101——REC 逐项：ref 递归嵌（子帧 = 帧 list
                 // pattern 首值，缺 ⇒ 合成空帧）；值项收；t0055-58）
                 let list_patterns : Array[ExpandedValue] = match
-                    frame_property_values(frame_node, property) {
+                  frame_property_values(frame_node, property) {
                   Some(fvs) =>
                     match fvs.get(0) {
                       Some(ExpandedValue::List(ps, ..)) => ps
@@ -969,11 +1039,13 @@ fn frame_invoke(
                     ExpandedValue::Node(ref_node) =>
                       match ref_node.id {
                         Some(ref_id) => {
-                          let sub_frame : ExpandedNode = match list_patterns.get(
-                              0,
-                            ) {
+                          let sub_frame : ExpandedNode = match
+                            list_patterns.get(0) {
                             Some(ExpandedValue::Node(pattern)) => pattern
-                            _ => frame_empty_pattern()
+                            _ =>
+                              frame_synthesized_pattern(
+                                embed, explicit, require_all,
+                              )
                           }
                           let saved_embedded = state.embedded
                           state.embedded = true
@@ -1079,10 +1151,7 @@ fn frame_invoke(
                   match v {
                     ExpandedValue::Node(ref_node) =>
                       match ref_node.id {
-                        Some(ref_id) =>
-                          if ref_id == id {
-                            points = true
-                          }
+                        Some(ref_id) => if ref_id == id { points = true }
                         None => ()
                       }
                     _ => ()
