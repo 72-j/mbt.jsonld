@@ -30,6 +30,7 @@ priv struct FrameState {
   /// @last 前嵌位账（键 = graph|id → (parent 节点, 性质)——替换走性质位
   /// 值组扫描）
   last_locations : Map[String, (ExpandedNode, String)]
+  mut probe : String?
 }
 
 ///|
@@ -985,6 +986,13 @@ fn frame_invoke(
         }
         // embed 三支（REC Framing Algorithm 序；§8.99 状态机）
         let embed_key = state.graph_name + "|" + id
+        match state.probe {
+          Some(t) => {
+            let line = "TURN id=" + id + " map=" + state.embedded_map.length().to_string() + " stack=" + state.embed_stack.length().to_string() + "\n"
+            state.probe = Some(t + line)
+          }
+          None => ()
+        }
         // 支一：顶位（embedded=false）且已嵌 ⇒ 跳过不添（named-graph 递归
         // 位——本批不触，graph 批落）
         if !state.embedded && state.embedded_map.contains(embed_key) {
@@ -994,6 +1002,13 @@ fn frame_invoke(
         if state.embedded {
           let circular = state.embed_stack.contains(id)
           if embed is Never || circular {
+          match state.probe {
+            Some(t) => {
+              let line = "  REF(never-or-circ) id=" + id + " circ=" + circular.to_string() + "\n"
+              state.probe = Some(t + line)
+            }
+            None => ()
+          }
             // 恒引用 / 环上 ⇒ {@id} 引用发射（t0011/30 never、g003 环 oracle）
             frame_parent_add(parent, frame_reference(id))
             continue
@@ -1555,6 +1570,7 @@ pub fn frame_document(
     embed_stack: [],
     embedded_map: Map([]),
     last_locations: Map([]),
+    probe: None,
   }
   // 输入 bnode 重铸号（先于注册——tp021/t0015 面）
   let relabel_seen : Map[String, String] = Map([])
@@ -1728,3 +1744,4 @@ pub fn frame_document(
   // "@null"→null 递归（无发射路径——@preserve 发射批同笔）
   Ok(JsonValue::Object(body_pairs))
 }
+

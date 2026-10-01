@@ -2754,3 +2754,13 @@ vs 顶位轮时 embedded_map **仍含 record/508** ⇒ 重置已clear 但判定�
 REF ⇒ 疑点收敛到 **embed_key 构造或 matched 序**（重置位代码已目检无误）
 ；③下一手：FrameState 探针位重做（本轮教训：探针加位用**追加式**不在原
 位插入、避开 [3800]/deprecated 双坑），trace TURN/REF 两判定点。
+
+
+**§8.113 t0015 真输入探针战果（2026-10-02）**：**map 段全对实锤**——真输入
+14 节点探针：vital_signs types=1(VitalSigns 经 [9] 并入 ✓)+props=2 ✓、
+508/509/Coded 链全形 ✓、record ✓——**F2 并集/最全者胜/重铸号三修全部兑付
+实锤**。病灶收敛至 **invoke 段**：真输入探针的 invoke 产出空 results 且
+探针位读回 None（MoonBit mut 结构字段跨调用可见性的探针语义坑在册——
+embed 状态机本体经套件证明可见性无误，探针写法问题）。**下一手**：包内
+开 `frame_debug` pub 调试入口（返回追迹串——合法 debug 面，免探针语义坑）
+直取 t0015 判定链；list 节点项 skip 未明路径同批。55/92 锁绿不变。
