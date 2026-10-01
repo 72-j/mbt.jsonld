@@ -2702,3 +2702,13 @@ isomorphic_for_suite 对 @graph 数组做集合语义（jv_sort_graph_arrays 规
 I 滤 oracle）——值项过滤过宽已回正；节点项滤的 skip 已在册但该 I 项仍入
 输出的**未明路径**在册（list 臂唯一出口已核）。t0057/58 留册退 deferred。
 全仓 405/405。
+
+
+**§8.108 哨兵泄漏探针战果（2026-10-02）**：泄漏位钉死——**compact_node_jv
+的 @id 渲染**：`Some("")` ⇒ `"@id": ""`（None ⇒ 省略 ✓）——tp046 的空串
+= 框架输出里有节点 id 为 **Some("")**（非 prune 未摘：prune 置 None ✓）。
+探针实证 tp046 图字典全对（壳 = _:b0 注册 ✓、@merged 匹配 ✓、帧无
+@graph ⇒ recurse=false ✓）——**Some("") 的注入源未明**（下一手：探针
+frame_invoke 的 output.id 来源，疑 preserve ref 链上某处 node_id_of()
+的空串回流）。机制预期：帧无 @graph + @merged ⇒ 不递归 ⇒ 壳 = {} +
+prune 摘 @id ⇒ preserve = {}（oracle 兑付路径全通，唯 Some("") 拦路）。
