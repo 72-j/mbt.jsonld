@@ -901,6 +901,97 @@ fn StandardExpander::expand_object(
     // 关键字位判定按归一键：字面关键字与别名 term 汇流
     let routes_to_keyword = expanded_key.get_char(0) is Some('@')
     if !routes_to_keyword {
+      // frameExpansion 保形（帧旗批——spec §8.96）：帧内性质位对象值
+      // ①含 @default 键 ⇒ 默认对象 pattern（其余条目忽略——REC Framing
+      // Grammar）；②非值对象形 ⇒ pattern 保形（`{}` 通配 = 展开落空回落
+      // 空 pattern）。须先于丢弃预扫描（`{}` 通配会撞 drop-lang-only 门）。
+      // 值对象形（@value）照常规路径（值 pattern 本就展开为 Value）；
+      // @id/@type 位通配/数组形不在本批（t0023+/t0064 批）
+      if options.frame_expansion {
+        match pair.1 {
+          JsonValue::Object(value_pairs) => {
+            let mut has_value_key = false
+            let mut has_default_key = false
+            let default_raw : Array[JsonValue] = []
+            for vp in value_pairs {
+              if vp.0 is "@value" {
+                has_value_key = true
+              }
+              if vp.0 is "@default" {
+                has_default_key = true
+                match vp.1 {
+                  JsonValue::Array(items) =>
+                    for item in items {
+                      default_raw.push(item)
+                    }
+                  single => default_raw.push(single)
+                }
+              }
+            }
+            if !has_value_key {
+              if has_default_key {
+                // 默认对象 pattern = 仅 @default 性质的 Node pattern
+                // （值保形见 frame_preserve_default；数组默认值摊开）
+                let default_values : Array[ExpandedValue] = []
+                for raw in default_raw {
+                  match self.frame_preserve_default(current, raw, options) {
+                    Ok(values) =>
+                      for v in values {
+                        default_values.push(v)
+                      }
+                    Err(e) => return Err(e)
+                  }
+                }
+                properties.push(
+                  (
+                    expanded_key,
+                    [
+                      ExpandedValue::Node({
+                        id: None,
+                        types: [],
+                        properties: [("@default", default_values)],
+                        reverse_props: [],
+                        graph: None,
+                        included: None,
+                        index: None,
+                      }),
+                    ],
+                  ),
+                )
+                continue
+              }
+              // pattern 保形：正常展开，落空回落空 pattern（`{}` 通配）
+              let pattern_value = match
+                StandardExpander::expand_element(
+                  self,
+                  current,
+                  pair.1,
+                  _active_property,
+                  options,
+                ) {
+                Ok(ExpandedValue::Node(pattern_node)) => pattern_node
+                _ => {
+                  let fresh : ExpandedNode = {
+                    id: None,
+                    types: [],
+                    properties: [],
+                    reverse_props: [],
+                    graph: None,
+                    included: None,
+                    index: None,
+                  }
+                  fresh
+                }
+              }
+              properties.push(
+                (expanded_key, [ExpandedValue::Node(pattern_value)]),
+              )
+              continue
+            }
+          }
+          _ => ()
+        }
+      }
       // 值对象形态的**整体丢弃**预扫描（REC：被丢弃的值对象其属性不产出；
       // 区别于 t0004 空数组字面值保留）：
       // - @value: null（#t0019 oracle）
@@ -1453,8 +1544,24 @@ fn StandardExpander::expand_object(
           _ => return Err(JsonLdError::InvalidValue("invalid @included value"))
         }
       _ =>
-        // 未知 @ 键忽略（戊批——同前一枚：@ 前缀非关键字键不产出属性）
-        ()
+        // 未知 @ 键忽略（戊批——同前一枚：@ 前缀非关键字键不产出属性）。
+        // frameExpansion 旗保形（帧旗批——spec §8.96）：framing 旗词形入
+        // properties（keyword 键名），framing 算法读旗位；@embed 他值校验
+        // （⇒ invalid @embed value）随 embed 状态机批
+        if options.frame_expansion && is_framing_flag_key(expanded_key) {
+          match pair.1 {
+            JsonValue::String(word) =>
+              properties.push((expanded_key, [literal_of(word, None)]))
+            JsonValue::Bool(flag) =>
+              properties.push(
+                (
+                  expanded_key,
+                  [literal_of(if flag { "true" } else { "false" }, None)],
+                ),
+              )
+            _ => ()
+          }
+        }
     }
   }
   // @nest 延后处理（nest 纯形批——REC 步骤 14）：逐嵌套值须为节点对象且
@@ -4883,5 +4990,68 @@ fn StandardExpander::expand_graph_container(
       }
       Ok(out)
     }
+  }
+}
+
+///|
+/// framing 旗 keyword 判（frameExpansion 保形面——spec §8.96 帧旗矩阵）：
+/// 四旗以词形入 pattern properties；@embed 值域校验随 embed 状态机批
+fn is_framing_flag_key(key : String) -> Bool {
+  key == "@embed" ||
+  key == "@explicit" ||
+  key == "@requireAll" ||
+  key == "@omitDefault"
+}
+
+///|
+/// @default 值保形（帧旗批——spec §8.96）：`@null` 串/null ⇒ `"@null"`
+/// 标桩（framing 算法 compaction 后替换为 null）；其余串词形保形（不作
+/// IRI 展开——#t0009 "custom-default" oracle）；number/bool raw 保形；
+/// 对象 → 值对象展开（Value）；数组摊开（`["@null"]` 单元素形——t0063）
+fn StandardExpander::frame_preserve_default(
+  self : StandardExpander,
+  active : ActiveContext,
+  raw : JsonValue,
+  options : JsonLdOptions,
+) -> Result[Array[ExpandedValue], JsonLdError] {
+  match raw {
+    JsonValue::Null => Ok([literal_of("@null", None)])
+    JsonValue::String(word) =>
+      if word == "@null" {
+        Ok([literal_of("@null", None)])
+      } else {
+        Ok([literal_of(word, None)])
+      }
+    JsonValue::Number(number_value) =>
+      Ok([literal_of("\{number_value}", Some(JsonValue::Number(number_value)))])
+    JsonValue::Bool(flag) =>
+      Ok([
+        literal_of(
+          if flag {
+            "true"
+          } else {
+            "false"
+          },
+          Some(JsonValue::Bool(flag)),
+        ),
+      ])
+    JsonValue::Array(items) => {
+      let out : Array[ExpandedValue] = []
+      for item in items {
+        match self.frame_preserve_default(active, item, options) {
+          Ok(values) =>
+            for v in values {
+              out.push(v)
+            }
+          Err(e) => return Err(e)
+        }
+      }
+      Ok(out)
+    }
+    JsonValue::Object(_) =>
+      match StandardExpander::expand_element(self, active, raw, None, options) {
+        Ok(v) => Ok([v])
+        Err(e) => Err(e)
+      }
   }
 }

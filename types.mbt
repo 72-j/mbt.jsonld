@@ -33,6 +33,11 @@ pub(all) struct JsonLdOptions {
   /// compaction 面（J6）：IRI 相对化（base 前缀剥除）——REC 默认 true；
   /// compactToRelative=false 件（×1）保绝对词面
   compact_to_relative : Bool
+  /// framing 面（J5——spec §8.96 帧旗矩阵）：frame 文档保形展开（framing
+  /// 旗/@default 对象/通配 pattern 过展开不弃）。REC JsonLdOptions/frame-
+  /// Expansion 缺省 false；frame_document 内部对 frame 展开置 true，输入
+  /// 展开恒 false
+  frame_expansion : Bool
 }
 
 ///|

@@ -14,6 +14,8 @@ pub fn expand_document(String, JsonLdOptions) -> Result[JsonValue, JsonLdError]
 
 pub fn flatten_document(String, JsonLdOptions) -> Result[JsonValue, JsonLdError]
 
+pub fn frame_document(String, String, JsonLdOptions) -> Result[JsonValue, JsonLdError]
+
 pub fn isomorphic_for_suite(JsonValue, JsonValue) -> Bool
 
 pub fn json_canonical(JsonValue) -> JsonValue
@@ -127,6 +129,7 @@ pub(all) struct JsonLdOptions {
   produce_generalized_rdf : Bool
   compact_arrays : Bool
   compact_to_relative : Bool
+  frame_expansion : Bool
 }
 
 pub(all) struct JsonLdQuad {

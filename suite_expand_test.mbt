@@ -122,6 +122,7 @@ fn options_for(
     produce_generalized_rdf: json_bool_option(entry, "produceGeneralizedRdf"),
     compact_arrays,
     compact_to_relative,
+    frame_expansion: false,
   }
 }
 

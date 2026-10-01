@@ -633,7 +633,7 @@ expand_standard/to_rdf 手写钩子），**不是模型 vs 引擎**——J2/J3 �
 | fromRdf | 54 | ❌ 未实现 | ——（§8.39） |
 | html | 50 | ❌ 未实现 | ——（§8.39） |
 | remote-doc | 18 | ⭕ 依赖外 | ——（§8.39：HTTP fetch 面） |
-| framing | —— | ⭕ 依赖外 | ffdb326 快照**不含** frame-manifest（快照边界，非本实现缺口） |
+| framing | 92（正 89 / 负 3，官方套件未引入） | 🔎 前置勘定毕——路线 A 成立，可开工（§8.93） | ——（勘定 §8.93：官方 json-ld-framing 套件对拍） |
 | 对账三件套 | —— | ✅ 62/62 | interface_gate（表 handler↔mock）+ gen_gate（重生成逐字节）+ j4_reconcile（路由/步骤/iri_rules 行为+值级） |
 | 判定器自检 | —— | ✅ 7 件 | tordf_judge_test（转义/解析/同构语义正反例 + 套件文件自同构） |
 | 预载通道 | —— | ✅ | loader_preload_test（BFS 预载 + join 键一致） |
@@ -671,7 +671,10 @@ expand_standard/to_rdf 手写钩子），**不是模型 vs 引擎**——J2/J3 �
     快照 + README 全文）**设计上不含 framing 测试面**（目录/清单全无，README
     仅保留 flattening/framing 的比对注记）——framing 上游另立 REC 与套件。
     非拉取范围问题；若做 framing 须另引 json-ld-framing 独立套件（依赖外
-    新增，立案不排期）
+    新增，立案不排期）。**勘定更新（2026-10-01 §8.93 前置勘定）**：官方
+    w3c/json-ld-framing 套件实网可达（92 例、W3C S&DL 许可、三查全过）——
+    **依赖外立案解除，改「已勘可开工」**（判定面 = 官方 92 例对拍）；
+    排期/开工待用户令
 11. **依赖外·canonicalization 套件**（2026-09-29 役10 勘定，同 framing
     款条 10 前例）：ffdb326 快照无 RDF Dataset Canonicalization 测试面
     （README 仅 JCS 注记，toRdf 面 nq_jcs 已落）——上游 W3C rdf-canon
@@ -2108,3 +2111,320 @@ plain；六套件面（expand/toRDF/flatten/compact/对账三件套/判定器自
 
 **收官判语**：零 deferred ≠ 零缺口；收官 = 每面有账、每个 deferred 有
 解释、每个缺口有立案——本账三条全数兑现。**JSON-LD 全战役收官**。
+
+### 8.93 framing 前置勘定（2026-10-01 役45；用户拍板「J5 先 framing」——开工前独立勘定一笔，勘完才定开工/立案）
+
+**勘 1 套件可得性——判：路线 A 成立**（§8.39 条 11 双路线判据三查全过）：
+
+- 上游仓 = `w3c/json-ld-framing`（W3C 官方，与 json-ld-api 同家族），
+  实网可达；规范锚 = JSON-LD 1.1 Framing **REC**（初发
+  `TR/2020/REC-json-ld11-framing-20200716`，2026-06 errata 后同版重发——
+  上游 HEAD `3bf782ba9a40` 提交语「publishing a new REC」即重发非改版）。
+- 规模实算：**92 例 = 正 89（jld:FrameTest+Positive）+ 负 3**（#t0052
+  @id 位 bnode 拒 / #t0053 @type 位 bnode 拒 / #t0054 invalid @embed
+  value）。文件 269 件 = in 89 + frame 89 + out 91——tp 族四件
+  （#tp020/21/46/49）**复用 t0020/21/46/49 的 in+frame、仅换 prune 版
+  out**；孤儿件 4（eo02 三件 + p010-out）不被 manifest 引用。
+- **三查**：①manifest ✓（92 条 sequence 全可解析）；②SHA256SUMS ✓
+  （口径仿 json-ld-api 快照例——clone 定 commit → tests/ 全目录入
+  `.rdf-tests/json-ld-framing/` → `sha256sum` 重生成单文件账）；③许可 ✓
+  （LICENSE.md = W3C Software and Document License，与 json-ld-api 同族）。
+- 引入后判定面 = 官方 92 例对拍，harness 仿 compact 例（manifest 驱动两桶
+  + `canonical_for_suite` 直比 + `isomorphic_for_suite` bnode 双射兜底）。
+- 解析面勘定注记：套件内唯一非严格 JSON 件（eo02-frame，trailing
+  comma）是**孤儿件**——被 manifest 引用的 265 件全严格，json_parser
+  无宽容需求（harness 走 manifest 引用，孤儿不触雷）。
+
+**勘 2 frame 形态 + 选项矩阵**（REC 原文逐节核 + 92 frame 件全量实测）：
+
+- **输入/输出口径**：输入 = 输入文档 + frame（模板），两者**各自展开**
+  ——frame 走 `frameExpansion=true` 特殊展开（framing 关键词 @embed/
+  @explicit/@requireAll/@omitDefault/@null 保形 + @default 对象保形 +
+  @id/@type 值位空 map/IRI 数组保形）。输出 = 按 frame 结构重组、经
+  compaction 的 JSON-LD，`@context` = frame 的 @context 逐字回填
+  （92 frame 中 86 件带 @context——输出走 compaction 的直接佐证）。
+- **Frame Matching 四件套**（REC Frame Matching Algorithm）：`[]` =
+  match none（零值或空数组值）；`[{}]`（剔 framing 关键词后空）=
+  wildcard（有值即配）；`[IRI+]` = @id/@type 位 IRI 清单任配；
+  `[frame object]` = node pattern 递归。value pattern = @value/@type/
+  @language 位各自 wildcard/match-none/清单，@language 比对大小写无涉。
+  @id/@type 位不配 = 整节点即败；其余性质位按 requireAll 旗 all/any。
+  性质缺位时 @default 对象给默认值，@default 值可用 @null。
+- **选项矩阵两层**：
+  - manifest/options 层：`processingMode=json-ld-1.0` ×18、
+    `specVersion` 1.1 ×72 + 1.0 ×1、`omitGraph=true` ×1（#tg001）/
+    `false` ×1（#t0058）、`ordered=true` ×1（#t0060）。frame() API 默认：
+    embed=`@once`、explicit=false、requireAll=false、omitDefault=false、
+    omitGraph=false（omitGraph=false ⇒ 顶层恒 @graph 数组包裹；true ⇒
+    仅多节点包裹）。
+  - frame 体内层（92 frame 每文件实测）：`@context` ×86、`@embed` ×17
+    （@always 9 / @once 2 / false 4 / true 2 / @never 1 / @last 1 /
+    @sometimes 1=负例素材）、`@requireAll` ×11、`@default` ×6、
+    `@omitDefault` ×4、`@graph` ×5、`@explicit` ×2、`@reverse` ×2、
+    `@null` ×1、`@version` ×13。
+  - **@embed 值域模式相关**（落码时按 option 分叉）：1.1 模式 =
+    `@always`/`@once`/`@never`（REC 原文三值，他值 ⇒ invalid @embed
+    value——#t0054 实证）；1.0 兼容模式接受 true/false 布尔形（#t0011/
+    #teo01）与 `@last`（#t0059 processingMode=1.0 实证——语义 = 后嵌
+    替换前嵌为 node reference）。
+- **`@preserve`/`@none` 全套件 0 出现**——勘定修正：输出侧标记面收窄。
+  @preserve 由算法自身发射（性质缺位且 omitDefault=false ⇒ 发射
+  `{"@preserve": @default 值或 "@null"}`），frame() API 在 compaction
+  **前**替换为首值；`"@null"` 字面在 compaction **后**递归替换为 null
+  （数组清 null 留空数组——#t0063 oracle：`ex:p2: null` + `ex:p3: []`；
+  #t0027 oracle：@explicit 下缺位性质出显式 null）。#t0051 实证 @default
+  值对象随 compaction 正常压形。
+
+**勘 3 framing × compaction 关系**（管线五段，REC frame() API 步骤全文
+已核；钉 3 落位）：
+
+1. expand(input)（ordered=false）——**复用** expand 全链现成。
+2. expand(frame, frameExpansion=true)——**新扩展**：expand_standard 加
+   内部旗，保形规则作用域限 frame 文档（385 例存量回归零扰动为门）。
+3. context = frame 的 @context → `process_context` 建 ActiveContext；
+   frame 顶层 @graph ⇒ graphName=@default，否则 @merged。
+4. framing state（graph map = Node Map Generation，per-graph subject
+   map——**flatten 的 F2/成员图机制同源**，FlattenState 出 per-graph
+   变体；subjects = graph map[graphName]）。
+5. Framing Algorithm（匹配 + 嵌套递归——**唯一的新算法主体**）→
+   mode≠1.0 时单现 bnode @id 剪枝（tp 族 5 例）→ @preserve 替换 →
+   **compact（frame @context）复用 `compact_node_jv`** → 空数组⇒{}/
+   数组⇒@graph 包裹 → @context 回填 → "@null"→null → omitGraph 收口。
+
+- **共享**：①expand 全链（含 frameExpansion 模式扩展）；②flatten 成员图
+  （graph map 形变体）；③compaction 主体 + context 处理
+  （compactArrays/ordered 旗透传）——管线首（展开）、中（成员图）、尾
+  （压缩）三段全是现成机制。
+- **不共享**：compaction 用 context 压词形，framing 用 frame 定结构
+  （匹配/嵌套/默认值）——功能正交，管线段位不交叠。
+- **落点**：framing 输出装配为展开形 JsonValue（REC 语义天然是 map/array
+  操作，@preserve/@null 尾处理也在 JsonValue 层）→ 桥一函数（展开形
+  JsonValue→ExpandedValue IR，机械转换）→ `compact_node_jv` 复用 →
+  尾部递归回 JsonValue。新文件建议独立 `frame.mbt`（对位 flatten 入
+  engine.mbt 先例，视体量再议 frame_standard.mbt 分册）。
+- **JsonLdOptions 新旗**：embed / explicit / requireAll / omitDefault /
+  omitGraph / prune_bnode_ids（+ frame_expansion 内部旗非 API 面）——
+  全部 TOML/契约外账（J4 对账面不受扰）。
+
+**勘 4 工作量估算**（92 例 16 簇）：
+
+| 簇 | 例数 | 难度 |
+|---|---|---|
+| #t0001-09 1.0 基础（library/reframe/explicit/default） | 9 | 低——首役冒烟素材 |
+| #t0010-22 杂族（CURIE/array frame/替换嵌/bnode 形） | 13 | 中 |
+| #t0023-45 匹配语法（通配/match-none/值模式/递归 pattern） | 23 | **高——核心** |
+| #t0046-50 graph（merge/default/named） | 5 | **高——graph map** |
+| #t0051 @preserve 压形 | 1 | 低 |
+| #t0052-54 负例 | 3 | 低 |
+| #t0055-58 list 匹配 | 4 | 中 |
+| #t0059-60 @embed @last/@once | 2 | 中 |
+| #t0061-64 @default/@null/@type-default | 4 | 中 |
+| #t0065-67 值引用匹配 | 3 | 低 |
+| #t0068-70 杂（@json/protected/merge @type） | 3 | 中 |
+| #teo01 | 1 | 低 |
+| #tg001-010 嵌套/环（circular embed 族） | 10 | **高——embed 状态机** |
+| #tin01-03 @included | 3 | 低——expand 已有 included |
+| #tp020-50 prune bnodes | 5 | 低——单遍递归 |
+| #tra01-03 @requireAll×@id/@type | 3 | 低 |
+
+- 难点集中三处：Frame Matching 递归（23 例）、embed 语义 + 环检测
+  （tg 族 10 + 散例）、per-graph 成员图（t0046-50 + tg010）。其余皆
+  组合面。
+- 复用度高：expand/context/compact/flatten 全链现成 ⇒ 全新增约
+  **500-800 行 + harness ~150 行**。节奏对位历史：flatten 58 例 4 役
+  收官、compaction 246 例 23 役收官（后者 IRI 压缩排名自成重头）；framing
+  92 例估 **4-7 役**（首役 = frameExpansion 展开 + 匹配骨架 + #t0001
+  冒烟；末役 = tg 环族 + prune + 收官清账；每役 10-20 例，deny-warn +
+  全仓 377 零回退为门）。
+
+**勘定结论**：路线 A 成立（三查全过）——**framing 可开工**，判定面 =
+官方 92 例对拍。开工前三钉全落位：套件可得 ✓ / frame 形态+选项矩阵在册 ✓
+/ 与 compaction 共享面在册 ✓。§8.39 条 10「依赖外」立案据本勘定**解除**，
+改「已勘可开工」；**排期与开工待用户令**（本笔为纯勘定，未动代码、未引
+套件、未 commit）。
+
+### 8.94 framing 开工第一笔·上（2026-10-01 役46；用户令「继续」——引套件 + SHA256SUMS。**役46/47 边界（用户钉）**：役46 = 套件入仓 + SHA256SUMS 两件；harness 骨架 + frame_document 立桩 + 匹配骨架 + #t0001 冒烟 = **役47**（§8.95）——两役一笔提交，账内分列）
+
+**套件引入**（仿 json-ld-api 快照例，§8.93 勘 1 口径兑付）：
+
+- 钉版 = `w3c/json-ld-framing` @ `3bf782ba9a40dd1b143435abe386d38df64f2b47`
+  （2026-06-09 HEAD，REC errata 重发后；codeload 按 commit 拉取）。
+- 布局 = 上游 `tests/` 目录**整体**入 `.rdf-tests/json-ld-framing/`（10
+  顶条 / 277 文件：frame/ 269 + 两 manifest（jsonld/html）+ index/manifest
+  顶单 + Rakefile/template.haml + LICENSE/README——**tests/ 自带件**，
+  与 json-ld-api 快照同款（其 LICENSE/README 亦为 tests 变体：dual-license
+  + "# Introduction" 套件说明，非仓根版））。
+- 入仓校验：manifest 92 条引用 265 文件**全在**（零缺失）；孤儿 4 件
+  （eo02 三件 + p010-out）不被引用（§8.93 勘 1 预判兑付——被引件全严格
+  JSON，解析面零宽容需求）。
+- **SHA256SUMS 重生成口径勘定**：原账 2626 条**不含 SHA256SUMS 自身**
+  （自指排除——本轮发现并钉死）；重生成 = `find .rdf-tests -type f
+  ! -path '.rdf-tests/SHA256SUMS' | LC_ALL=C sort | xargs sha256sum`。
+  旧段 2626 条**逐字节不动**（差异仅自指行一处，已核）+ 新段 277 条 =
+  2903 条。
+
+**harness 骨架**（`suite_frame_test.mbt`，mirror compact 例）：
+
+- manifest 驱动两桶（正 89 + 负 3，`jld:NegativeEvaluationTest` 分桶），
+  判定 = `canonical_for_suite` 直比 + `isomorphic_for_suite` bnode 双射
+  兜底；通道 = `frame_document(输入原文, frame 原文, options)`。
+- **92 例全 deferred**（closure pin：0+0+92=92，门绿）——桶释 = framing
+  面未落码，逐簇解释 = §8.93 勘 4 簇表；首役起逐役迁移清桶（#t0001 冒烟）。
+- framing 锚本地面（`frame_base_for_entry`——base 缺省 = 输入文档 URL，
+  域 = `w3c.github.io/json-ld-framing/tests/`；不扰共用 `base_for_entry`
+  的 api 域硬编码）；`frame_options_for` = options_for 同源 + base 覆写
+  （specVersion/processingMode 并行口径同源）；omitGraph/ordered 选项随
+  面落码批进 JsonLdOptions（deferred 期无判定路径）。
+
+**`frame_document` 立桩**（engine.mbt，挂账红语义）：pub API
+`frame_document(String, String, JsonLdOptions) -> Result[JsonValue,
+JsonLdError]`，本体 = `Unsupported("pending framing …")`（红而非错，
+门绿账在——expand_standard 先例同款）；文档注释记 §8.93 勘 3 十段管线
+（落码时的工序序）。`.mbti` 增量 = 该签名一行（本笔唯一可见面变化）。
+
+**门**：`moon test src/jsonld` **66/66 绿**（65 + 新 harness）；
+全仓 `moon test` **378/378 零回退**（377 + 1）；`moon fmt`/`moon info`
+已跑。**未 commit**（商量制——待用户令；建议提交语：`feat(jsonld J5 役46
+framing 开工第一笔)：套件 277 件入仓 + SHA256SUMS 2903 条 + harness
+92 全 deferred 门绿 + frame_document 立桩`）。下一步 = 首役
+（frameExpansion 展开扩展 + 匹配骨架 + #t0001 冒烟）。
+
+### 8.95 framing 开工第一笔·下 + 首役（2026-10-01 役47；同笔内联：harness 骨架 + frame_document 立桩 + 匹配骨架 + 管线接线，0→1/92 plain，零回退）
+
+**落码**（`frame.mbt` 新册，~430 行；`frame_document` 自 engine.mbt 桩
+移正，`.mbti` 无二次扰动）：
+
+- **graph map 构建**（REC Node Map Generation 骨架）：嵌套节点对象抽出
+  注册、原位留 node reference；值对象原位；@list 逐项抽取（index 槽
+  原位保形）；named graph 内容注册到以其 @id 命名的图；同 id 首见注册
+  （F2 预合并已保证图内同 id 单点）；无 id 节点 `_:bN` 铸号
+  （`bnode_counter`——`MergeCtx.anon` 只作合并键不铸 id，勘定在册）。
+- **Frame Matching 骨架三臂**：@id 位 IRI 直配 / @type 位 IRI∈types
+  （硬过滤，失配即断）/ node pattern 递归（值位 references 的 id 下代
+  匹配非空）；帧空形全配；余性质 requireAll 分 all/any（骨架旗恒缺省
+  ——帧内覆写随 frameExpansion 批）。wildcard / match-none / value
+  pattern / @default 形未落（frameExpansion 批）。
+- **Framing Algorithm 骨架**：matched 码点序枚举（确定性——恒排）→
+  output 节点装配（keyword 位拷贝 = @type/@index 专字段；值对象直追加；
+  node reference 子帧递归嵌入，帧缺位 = 合成空帧全嵌）→ parent 收账
+  （`FrameParent` 两形：顶层数组 / 性质位累积）。embed 旗三分支、named
+  graph 递归、@included、@reverse、@preserve 发射：未落（注释钉簇去向）。
+- **管线接线**（frame_document 十段）：expand + F2 预合并（`nq_merge_
+  same_id` 复用）→ frame 原文扫读（@context 抽取 + 顶层 @graph ⇒
+  graph_name=@default 否则 @merged）→ `process_context` 建 ActiveContext
+  → graph map → 匹配嵌套 → `compact_node_jv` 复用 → @graph 包裹
+  （`compact_iri_word` 键形）+ @context 原文回填（空不发射——t0018
+  对拍时校）。prune bnodes / @preserve 替换 / "@null"→null：随批
+  （#t0001 = 1.0 例且无发射路径，不触）。
+
+**门**：#t0001 plain（**1/92**，deferred 91）一次过——`moon test
+src/jsonld` 66/66；全仓 378/378 零回退；`moon fmt`/`moon info` 已跑。
+**未 commit**。
+
+**排程勘定修正**：首役**未动 frameExpansion**——#t0001 帧全为朴素
+@type/性质 pattern，常规展开即足够；frameExpansion 移至**帧旗首批**
+（役48 起：#t0005 @explicit / #t0009 @default / #t0011 @embed 布尔形
+——首批落码例即其判定面，禁无判定面落码）。下一步 = 1.0 基础族余例
+（#t0002-04 直配续批）+ frameExpansion 展开批（旗簇判定面开通）。
+
+### 8.96 役48 开工钉：帧旗矩阵勘定（2026-10-01；用户钉——每旗语义 + 组合 + 版本三清，防「逐旗修不成批」）
+
+**帧旗矩阵**（REC JSON-LD 1.1 Framing 关键词节原文 + 92 例 frame 件实测）：
+
+| 旗 | 语义（REC 原文口径） | 缺省 | 版本面 | 判定面例 |
+|---|---|---|---|---|
+| `@embed` | 嵌套控制：`@always` 恒嵌（环除外）/ `@once` 单值嵌余引用（= API 旗 embed 缺省）/ `@never` 恒引用 | `@once` | **1.1 值域 = 三 @ 形**；`true`/`false` 为兼容形（`true`≡`@once`、`false`≡`@never`——#t0011/#teo01 1.1 正例实证，**oracle > 规范字面**族）；`@last` **仅 1.0 模式**（后嵌替前嵌——#t0059 oracle）；他值 ⇒ `invalid @embed value`（#t0054） | #t0011/#teo01/#t0030/#t0059/tg 族 |
+| `@explicit` | 帧外性质不收编（节点性质不在帧 ⇒ MUST NOT 加值；keyword 位与帧内性质不受扰） | `false` | 1.0/1.1 同 | #t0005/#t0026 |
+| `@requireAll` | 匹配 any→all（性质位全配才算配；@id/@type 恒硬过滤不在其列） | `false` | 1.1 原生（套件 tra 族全 1.1；1.0 例不带） | #t0024/#t0025/#tra01-03 |
+| `@omitDefault` | 帧性质缺位时**不发默认**（跳 @preserve 发射；帧内旗覆写 API 旗 omitDefault） | `false` | 1.0/1.1 同 | #t0009/#t0013 族 |
+| `@default` | 帧性质缺位的默认值位（值可为串/数/值对象/`["@null"]`） | —— | 1.0/1.1 同 | #t0009/#t0061/#t0064/#t0051 |
+| `@null` | `@default` 值位 ⇒ 输出 null（否则 compaction 会弃）+ **compaction 后** `"@null"` 串递归替换为 null、null-only 数组清空留 `[]` | —— | 1.1（1.0 无此 keyword） | #t0005/#t0009/#t0063 |
+| `@graph`（帧顶层） | frameDefault：帧顶有 `@graph` ⇒ 刷默认图，否则刷合并图 | merged | 与 processingMode 无涉 | #t0046-50 |
+
+**组合面（三清之二）**——**无互斥，三组正交 + 一条链**：
+
+- `@explicit` ⊥ `@default`：explicit 断「**收编**」（节点性质不进），default 管「**补缺**」
+  （帧性质缺位仍发 @preserve 默认）——#t0005 实证：explicit 下 contributor 弃、
+  ex:null 仍发 null。
+- `@default` → `@omitDefault`：发射跳过判据 = 性质帧含 `@omitDefault:true` **或**
+  API 旗 omitDefault（帧内覆写优先）——#t0009 p4 实证。
+- `@embed` ⊥ 其余：embed 只管节点嵌套位；`@always` 的「环除外」依赖 embed 状态机
+  （embedded 旗 + 已嵌查表——tg 族役）。
+- `@requireAll` 纯匹配面，无输出面效应；与 @explicit/@default 无耦合。
+- `@null` 只在 `@default` 值位出现（含 `["@null"]` 单元素数组形——t0063 p3）。
+
+**版本面（三清之三）**：五旗 + @default 在 1.0/1.1 **双模式同义**（#t0001-09
+全 1.0 模式跑旗）；分叉只在 `@embed` **值域**（1.1 三 @ 形 / 兼容 true,false /
+1.0 独占 `@last`）。`@null`、`@preserve` 为 1.1 新 keyword（1.0 模式帧不带——
+套件无 1.0 @null 例）。
+
+**落码面钉（本役批界）**：
+
+- `JsonLdOptions` 增 `frame_expansion : Bool`（REC JsonLdOptions/frameExpansion
+  同名面；frame_document 内部对 frame 展开置 true，输入展开恒 false）。
+- frameExpansion 保形三臂：①framing 旗（`@embed`/`@explicit`/`@requireAll`/
+  `@omitDefault`）以词形 Value 入 pattern properties（keyword 键名）；②`@default`
+  对象保形（值 `@null`/串/数/值对象/`["@null"]` 摊开；其余条目忽略）；③非值对象
+  形对象值保形为 pattern（`{}` 通配 = 空 pattern，展开落空回落空 pattern）。
+  `@id`/`@type` 位通配/数组/`@default` 形**不在本批**（t0023+/t0064 批）。
+- framing 算法读旗：帧内覆写（requireAll/explicit per-invocation）；explicit 收编
+  门；@preserve 发射（@default 拷贝 / `"@null"`）+ @omitDefault 跳发；@preserve
+  解包（compaction 前）+ `"@null"`→null + null-only 数组清空（compaction 后）。
+- 空 results 恒 `@graph` 包裹（t0003 勘定修正——役47 骨架的 `length()>0` 守卫
+  是误判，oracle `{"@context":…,"@graph":[]}` 实证）。
+- 本批判定面 = **#t0002/03/04（直配+空配）+ #t0005（explicit+wildcard）+
+  #t0009（default/omitDefault/嵌套默认）** 6 例；`@embed` 旗读取（t0011）随
+  embed 状态机批（旗保形本批已备）。
+
+### 8.97 役48 落成（2026-10-01；用户拍「开役48」——frameExpansion 帧旗批 + 1.0 基础族续批，1→6/92 plain，零回退）
+
+**批判定面**：#t0002（直配 + 帧外性质收编）/ #t0003（空配——`@graph:[]` 恒
+包裹修正）/ #t0004（未framed 引用全收编）/ #t0005（@explicit 三级 +
+`{}` 通配 + ex:null ⇒ null）/ #t0009（@default 串/数值 + @omitDefault 跳发
++ 嵌套默认 + `@set` null-only 数组清空）/ #t0001（前役冒烟复绿）——
+**6 plain / 86 deferred**（closure pin 6+86=92 闭合）。
+
+**落码**（四件）：
+
+- `JsonLdOptions.frame_expansion : Bool`（REC 同名 API 面；frame_document
+  内部对 frame 展开置 true，输入展开恒 false——40 处 options 字面量同笔
+  机械补字段）。`.mbti` 增量 = frame_document 签名 + 本字段（预期可见面）。
+- **frameExpansion 保形三臂**（expand_object，先于丢弃预扫描——`{}` 通配
+  会撞 drop-lang-only 门，次序勘定在册）：①framing 旗（@embed/@explicit/
+  @requireAll/@omitDefault）词形 Value 入 pattern properties（keyword 回落
+  臂扩）；②@default 对象保形（值 @null 串/null ⇒ `"@null"` 标桩、串词形
+  不作 IRI 展开、number/bool raw 保形、对象走值对象展开、`["@null"]` 摊开
+  ——`frame_preserve_default`）；③非值对象形对象值 pattern 保形（展开落空
+  回落空 pattern = `{}` 通配——#t0005 dcterms:title/ex:null oracle）。
+- **framing 算法读旗**：帧旗覆写 per-invocation（requireAll/explicit——REC
+  步 2）；explicit 收编门（帧外性质 MUST NOT 加值）；@preserve 发射（帧非
+  keyword 性质不 in output ⇒ 性质帧判 @omitDefault，未跳发 {@preserve:
+  @default 拷贝 | `"@null"`}）；匹配面剔 @ 键（REC "no other keywords are
+  considered"——旗-only pattern = 空帧全配，#t0009 p4 pattern 不误配）。
+- **管线补全**：@preserve 解包（compaction 前——仅 @preserve 单性质
+  id-less 节点摊开，性质位/List 原位重写）；`"@null"`→null 递归 +
+  null-only 数组清空（**compaction 后**——#t0009 ex:p7 `@set` ⇒ `[]` /
+  #t0005 ex:null ⇒ null 双 oracle 形）；空 results 恒 @graph 包裹
+  （#t0003 勘定修正，§8.96 预钉兑付）。
+
+**施工勘误三笔（当场实证，AGENTS pitfalls 同族）**：
+1. 带 self 首参的 fn 定义经 `moon fmt` 归位为 `T::name` 方法形 ⇒ 裸函数名
+   调用 [4021] unbound——**须 `self.m(...)`**（AGENTS「method 调用形」
+   陷阱的 fmt 联动变体：写时是裸 fn、fmt 后变方法，调用点须同笔改）。
+2. `key is "@embed" | …` 或模式经 fmt 括成 `(key is "@embed") | "@…"`——
+   Bool | String 错形；或模式用 `is` 须整括，本处改平铺 `==` 析取最稳。
+3. `expand_element` 返回 `Result[ExpandedValue,_]` 而 `expand_object` 返回
+   `Result[ExpandedValue?,_]`——同名族两签名，嵌套 Some 模式撞 constr
+   mismatch；调用前核签名（「复用前先核它到底做什么」ctx §3-8 同族）。
+
+**门**：`moon test src/jsonld` **66/66**；全仓 **378/378 零回退**；
+`moon fmt`/`moon info` 已跑；`.mbti` diff = 预期两行。**未 commit**
+（役46+47+48 三役累计未提交；建议提交语拆两笔或合一笔由用户定：
+`feat(jsonld J5 役46-47 framing 开工)：套件入仓 + SHA256SUMS + harness
+两桶 + 匹配骨架 + #t0001 冒烟` / `feat(jsonld J5 役48 帧旗批)：
+frameExpansion 保形三臂 + explicit 门 + @preserve 发射/解包 + @null 走查
++ #t0002-05/09 直配旗例 6/92 plain`）。
+
+**下一手**：匹配语法簇开通（#t0023-45 面——wildcard/match-none 值位形、
+@id/@type 位数组/通配/`@default` 形、value pattern 三位、list pattern
+#t0055-58 顺批）；`@embed` 旗读取随 embed 状态机批（旗保形已备）。
