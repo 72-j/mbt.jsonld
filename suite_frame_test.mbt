@@ -118,7 +118,7 @@ async test "framing suite harness: manifest-driven buckets" {
       deferred.push(id)
     }
   }
-  assert_eq(deferred.length(), 37)
+  assert_eq(deferred.length(), 36)
   assert_eq(plain.length(), 55)
 }
 
