@@ -1547,6 +1547,15 @@ fn StandardExpander::expand_object(
                   options,
                 ) {
                 Ok(vs) => {
+                  // frameExpansion：反向映射值展开落空（{} 通配 pattern——
+                  // t0029 别名 reverse 判定面）⇒ 空 pattern 保形入
+                  // reverse_props（常规路径空值静默丢）
+                  if options.frame_expansion && vs.is_empty() {
+                    reverse_props.push(
+                      (rev_key, [ExpandedValue::Node(frame_empty_pattern())]),
+                    )
+                    continue
+                  }
                   // 反向映射值须为节点对象（#ter34 oracle：字符串值 →
                   // invalid reverse property value；@list 同禁）
                   for v in vs {

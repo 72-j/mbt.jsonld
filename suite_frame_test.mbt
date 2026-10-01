@@ -28,6 +28,10 @@ async test "framing suite harness: manifest-driven buckets" {
     "#t0025", "#t0026", "#t0027", "#t0031", "#t0032", "#t0033", "#t0034", "#t0035",
     "#t0036", "#t0037", "#t0038", "#t0039", "#t0040", "#t0041", "#t0042", "#t0043",
     "#t0044", "#t0045",
+    "#t0011", "#t0013", "#t0014", "#t0030", "#t0059",
+    "#t0060", "#tg001", "#tg002", "#tg003", "#tg004", "#tg005", "#tg006",
+    "#tg007", "#tg008", "#tg009",
+    "#t0028", "#t0029", "#t0055", "#t0056", "#t0057", "#t0058",
   ]
   let deferred : Array[String] = []
   let plain : Array[String] = []
@@ -115,8 +119,8 @@ async test "framing suite harness: manifest-driven buckets" {
       deferred.push(id)
     }
   }
-  assert_eq(deferred.length(), 66)
-  assert_eq(plain.length(), 26)
+  assert_eq(deferred.length(), 45)
+  assert_eq(plain.length(), 47)
 }
 
 ///|

@@ -2574,3 +2574,24 @@ prune 随后收官。
 （reverse/list/graph/杂簇/负例/prune）皆组合面，无未钉机制。framing 面
 从「依赖外立案」到 43/92 plain 历六役（45-50），每役钉先行、判定面同笔
 、账内分列。**待用户令：役51（reverse + list + graph 族）**。
+
+### 8.101 役51 开工钉：@reverse 反扫臂 + list pattern 双臂（2026-10-01；graph 族 #t0046-50 + tg010 移役52——named-graph 递归臂独立成批）
+
+- **@reverse 臂**（REC 语义 = flattened subjects **反扫**——扫 subject map
+  中正性质 rev_prop 含指向 id 的 reference 者，非 IR 的 reverse_props 面；
+  帧侧读 frame_node.reverse_props（`@reverse` 字面键与别名 term（t0029
+  "excludes"）同汇流）；产出 = output.reverse_props.push((rev_prop, 配得
+  数组))，递归 embedded=true、父位 = 新 Values(arr) 变体；环检测照栈
+  （t0028 Sub2.includes→Sub1 出引用 oracle）。空反扫恒加空数组（REC
+  字面；无 oracle 面，收官复核时校）。
+- **list 匹配臂**（t0056-58 定音）：**any-item-any-pattern**——节点值位
+  List 与帧 pattern List 逐项交叉，任一项配（值字面精确/值 pattern/
+  node pattern 递归/通配）即配；**整表输出不滤**（t0057 双项表全形 oracle）。
+  非配性质走缺位发射 null。零配节点 ⇒ 全出局（t0058 `@graph:[]`）。
+- **list invoke 臂**（t0055 定音）：逐项处理——node ref 递归嵌（子帧 =
+  帧 list pattern 首值，缺 ⇒ 合成空帧——"If frame does not exist, create
+  a new frame"；父位 = 新输出数组），值项收（四 oracle 无滤表面），
+  装配 List(out_items) 原位回填。
+- 本批判定面 = **#t0028/29 + #t0055-58**（6 例）。
+
+### 8.102 役51 落成（2026-10-02；用户令「继续 加油 提交」——提交=26d646e，后开役51）

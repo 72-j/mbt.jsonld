@@ -141,6 +141,8 @@ fn frame_register(
 priv enum FrameParent {
   Top(Array[ExpandedValue])
   Prop(ExpandedNode, String)
+  /// @reverse 配得数组 / list 递归输出数组（§8.101）
+  Values(Array[ExpandedValue])
 }
 
 ///|
@@ -164,6 +166,7 @@ fn frame_parent_add(parent : FrameParent, value : ExpandedValue) -> Unit {
   match parent {
     Top(arr) => arr.push(value)
     Prop(node, property) => frame_output_add(node, property, value)
+    Values(arr) => arr.push(value)
   }
 }
 
@@ -409,6 +412,34 @@ fn frame_property_matches(
   }
   for pattern in patterns {
     match pattern {
+      ExpandedValue::List(patterns_in_list, ..) => {
+        // list pattern 臂（§8.101——t0056-58 any-item-any-pattern 定音；
+        // 整表输出不滤）。list-vs-list 交叉，任项配即配
+        for item in values {
+          match item {
+            ExpandedValue::List(items, ..) => {
+              let mut list_matched = false
+              for one_pattern in patterns_in_list {
+                for listitem in items {
+                  if frame_list_item_matches(
+                      state, one_pattern, listitem, require_all,
+                    ) {
+                    list_matched = true
+                    break
+                  }
+                }
+                if list_matched {
+                  break
+                }
+              }
+              if list_matched {
+                return true
+              }
+            }
+            _ => ()
+          }
+        }
+      }
       ExpandedValue::Value(pattern_lit) =>
         // 串/词形 pattern = 精确值 pattern（t0036：v/t/l 全等）
         for item in values {
@@ -635,6 +666,46 @@ fn frame_value_kept(
           }
         Some(_) => true
       }
+  }
+}
+
+///|
+/// list 项配（§8.101——值字面精确/值 pattern/node pattern 递归/通配）
+fn frame_list_item_matches(
+  state : FrameState,
+  pattern : ExpandedValue,
+  listitem : ExpandedValue,
+  require_all : Bool,
+) -> Bool {
+  match pattern {
+    ExpandedValue::Value(pattern_lit) =>
+      match listitem {
+        ExpandedValue::Value(lit) => frame_literal_matches(pattern_lit, lit)
+        _ => false
+      }
+    ExpandedValue::Node(pattern_node) => {
+      if frame_is_value_pattern(pattern_node) {
+        match listitem {
+          ExpandedValue::Value(lit) =>
+            frame_value_pattern_matches(pattern_node, lit)
+          _ => false
+        }
+      } else if frame_is_wildcard_pattern(pattern_node) {
+        true
+      } else {
+        match listitem {
+          ExpandedValue::Node(ref_node) =>
+            match ref_node.id {
+              Some(ref_id) =>
+                !frame_matching(state, [ref_id], pattern_node, require_all)
+                .is_empty()
+              None => false
+            }
+          _ => false
+        }
+      }
+    }
+    ExpandedValue::List(_, ..) => false
   }
 }
 
@@ -880,9 +951,51 @@ fn frame_invoke(
                     frame_output_add(output, property, item)
                   }
                 }
-              ExpandedValue::List(_, ..) =>
-                // list 位骨架：整体拷贝（list 内 pattern 递归——t0055-58 批）
-                frame_output_add(output, property, item)
+              ExpandedValue::List(items, ..) => {
+                // list 位（§8.101——REC 逐项：ref 递归嵌（子帧 = 帧 list
+                // pattern 首值，缺 ⇒ 合成空帧）；值项收；t0055-58）
+                let list_patterns : Array[ExpandedValue] = match
+                    frame_property_values(frame_node, property) {
+                  Some(fvs) =>
+                    match fvs.get(0) {
+                      Some(ExpandedValue::List(ps, ..)) => ps
+                      _ => []
+                    }
+                  None => []
+                }
+                let out_items : Array[ExpandedValue] = []
+                for listitem in items {
+                  match listitem {
+                    ExpandedValue::Node(ref_node) =>
+                      match ref_node.id {
+                        Some(ref_id) => {
+                          let sub_frame : ExpandedNode = match list_patterns.get(
+                              0,
+                            ) {
+                            Some(ExpandedValue::Node(pattern)) => pattern
+                            _ => frame_empty_pattern()
+                          }
+                          let saved_embedded = state.embedded
+                          state.embedded = true
+                          frame_invoke(
+                            state,
+                            [ref_id],
+                            sub_frame,
+                            Values(out_items),
+                          )
+                          state.embedded = saved_embedded
+                        }
+                        None => ()
+                      }
+                    _ => out_items.push(listitem)
+                  }
+                }
+                frame_output_add(
+                  output,
+                  property,
+                  ExpandedValue::List(out_items, index=None),
+                )
+              }
             }
           }
         }
@@ -942,6 +1055,50 @@ fn frame_invoke(
               index: None,
             }),
           )
+        }
+        // @reverse 臂（§8.101——flattened subjects 反扫：正性质 rev_prop
+        // 含指向 id 之 reference 者入配得数组；帧侧 reverse_props 汇流
+        // 字面键与别名 term——t0028/29）
+        let reverse_subjects = subject_map.keys().collect()
+        reverse_subjects.sort()
+        for rev_pair in frame_node.reverse_props {
+          let rev_prop = rev_pair.0
+          let sub_frame : ExpandedNode = match rev_pair.1.get(0) {
+            Some(ExpandedValue::Node(pattern)) => pattern
+            _ => frame_empty_pattern()
+          }
+          let rev_items : Array[ExpandedValue] = []
+          for other_id in reverse_subjects {
+            if other_id == id {
+              continue
+            }
+            match subject_map.get(other_id) {
+              Some(other_node) => {
+                let mut points = false
+                for v in frame_node_values(other_node, rev_prop) {
+                  match v {
+                    ExpandedValue::Node(ref_node) =>
+                      match ref_node.id {
+                        Some(ref_id) =>
+                          if ref_id == id {
+                            points = true
+                          }
+                        None => ()
+                      }
+                    _ => ()
+                  }
+                }
+                if points {
+                  let saved_embedded = state.embedded
+                  state.embedded = true
+                  frame_invoke(state, [other_id], sub_frame, Values(rev_items))
+                  state.embedded = saved_embedded
+                }
+              }
+              None => ()
+            }
+          }
+          output.reverse_props.push((rev_prop, rev_items))
         }
         frame_parent_add(parent, ExpandedValue::Node(output))
         let _ = state.embed_stack.pop()
