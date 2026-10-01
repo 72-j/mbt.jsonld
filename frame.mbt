@@ -47,7 +47,24 @@ fn frame_subject_map(state : FrameState) -> Map[String, ExpandedNode] {
     let merged : Map[String, ExpandedNode] = Map([])
     for _, nodes in state.graph_map {
       for id, node in nodes {
+        // 最全者胜（跨图并集——t0048 根因：外层裸壳（默认图）先入，
+        // 同 id 图内容全节点被 first-wins 弃 ⇒ merge 面丢 term）
+        let existing = match merged.get(id) {
+          Some(e) => e
+          None => node
+        }
+        // fullness 判据不含 graph 位（t0048 探针定音——外层裸壳持 @graph
+        // 指针被误判全 ⇒ 图内容全节点输不过；内容 = types/properties/
+        // included）
+        let existing_full = !existing.types.is_empty() ||
+          !existing.properties.is_empty() ||
+          existing.included is Some(_)
+        let node_full = !node.types.is_empty() ||
+          !node.properties.is_empty() ||
+          node.included is Some(_)
         if !merged.contains(id) {
+          merged[id] = node
+        } else if !existing_full && node_full {
           merged[id] = node
         }
       }
@@ -83,23 +100,8 @@ fn frame_register(
       value
     }
     ExpandedValue::Node(node) => {
-      // named graph 内容先注册（内容节点属以其 @id 命名的图）
-      match node.graph {
-        Some(items) => {
-          let graph_id = match node.id {
-            Some(id) => id
-            None => frame_fresh_bnode(state)
-          }
-          for item in items {
-            let _ = frame_register(state, graph_id, item)
-          }
-        }
-        None => ()
-      }
-      // 自身注册**先于下走**（后向边勘定——tg003 根因：后向 reference 在
-      // 祖先自注册前递归，把裸引用抢注进图字典，first-wins 随即弃真节点
-      // ⇒ subject map 空壳、匹配全空）。先注册真节点，后向边命中 contains
-      // 即跳过；F2 预合并已保证同 id 全节点单点
+      // 自身 id 先铸（t0049 oracle 定音——无 id 的图承载节点：图名**复用
+      // 自身 id** 一枚，不另铸图名）
       let self_id = match node.id {
         Some(id) =>
           if id == EXPLICIT_NULL_ID {
@@ -109,6 +111,23 @@ fn frame_register(
           }
         None => frame_fresh_bnode(state)
       }
+      // named graph 内容注册（内容节点属以其 @id 命名的图）
+      match node.graph {
+        Some(items) => {
+          let graph_id = match node.id {
+            Some(id) => id
+            None => self_id
+          }
+          for item in items {
+            let _ = frame_register(state, graph_id, item)
+          }
+        }
+        None => ()
+      }
+      // 自身注册**先于性质下走**（后向边勘定——tg003 根因：后向
+      // reference 在祖先自注册前递归，把裸引用抢注进图字典，first-wins
+      // 随即弃真节点 ⇒ subject map 空壳、匹配全空）。先注册真节点，后向
+      // 边命中 contains 即跳过；F2 预合并已保证同 id 全节点单点
       let nodes = match state.graph_map.get(graph_name) {
         Some(existing) => existing
         None => {
