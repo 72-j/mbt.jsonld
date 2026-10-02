@@ -1176,11 +1176,18 @@ fn check_key_scheme_collision(
               Some(td_iri) => {
                 let rest = key[at + 1:].to_owned()
                 if td_iri + rest != pred {
-                  return Err(
-                    JsonLdError::InvalidContext(
-                      "scheme collides with term name",
-                    ),
-                  )
+                  // 发射词自洽豁免（役55 t0010 裁定——spec §8.127）：键词
+                  // 本身即在册 term 键 ⇒ 发射自洽于 term 查找序（term 命中
+                  // 先于 CURIE 检查）；套件正例裁决 > REC 字面混淆错
+                  // （jsonld.js compact/frame 双错与套件正例相悖，多实现
+                  // 裁法 = 键在册放行）。te002 键非 term 键不受扰
+                  if !active.terms.contains(key) {
+                    return Err(
+                      JsonLdError::InvalidContext(
+                        "scheme collides with term name",
+                      ),
+                    )
+                  }
                 }
               }
               None => ()

@@ -634,7 +634,7 @@ expand_standard/to_rdf 手写钩子），**不是模型 vs 引擎**——J2/J3 �
 | fromRdf | 54 | ❌ 未实现 | ——（§8.39） |
 | html | 50 | ❌ 未实现 | ——（§8.39） |
 | remote-doc | 18 | ⭕ 依赖外 | ——（§8.39：HTTP fetch 面） |
-| framing | 92（正 89 / 负 3，官方套件在仓 @ 3bf782ba） | 🚧 **91/92 plain**（役54 @included 帧臂 tin 三连 + 收口三连 t0064/68/18；deferred 1 = t0010 张力案在册 §8.124） | suite_frame_test pin（91+1=92 闭合）+ canonical 直比 + bnode 兜底 |
+| framing | 92（正 89 / 负 3，官方套件在仓 @ 3bf782ba） | ✅ **92/92 全 plain**（役55 t0010 张力案裁定收官——发射词自洽豁免 + term 键同指豁免，§8.127；deferred 0） | suite_frame_test pin（92+0=92 闭合）+ canonical 直比 + bnode 兜底 |
 | 对账三件套 | —— | ✅ 62/62 | interface_gate（表 handler↔mock）+ gen_gate（重生成逐字节）+ j4_reconcile（路由/步骤/iri_rules 行为+值级） |
 | 判定器自检 | —— | ✅ 7 件 | tordf_judge_test（转义/解析/同构语义正反例 + 套件文件自同构） |
 | 预载通道 | —— | ✅ | loader_preload_test（BFS 预载 + join 键一致） |
@@ -2920,3 +2920,21 @@ len 719/736 近距差的缺口正是此臂。88/92（88+4=92 闭合）；全仓 
 
 **#t0064/#t0068/#t0018 三连真绿，88/92→91/92 plain**（91+1=92 闭合）；
 全仓 453/453。**余 t0010 一例**（§8.124 张力案——多实现取证独立一役）。
+
+**§8.127 役55 t0010 张力案裁定——发射词自洽豁免（2026-10-03）**：证据链
+补全：①REC 术语定义步（api §4.1.2）——无 @id 冒号 term 的 IRI 映射 =
+IRI 展开该 term；②IRI 展开步（§5.2 + changes 注记）——colon 有形 IRI
+且 prefix 非在册 term ⇒ 返回原值（自映射，jsonld.js 同）；③prefix flag
+规则（§4.1.2 步 13.10）+ IRI 压缩末步混淆错（§8.2）照判 t0010 须错——
+**jsonld.js compact/frame() 双双同错**（oracle 复证），与套件正例直接
+相悖。**裁定（oracle > 字面 + 最小爆炸半径）**：撞名词恰为**在册 term
+键** ⇒ 放行（发射自洽于 term 查找序——键重读命中 term 先于 CURIE 检查）；
+te002 的 tag 长词非 term 键不受扰（compact 套件 66/66 复证负例仍拦）。
+**实现两件**：①check_key_scheme_collision 加 `active.terms.contains(key)`
+豁免；②**term 键同指豁免**——帧展开 concat IRI vs 输入键自映射 IRI 的
+错位残差（preserve null 误发于 http://…creator）：FrameState 携压缩词表
+（term 键 → IRI），缺位发射 `already` 判定加「output 键为在册 term 键且
+映射 = 帧性质 IRI ⇒ 同指已在册」。
+
+**#t0010 真绿——92/92 全 plain（92+0=92 闭合），framing 套件收官**；
+全仓 453/453。役45→55 累计：0 → 92/92。

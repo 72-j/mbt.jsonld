@@ -56,6 +56,10 @@ async test "framing suite harness: manifest-driven buckets" {
     // 无条件臂 / 缺位注入）；t0068 @merged 真并集（逐位并替整节点替换，
     // 图序排序迭代）；t0018 帧无 @context ⇒ compaction context 空 map
      "#t0064", "#t0068", "#t0018",
+    // 役55 t0010 张力案裁定（spec §8.127——发射词自洽豁免：撞名词=在册
+    // term 键放行；REC 字面混淆错与套件正例相悖，oracle > 字面 + 键在册
+    // 自洽于 term 查找序；te002 键非 term 键不受扰）
+     "#t0010",
   ]
   let deferred : Array[String] = []
   let plain : Array[String] = []
@@ -143,8 +147,8 @@ async test "framing suite harness: manifest-driven buckets" {
       deferred.push(id)
     }
   }
-  assert_eq(deferred.length(), 1)
-  assert_eq(plain.length(), 91)
+  assert_eq(deferred.length(), 0)
+  assert_eq(plain.length(), 92)
 }
 
 ///|

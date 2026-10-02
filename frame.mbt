@@ -30,6 +30,9 @@ priv struct FrameState {
   /// @last 前嵌位账（键 = graph|id → (parent 节点, 性质)——替换走性质位
   /// 值组扫描）
   last_locations : Map[String, (ExpandedNode, String)]
+  /// 压缩词表（term 键 → IRI 映射；役55 t0010 缺位发射「term 键同指」豁免
+  /// 的判定面——帧 document 构造，debug 镜像可空表）
+  compaction_terms : Map[String, String]
   mut probe : String?
 }
 
@@ -1488,9 +1491,22 @@ fn frame_invoke(
             }
             continue
           }
-          let already = match frame_property_values(output, property) {
+          let mut already = match frame_property_values(output, property) {
             Some(existing) => !existing.is_empty()
             None => false
+          }
+          // term 键同指豁免（役55 t0010——帧展开 concat IRI vs 输入键自
+          // 映射 IRI：output 键为在册 term 键且其 IRI 映射 = 帧性质 IRI
+          // ⇒ 同指已在册，不按缺位发 @preserve null）
+          if !already {
+            for out_pair in output.properties {
+              if !out_pair.1.is_empty() {
+                match state.compaction_terms.get(out_pair.0) {
+                  Some(term_iri) => if term_iri == property { already = true }
+                  None => ()
+                }
+              }
+            }
           }
           if already {
             continue
@@ -1796,6 +1812,14 @@ pub fn frame_document(
     Ok(context) => context
     Err(e) => return Err(e)
   }
+  // 压缩词表（term 键 → IRI；缺位发射 term 键同指豁免判定面——役55 t0010）
+  let compaction_terms : Map[String, String] = Map([])
+  for term_name, term_definition in active.terms {
+    match term_definition.iri {
+      Some(iri) => compaction_terms[term_name] = iri
+      None => ()
+    }
+  }
   let state : FrameState = {
     graph_name: if has_top_graph {
       "@default"
@@ -1808,6 +1832,7 @@ pub fn frame_document(
     embed_stack: [],
     embedded_map: Map([]),
     last_locations: Map([]),
+    compaction_terms,
     probe: None,
   }
   // 输入 bnode 重铸号（先于注册——tp021/t0015 面）
@@ -2028,6 +2053,7 @@ pub fn frame_debug(
     embed_stack: [],
     embedded_map: Map([]),
     last_locations: Map([]),
+    compaction_terms: Map([]),
     probe: Some(""),
   }
   let relabel_seen : Map[String, String] = Map([])
