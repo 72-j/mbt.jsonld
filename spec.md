@@ -2981,3 +2981,44 @@ te002 的 tag 长词非 term 键不受扰（compact 套件 66/66 复证负例仍
   先对旗后开探。
 - 役次索引：J6（compact 31 役）→ J5（framing 役45-55）→ 役56（flatten
   收官）。逐役勘定见 §8.41-§8.128。
+
+**§8.130 役57 fromRDF 开工钉（2026-10-03；用户令两钉先于开工）**：
+
+**钉一：输入/输出**
+- **输入** = N-Quads 文档文本（RDF dataset 序列化——官方套件 54 例输入全
+  .nq：正 52 + 负 2）。**解析面择一（首役首裁）**：a) 升级判定器迷你
+  解析器 parse_nquads（tordf_judge_test.mbt 测试件 → 生产件——词面状态
+  机已覆盖 IRI/bnode/literal/转义/hex/lang/datatype 全谱，需验 graph
+  标签位并移包出测试伪包）；b) 跨仓借 src/ttl/gen_nquads 生成解析器
+  （§8.3 边界扩展——跨仓依赖首例）。**推荐 a**：单包自足、判定器与生产
+  件同源互证（判定器继续为 toRDF 面服务，生产件从其复制派生）。
+- **输出** = 展开且展平形（REC fromRdf：节点对象**数组**——每唯一
+  subject 一员、无 context、非压缩形；named graph = 节点对象 **@graph
+  位**）。pub 面 +1（`from_rdf_document(text, options)`——与
+  expand/flatten/compact/frame 同层 API 操作）。
+- **构建规则**（REC §RDF-to-Object-Conversion + Generate Node Map）：
+  subject → @id；`rdf:type` → @type（useRdfType=true 例外：保留属性形）；
+  literal → @value（xsd:string 剥 datatype、langtag 加 @language；
+  useNativeTypes=true → integer/double/decimal/boolean 还原 native 词
+  形）；IRI/bnode object → {@id} 引用；rdf:first/rest 链 → @list 还原
+  （链序 = 值序）；**值序 = triple 文档序、节点序 = subject 首见序**。
+- **选项四族**（套件实证）：{} ×23 / specVersion ×19 / useNativeTypes ×3
+  / useRdfType ×1 / rdfDirection i18n-datatype+compound-literal ×8
+  （non-normative 两族单列）。
+
+**钉二：与 toRDF 的逆关系账——非严格逆，损点清单**：
+1. **bnode 标签漂移**：toRDF 铸新签（_:bN），fromRDF 保标签原样 ⇒ 往返
+   后标签不同（结构同构、标签互异——判定须双射兜底）。
+2. **字符串强转 vs @id 引用塌缩**：JSON "http://x"（字符串值）与
+   {@id:"http://x"}（引用）toRDF 同为 IRI triple——fromRDF 一律还原
+   {@id}，强转信息丢（有损主点）。
+3. **xsd:string 显式 datatype 剥除**（REC 判 plain 与 xsd:string 同形）。
+4. **数值词形归一**：1.0/1.00 词形变体在 RDF 词形面归一；useNativeTypes
+   下还原 native 形。
+5. **序的可逆性**：属性/值序 = triple 文档序 ⇔ toRDF 保序发射时往返可
+   持；JSON 原键序不在保内（展开后键序本就归一）。
+6. **无损往返位**：named graph ↔ @graph 位 ✓；rdf:type ↔ @type ✓
+   （useRdfType=false 缺省）；@list ↔ rdf:first/rest 链 ✓；langtag/
+   非字符串 datatype ✓。
+- **判定面** = 官方 54 例对拍（canonical 直比 + bnode 双射兜底同族）；
+  8 例 rdfDirection 非 normative 单列（impl-specific 语义）。
