@@ -840,6 +840,104 @@ fn nq_has_graph(node : ExpandedNode) -> Bool {
 /// - **@reverse 反转注入**（#t0037/#t0045/#t0046 oracle——flatten 为反转形，
 ///   与 expand t0042 保形分叉）：reverse 值节点作主体、注入 (pred, 本体引用)
 ///   至其成员对列表。
+
+///|
+/// 成员值级并集（役56 tin06——同 id 全形再现并入既有成员：types 未见追加、
+/// 属性同键值级去重续 append（JsonValue 结构等值）、键缺失即新建。**只在
+/// visited 命中且全形时调用**——裸引用/环再入不走此臂）
+fn flatten_member_merge(
+  state : FlattenState,
+  scope : String,
+  term : String,
+  node : ExpandedNode,
+) -> Unit {
+  let own_scope = if nq_has_graph(node) {
+    "" // 图载体恒顶层成员（与 flatten_walk_node own_scope 同规）
+  } else {
+    scope
+  }
+  let lists = match state.members.get(own_scope) {
+    Some(lists) => lists
+    None => return
+  }
+  // 定位成员（@id 对 = String(term)）
+  let mut target : Array[(String, JsonValue)]? = None
+  for entry in lists {
+    if entry.length() > 0 {
+      match entry[0] {
+        ("@id", JsonValue::String(id_word)) =>
+          if id_word == term {
+            target = Some(entry)
+          }
+        _ => ()
+      }
+    }
+  }
+  let member_pairs = match target {
+    Some(pairs) => pairs
+    None => return
+  }
+  // types 未见追加（"@type" 对缺省 = 末位新建；canonical 键序归一不挑位）
+  if node.types.length() > 0 {
+    let mut type_array : Array[JsonValue]? = None
+    for member_entry in member_pairs {
+      if member_entry.0 == "@type" {
+        match member_entry.1 {
+          JsonValue::Array(values) => type_array = Some(values)
+          _ => ()
+        }
+      }
+    }
+    match type_array {
+      Some(values) => {
+        let seen_t : Map[String, Bool] = Map([])
+        for v in values {
+          match v {
+            JsonValue::String(word) => seen_t[word] = true
+            _ => ()
+          }
+        }
+        for t in node.types {
+          if !seen_t.contains(t) {
+            values.push(JsonValue::String(t))
+            seen_t[t] = true
+          }
+        }
+      }
+      None => {
+        let values : Array[JsonValue] = []
+        for t in node.types {
+          values.push(JsonValue::String(t))
+        }
+        member_pairs.push(("@type", JsonValue::Array(values)))
+      }
+    }
+  }
+  // 属性：同键值级去重续 append（@value/@id 渲染形结构等值判重）；缺键新建
+  for pair in node.properties {
+    let rendered = flatten_vals(state, pair.1, own_scope)
+    let mut slot : Array[JsonValue]? = None
+    for member_pair in member_pairs {
+      if member_pair.0 == pair.0 {
+        match member_pair.1 {
+          JsonValue::Array(values) => slot = Some(values)
+          _ => ()
+        }
+      }
+    }
+    match slot {
+      Some(values) =>
+        for v in rendered {
+          if !values.contains(v) {
+            values.push(v)
+          }
+        }
+      None => member_pairs.push((pair.0, JsonValue::Array(rendered)))
+    }
+  }
+}
+
+///|
 fn flatten_walk_node(
   state : FlattenState,
   node : ExpandedNode,
@@ -849,6 +947,14 @@ fn flatten_walk_node(
   let visit_key = "\{scope}|\{term}"
   let is_graph = nq_has_graph(node)
   if state.visited.contains(visit_key) {
+    // 全形再现 = 成员值级并集（役56 tin06 勘定——REC Generate Node Map
+    // 语义：同 id 每次出现都并入节点图成员；visited 早退只应吞裸引用/
+    // 环再入。included 先行序下后到全形携带的属性不得整弃）
+    if node.types.length() > 0 ||
+      node.properties.length() > 0 ||
+      node.reverse_props.length() > 0 {
+      flatten_member_merge(state, scope, term, node)
+    }
     return term
   }
   state.visited[visit_key] = true
@@ -1032,6 +1138,122 @@ pub fn flatten_document(
   text : String,
   options : JsonLdOptions,
 ) -> Result[JsonValue, JsonLdError] {
+  let top = match flatten_core(text, options) {
+    Ok(top) => top
+    Err(e) => return Err(e)
+  }
+  let out : Array[JsonValue] = []
+  for pairs in top {
+    out.push(JsonValue::Object(pairs))
+  }
+  Ok(JsonValue::Array(out))
+}
+
+///|
+/// flatten + compaction 合成（REC flatten(input, context)——context 非
+/// null ⇒ 展平后以该 context 压缩；役56 t0044。成员**再展开**（flatten
+/// 展开形幂等——绝对 IRI 键/引用/@value 形不变形）后走压缩正机
+/// （compact_node_jv）；wrap 三钉同 compact_document，compactArrays=false
+/// 单节点也 @graph 包裹（#t0091 同款）。
+/// **pub 理由 = 套件 harness 通道**（suite_flatten_test 为 blackbox 伪包
+/// 只见 pub 面——内部无第二调用方；非通用 API 承诺，暴露面随 harness
+/// 裁量收缩）
+pub fn flatten_document_with_context(
+  text : String,
+  context_text : String,
+  options : JsonLdOptions,
+) -> Result[JsonValue, JsonLdError] {
+  let top = match flatten_core(text, options) {
+    Ok(top) => top
+    Err(e) => return Err(e)
+  }
+  let ctx_doc = match parse_json(context_text) {
+    Ok(doc) => doc
+    Err(e) => return Err(e)
+  }
+  let inner : JsonValue = match ctx_doc {
+    JsonValue::Object(pairs) => {
+      let mut found : JsonValue? = None
+      for pair in pairs {
+        if pair.0 is "@context" {
+          found = Some(pair.1)
+        }
+      }
+      match found {
+        Some(v) => v
+        None => ctx_doc
+      }
+    }
+    _ => ctx_doc
+  }
+  let active = match
+    ContextProcessor::process_context(
+      StandardExpander::{ },
+      initial_context(options),
+      inner,
+      ContextFlags::element(),
+      options,
+    ) {
+    Ok(context) => context
+    Err(e) => return Err(e)
+  }
+  // 成员再展开 + 逐节点压缩
+  let expander = StandardExpander::{ }
+  let expansion_active = initial_context(options)
+  let compacted : Array[JsonValue] = []
+  for member_pairs in top {
+    let element = JsonValue::Object(member_pairs)
+    match
+      StandardExpander::expand_object(
+        expander,
+        expansion_active,
+        element,
+        None,
+        options,
+      ) {
+      Ok(Some(ExpandedValue::Node(member_node))) =>
+        match compact_node_jv(member_node, active, options) {
+          Ok(jv) => compacted.push(jv)
+          Err(e) => return Err(e)
+        }
+      Ok(_) => ()
+      Err(e) => return Err(e)
+    }
+  }
+  // wrap 三钉（compact_document 同款——compactArrays=false 单节点也包裹）
+  let body_pairs : Array[(String, JsonValue)] = []
+  if compacted.length() == 1 && options.compact_arrays {
+    match compacted[0] {
+      JsonValue::Object(pairs) =>
+        for pair in pairs {
+          body_pairs.push(pair)
+        }
+      other => {
+        let graph_key = compact_iri_word(
+          "@graph", true, false, true, active, options,
+        )
+        body_pairs.push((graph_key, JsonValue::Array([other])))
+      }
+    }
+  } else if compacted.length() == 0 {
+    return Ok(JsonValue::Object([]))
+  } else {
+    let graph_key = compact_iri_word(
+      "@graph", true, false, true, active, options,
+    )
+    body_pairs.push((graph_key, JsonValue::Array(compacted)))
+  }
+  body_pairs.insert(0, ("@context", inner))
+  Ok(JsonValue::Object(body_pairs))
+}
+
+///|
+/// flatten 核心（展开 → F2 同 id 预合并 → 走图）——渲染成员对列；输出
+/// 形分叉（直出/带 context 压缩）由入口裁定
+fn flatten_core(
+  text : String,
+  options : JsonLdOptions,
+) -> Result[Array[Array[(String, JsonValue)]], JsonLdError] {
   let values = match expand_top_values(text, options) {
     Ok(v) => v
     Err(e) => return Err(e)
@@ -1060,15 +1282,10 @@ pub fn flatten_document(
   for value in values {
     let _ = flatten_walk_value(state, value, "")
   }
-  let top = match state.members.get("") {
-    Some(arr) => arr
-    None => []
+  match state.members.get("") {
+    Some(arr) => Ok(arr)
+    None => Ok([])
   }
-  let out : Array[JsonValue] = []
-  for pairs in top {
-    out.push(JsonValue::Object(pairs))
-  }
-  Ok(JsonValue::Array(out))
 }
 
 ///|

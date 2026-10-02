@@ -15,8 +15,10 @@ async test "flatten suite harness: manifest-driven buckets" {
     Some(@jsonld.JsonValue::Array(entries)) => entries
     _ => fail("manifest sequence missing")
   }
-  // J5 flatten 收官（2026-09-29）：56/58 plain（正 55 + 负 1）——deferred 2
-  // 在册：t0044 = compact 前置（compactArrays 触发 context 保留+压缩形，随
+  // J5 flatten 收官（2026-09-29 役31：56/58 → 役56：58/58 全 plain——
+  // deferred 清零。t0044/tin06 役56 收复（spec §8.128）：t0044 = flatten+
+  // compaction 合成通道、tin06 = 同 id 全形再现成员值级并集。原勘注：
+  // t0044 = compact 前置（compactArrays 触发 context 保留+压缩形，随
   // compaction 面解）、tin06 = @nest 深研（author 包装节点被 data 值吸收——
   // §8.39）。本批转正 4 例：t0038/t0045 = bnode 双射兜底件、t0046 = 相对
   // IRI 保形（flatten_term 有词面恒保留）、te001 = colliding indexes 检出
@@ -29,6 +31,10 @@ async test "flatten suite harness: manifest-driven buckets" {
     "#t0034", "#t0035", "#t0036", "#t0037", "#t0038", "#t0039", "#t0040", "#t0041",
     "#t0042", "#t0043", "#t0045", "#t0046", "#t0047", "#t0048", "#t0049", "#tin01",
     "#tin02", "#tin03", "#tin04", "#tin05", "#tli01", "#tli02", "#tli03", "#te001",
+    // 役56 收官二连（spec §8.128）：tin06 = 同 id 全形再现成员值级并集
+    // （visited 早退只应吞裸引用/环）；t0044 = flatten+compaction 合成
+    // 通道（REC flatten(input, context)；compactArrays=false 数组保形）
+     "#tin06", "#t0044",
   ]
   let deferred : Array[String] = []
   let plain : Array[String] = []
@@ -73,7 +79,20 @@ async test "flatten suite harness: manifest-driven buckets" {
         Err(_) => ()
       }
       let options = options_for(entry, context_map)
-      match @jsonld.flatten_document(input_text, options) {
+      // context 字段接线（役56 t0044——flatten(input, context) 合成面）：
+      // 清单带 context 文件 ⇒ 走 flatten+compaction 合成入口
+      let flatten_result = match json_string_get(entry, "context") {
+        Some(context_path) => {
+          let context_text = @utf8.decode(
+            @fs.read_file("./src/jsonld/.rdf-tests/json-ld-api/" + context_path).binary(),
+          )
+          @jsonld.flatten_document_with_context(
+            input_text, context_text, options,
+          )
+        }
+        None => @jsonld.flatten_document(input_text, options)
+      }
+      match flatten_result {
         Err(_) => if !is_neg { fail("\{id}: 正例 flatten 报错") }
         Ok(flattened) =>
           if is_neg {
@@ -111,8 +130,8 @@ async test "flatten suite harness: manifest-driven buckets" {
       deferred.push(id)
     }
   }
-  assert_eq(deferred.length(), 2)
-  assert_eq(plain.length(), 56)
+  assert_eq(deferred.length(), 0)
+  assert_eq(plain.length(), 58)
 }
 
 ///|

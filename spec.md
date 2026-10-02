@@ -629,8 +629,8 @@ expand_standard/to_rdf 手写钩子），**不是模型 vs 引擎**——J2/J3 �
 |---|---|---|---|
 | expansion | 385（正 276 / 负 109） | ✅ **385/385 全 plain** | suite_expand_test pin（deferred=0）+ 值级对拍 |
 | toRDF | 467（正 345 / 负 106 / 句法 16） | ✅ **467/467 全 plain** | suite_tordf_test pin + 判定器（迷你 N-Quads 解析 + 集合同构） |
-| compact | 246（正 229 / 负 17） | 🚧 **245/246 plain**（正 228 + 负 17 全负例入 plain）/ deferred 1 在册 | suite_compact_test pin（deferred=1）+ canonical_for_suite 直比 + bnode 双射兜底 |
-| flatten | 58（正 57 / 负 1） | ✅ **56/58 plain**（正 55 + 负 1）/ deferred 2 在册 | suite_flatten_test pin（deferred=2）+ canonical_for_suite 直比 + bnode 双射兜底（isomorphic_for_suite——判定器自检四钉） |
+| compact | 246（正 229 / 负 17） | 🚧 **245/246 plain**（正 228 + 负 17 全负例入 plain）/ deferred 1 = t0038（**分叉待裁 §8.91 四理由**——@index 子键前缀资格 oracle/REC 相抵待裁；用户令不施工非缺口） | suite_compact_test pin（deferred=1）+ canonical_for_suite 直比 + bnode 双射兜底 |
+| flatten | 58（正 57 / 负 1） | ✅ **58/58 全 plain**（役56 收官——tin06 成员值级并集 + t0044 flatten+compaction 合成通道；deferred 0） | suite_flatten_test pin（deferred=0）+ canonical_for_suite 直比 + bnode 双射兜底（isomorphic_for_suite——判定器自检四钉） |
 | fromRdf | 54 | ❌ 未实现 | ——（§8.39） |
 | html | 50 | ❌ 未实现 | ——（§8.39） |
 | remote-doc | 18 | ⭕ 依赖外 | ——（§8.39：HTTP fetch 面） |
@@ -2938,3 +2938,46 @@ te002 的 tag 长词非 term 键不受扰（compact 套件 66/66 复证负例仍
 
 **#t0010 真绿——92/92 全 plain（92+0=92 闭合），framing 套件收官**；
 全仓 453/453。役45→55 累计：0 → 92/92。
+
+**§8.128 役56 flatten 收官二连（2026-10-03）**：
+1. **tin06**（json.api @nest 例）：flatten 走图 visited 早退把**同 id 全形
+   再现**的属性整弃（included 先行序下 person 先物化，@nest data 吸收 id
+   后的 wrapper 携 self 第二值 + related 再现即被吞）。修 =
+   flatten_member_merge——visited 命中且全形（types/properties/reverse 任
+   非）⇒ 并入既有成员（types 未见追加、属性同键值级去重续 append，
+   JsonValue 结构等值判重；裸引用/环再入仍走早退）。**成员序 = included
+   先行物化序，与 oracle 逐位合**。
+2. **t0044**（compactArrays:false + context）：flatten_document 从未接
+   compaction（56/58 过因多数例无 context）。修 = flatten_core 抽取 +
+   **flatten_document_with_context**（REC flatten(input, context) 合成
+   语义——展平后以 context 压缩；成员再展开走压缩正机 compact_node_jv；
+   wrap 三钉同 compact_document，compactArrays=false 单节点也 @graph 包裹
+   #t0091 同款）；harness context 字段接线。pub 面 +1（.mbti 同笔）。
+
+**#tin06/#t0044 双双真绿，flatten 56/58→58/58 全 plain（deferred 清零）**；
+全仓 453/453。
+
+**§8.129 JSON-LD 正式收官账（2026-10-03）**：
+
+| 面 | 终态 | deferred |
+|---|---|---|
+| expansion | ✅ 385/385 全 plain | 0 |
+| toRDF | ✅ 467/467 全 plain | 0 |
+| compact | 🚧 245/246 | **1 = t0038（定性 = 分叉待裁 §8.91——oracle vs REC 4.2.2 的 @index 子键前缀资格分歧，非缺口非测面限；用户令「不施工」= 特例条款待裁不落码）** |
+| flatten | ✅ 58/58 全 plain | 0 |
+| framing | ✅ 92/92 全 plain | 0 |
+
+- **五面合计 1247/1248**，唯一留册 = t0038。**定性勘定（用户令三核）
+  ：留册理由 = 分叉待裁（§8.91——map 形 term 作 @index 子键前缀源，
+  oracle 与 REC 4.2.2 判据相抵，特例条款待裁）**，非「测面非缺口」
+  （§8.129 初稿误将「曾锻炼双射判定器」的测面事实当作留册理由——
+  两面向分立：测面事实在案 §8.x 双射件清单，留册理由唯 §8.91）。
+- **已实现面（expansion/toRDF/compact/flatten/framing）对账闭环**；
+  fromRDF（54）/html（50）未实现、remote-doc（18）依赖外——§8.39 缺口
+  三分类口径不变，转后续新面勘测（用户令：收官一个面，再开下一个面）。
+- **裁量原则沉淀**：①最小爆炸半径（每修只触病灶点，全量回归背书）；
+  ②oracle > 字面（套件裁决与规范字面相悖时以套件为准，证据链入册）；
+  ③探针即写即删、账实同步（清单-断言同 diff）；④镜像面（frame_debug）
+  先对旗后开探。
+- 役次索引：J6（compact 31 役）→ J5（framing 役45-55）→ 役56（flatten
+  收官）。逐役勘定见 §8.41-§8.128。
