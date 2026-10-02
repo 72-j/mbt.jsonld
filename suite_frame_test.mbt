@@ -31,6 +31,22 @@ async test "framing suite harness: manifest-driven buckets" {
     "#t0011", "#t0013", "#t0014", "#t0019", "#t0028", "#t0055", "#t0056", "#t0030",
     "#t0059", "#t0060", "#tg001", "#tg002", "#tg003", "#tg004", "#tg005", "#tg006",
     "#tg007", "#tg008", "#tg009", "#tp020", "#tp021", "#tp046", "#tp049", "#tp050",
+    // 役53 @list 模式保形批（spec §8.120——帧保形臂 @list 模式位缺失 =
+    // 空 pattern 幽灵全形嵌入；t0057 滤 I / t0058 空图）
+     "#t0057", "#t0058",
+    // 役53 键合法性门批（spec §8.121——保形臂与常规臂同规，相对键弃；
+    // "@graph" map 形帧样 subject 相对键 null 误发根因；oracle=jsonld.js
+    // 实证顶层 @graph 展开即解包图内容）
+     "#tg010",
+    // 役53 帧文法校验门批（spec §8.122——@id/@type 值域拒 bnode + @embed
+    // 词表校验；负例三连）
+     "#t0052", "#t0053", "#t0054",
+    // 役53-续三 快赢试批（spec §8.123——tra requireAll 三连 / teo embed
+    // 布尔 / t0022 @id 匹配 / t0065-67 值匹配族；再探 14 例存量机制直接
+    // 兑现——逐例试跑探针实证）
+     "#tra01", "#tra02", "#tra03", "#teo01", "#t0022", "#t0065", "#t0066", "#t0067",
+    "#t0006", "#t0007", "#t0008", "#t0012", "#t0015", "#t0016", "#t0017", "#t0020",
+    "#t0021", "#t0051", "#t0061", "#t0062", "#t0063", "#t0069", "#t0070",
   ]
   let deferred : Array[String] = []
   let plain : Array[String] = []
@@ -118,8 +134,8 @@ async test "framing suite harness: manifest-driven buckets" {
       deferred.push(id)
     }
   }
-  assert_eq(deferred.length(), 36)
-  assert_eq(plain.length(), 56)
+  assert_eq(deferred.length(), 7)
+  assert_eq(plain.length(), 85)
 }
 
 ///|

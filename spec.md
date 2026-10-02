@@ -634,7 +634,7 @@ expand_standard/to_rdf 手写钩子），**不是模型 vs 引擎**——J2/J3 �
 | fromRdf | 54 | ❌ 未实现 | ——（§8.39） |
 | html | 50 | ❌ 未实现 | ——（§8.39） |
 | remote-doc | 18 | ⭕ 依赖外 | ——（§8.39：HTTP fetch 面） |
-| framing | 92（正 89 / 负 3，官方套件在仓 @ 3bf782ba） | 🚧 **56/92 plain**（役52-续七 tp021 prune @type 位计数兑现；deferred 36 逐簇在册） | suite_frame_test pin（56+36=92 闭合）+ canonical 直比 + bnode 兜底 |
+| framing | 92（正 89 / 负 3，官方套件在仓 @ 3bf782ba） | 🚧 **85/92 plain**（役53 四批：@list 模式保形 + 键合法性门 + 帧文法校验门（负例 3 全清）+ 存量兑现快赢批 23 例；deferred 7 逐簇在册 §8.124） | suite_frame_test pin（85+7=92 闭合）+ canonical 直比 + bnode 兜底 |
 | 对账三件套 | —— | ✅ 62/62 | interface_gate（表 handler↔mock）+ gen_gate（重生成逐字节）+ j4_reconcile（路由/步骤/iri_rules 行为+值级） |
 | 判定器自检 | —— | ✅ 7 件 | tordf_judge_test（转义/解析/同构语义正反例 + 套件文件自同构） |
 | 预载通道 | —— | ✅ | loader_preload_test（BFS 预载 + join 键一致） |
@@ -2818,3 +2818,75 @@ compact 后 t-node 的 list-t 却 = [T, I]**（pre-compact 正确、post-compact
 但 Map 原表 items 仍含 I-ref——compact 某臂回读原容器的路径待查）。probe
 位追迹设施保留（生产 None 零扰动）。55/92（56-1 t0057 退册后实数以
 harness 为准）锁绿；全仓 406/406。
+
+**§8.120 役53 @list 模式保形批——幽灵勘定反转 + 修落（2026-10-02）**：
+**§8.119 假说证伪反转**——共享原数组假说不成立；病根在**帧展开保形臂**
+（expand_standard 帧旗批 §8.96 臂）：帧性质对象值一律 `expand_element`
+兜底，`{"@list":[…]}` 落节点位 @list 键即弃 → **空 pattern**——LIST 臂
+`list_patterns=[]` → synth-embed 臂全形嵌入 ⇒ 幽灵。**勘定曲折在册**：
+①先修 frame_debug 镜像才见真凶——debug 帧展开用原 options（旗 false）、
+生产用 frame_expansion=true，**追迹镜像漂移**使 §8.119「pre-compact 全对」
+结论建立在漂移镜像上（debug 走普通 @list 臂 patterns=1 正确、生产 patterns=0
+错误）；②旗存活二分三桩（LSE 入口/OBJ-@list/FRAME-EXP）落定分叉点。
+**修**：保形臂加 @list 模式位——list 对象 ⇒ List pattern（项逐个
+expand_element 保形：值对象形落 Value pattern、节点形落 Node pattern），
+同笔 frame_debug 帧展开旗对齐 frame_options（镜像勘误入册）。**t0057 滤 I
+/t0058 空图双双真绿**，56/92→**58/92 plain**（58+34=92 闭合）；探针件
+probe15/57 依约清退（frame_debug pub 入口留仓为诊断面；RESULTS 段升级
+probe_value_text List 内容直出）；全仓 405/405（407-2 探针件）。
+
+**§8.121 役53-续 键合法性门 + tg010 收口（2026-10-02）**：**§8.118
+「map 形子帧独立设计」立案降阶**——oracle 实证（jsonld.js 本地实跑
+tg010 + 展开形探针四问）：顶层 @graph 帧值展开即**解包为图内容 pattern**
+（本例双键全落空：subject 相对键弃、proof @graph 容器 term 包图后自由
+浮动弃 ⇒ 展开帧 = []⇒根 pattern 空 + 5.1 臂合成子帧全嵌）——**无需
+map 形子帧专机**，红点唯一 = **保形臂缺键合法性门**（相对键 "subject"
+存活为性质位 ⇒ 缺位 @preserve null 误发）。**修**：保形臂补
+`is_valid_absolute_iri || is_bnode_label` 门（与常规臂同规——REC
+"expanded property 为 null 即 drop"），一行收口。**#tg010 真绿**，
+58/92→**59/92 plain**（59+33=92 闭合）。oracle 证词在册：@graph map 键
+可展开者（@vocab 面）仍为图内容 pattern——map 形取形套用余义随余簇
+中真 map 形例（若有）再勘；全仓 405/405。
+
+**§8.122 役53-续二 帧文法校验门三连（2026-10-02）**：负例 t0052/53/54
+收口——**@id/@type 值域拒 bnode**（REC 帧 @id/@type 值 = valid IRI 族，
+bnode 标识符不在册 ⇒ invalid frame；t0053 教训在册：@type 数组形触发
+值 pattern 预扫，成分臂 frame_value_pattern_component 先行 continue——
+门须同落于成分臂 @type 串形分支，单点 @type 臂拦不住预扫路径）+
+**@embed 词表校验**（true/false/@always/@once/@never/@last；"@sometimes"
+⇒ invalid @embed value——§8.96 挂账「@embed 他值校验随 embed 状态机批」
+兑现）。**勘定插曲**：首跑 t0054 未拦——保形臂
+`match expand_element { Ok(Node) =>…, _ => 空 }` 把嵌套帧展开的 Err
+**吞落空臂**；修 = Ok/Err 显式分臂（Err 传播、Ok 非 Node 形仍回落空
+pattern——保形语义不变）。#t0052/53/54 三连真绿，59/92→**62/92 plain**
+（62+30=92 闭合）；全仓 405/405。
+
+**§8.123 役53-续三 存量兑现快赢批（2026-10-02）**：余簇 30 例逐例试跑
+探针（一次性，用毕即删）实证——**23 例存量机制直接兑现**：tra01-03
+（requireAll 三连）、teo01（@embed 布尔）、t0022（@id 匹配）、t0065-67
+（值/引用/list 匹配族）+ t0006/0007/0008/0012/0015（iso 兜底）/0016/
+0017/0020/0021/0051/0061/0062/0063/0069/0070——役49-52 匹配语法 + embed
+状态机的存量覆盖远超当时保守退册口径。62/92→**85/92 plain**
+（85+7=92 闭合）；全仓 405/405。
+
+**§8.124 役53-余 在册七例勘定（2026-10-02）**：
+1. **#t0010（property CURIE conflict）——规范-套件张力案**：最小复现 =
+   同 IRI 双前缀（dc0/dcterms）+ 无 @id 冒号 term（"dcterms:creator"）。
+   输入展开将冒号 term 映为**自身 IRI**（oracle=jsonld.js expand 实证
+   同形）；键压缩发射原词时触发 #te002 撞名硬错（err=scheme collides
+   with term name: dcterms:creator pred=dcterms:creator—— pred 已是
+   压缩词）。**REC 规则在册**：①term 无冒号 + IRI 尾 gen-delim ⇒
+   prefix flag 隐式 true（api spec §4.1.2 步 13.10）；②IRI scheme 匹配
+   prefix-flag-true term 且无 // 权威 ⇒ IRI confused with prefix 硬错
+   （§8.2 末步）。**照此规则 t0010 亦须错**——jsonld.js 实证：compact
+   与 frame() **双双同错**——与套件正例判直接相悖（ruby 实现待查证）。
+   裁法候选：逐字面 REC（两例皆错——te002 红套件不得动）vs
+   oracle > 字面（需多实现取证）；**独立一役**，今役不动。
+2. **#t0018**（帧无 @context 而 @graph 输出）——FAIL(err) 报错路径未勘。
+3. **#t0064**（@default in @type）——output diff（len 53/89）；@type 位
+   @default 保形批。
+4. **#t0068**（Merge @type from different graphs）——diff（197/252）；
+   合并图 @type 并集面。
+5. **#tin01-03**（@included 帧面）——flattening 面已有 @included，framing
+   算法 @included 臂（REC 步 7）未落；tin03 json.api 例 len 719/736 近平。
+   下役菜单：tin 系（@included 帧）→ t0064/68 → t0010 张力案 → t0018。

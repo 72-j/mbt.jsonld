@@ -1010,7 +1010,9 @@ fn StandardExpander::expand_object(
                         options,
                       ) {
                       Ok(ExpandedValue::Node(pattern_node)) => pattern_node
-                      _ => frame_empty_pattern()
+                      // Err 传播（役53 t0054 同款——嵌套校验错不吞）
+                      Err(e) => return Err(e)
+                      Ok(_) => frame_empty_pattern()
                     }
                   }
                 }
@@ -1034,6 +1036,14 @@ fn StandardExpander::expand_object(
       if options.frame_expansion {
         match pair.1 {
           JsonValue::Object(value_pairs) => {
+            // 键合法性门（役53 tg010——保形臂与常规臂同规：不可展开键
+            // （相对词无 base/无 term）即弃——REC "expanded property 为
+            // null 即 drop"；"@graph" map 形帧样 subject 相对键 null 误发
+            // 根因）
+            if !(is_valid_absolute_iri(expanded_key) ||
+              is_bnode_label(expanded_key)) {
+              continue
+            }
             let mut has_value_key = false
             let mut has_default_key = false
             let default_raw : Array[JsonValue] = []
@@ -1084,6 +1094,43 @@ fn StandardExpander::expand_object(
                 )
                 continue
               }
+              // @list 模式保形（t0057/58——REC Framing Grammar list
+              // pattern）：帧性质值 = list 对象 ⇒ List pattern（项逐个
+              // pattern 展开——值对象形落 Value pattern、节点形落 Node
+              // pattern），不能落节点位（@list 键在节点位即弃 = 空
+              // pattern = 幽灵全形嵌入）
+              let mut list_raw : JsonValue? = None
+              for vp in value_pairs {
+                if vp.0 is "@list" {
+                  list_raw = Some(vp.1)
+                }
+              }
+              match list_raw {
+                Some(raw_items) => {
+                  let items = match raw_items {
+                    JsonValue::Array(items) => items
+                    single => [single]
+                  }
+                  let list_pattern_items : Array[ExpandedValue] = []
+                  for item in items {
+                    match
+                      StandardExpander::expand_element(
+                        self, current, item, _active_property, options,
+                      ) {
+                      Ok(one) => list_pattern_items.push(one)
+                      Err(e) => return Err(e)
+                    }
+                  }
+                  properties.push(
+                    (
+                      expanded_key,
+                      [ExpandedValue::List(list_pattern_items, index=None)],
+                    ),
+                  )
+                  continue
+                }
+                None => ()
+              }
               // pattern 保形：正常展开，落空回落空 pattern（`{}` 通配）
               let pattern_value = match
                 StandardExpander::expand_element(
@@ -1094,7 +1141,9 @@ fn StandardExpander::expand_object(
                   options,
                 ) {
                 Ok(ExpandedValue::Node(pattern_node)) => pattern_node
-                _ => {
+                // Err 传播（役53 t0054——嵌套帧文法校验错不得被落空臂吞）
+                Err(e) => return Err(e)
+                Ok(_) => {
                   let fresh : ExpandedNode = {
                     id: None,
                     types: [],
@@ -1252,13 +1301,23 @@ fn StandardExpander::expand_object(
                   for item in items {
                     match item {
                       JsonValue::String(iri) =>
-                        match
-                          IriExpander::expand_iri(
-                            self, current, iri, true, false,
-                          ) {
-                          Ok(expanded) =>
-                            id_patterns.push(literal_of(expanded, None))
-                          Err(e) => return Err(e)
+                        if is_bnode_label(iri) {
+                          // 负例 t0052（REC 帧 @id 值域——valid IRI，
+                          // bnode 标识符不在册 ⇒ invalid frame）
+                          return Err(
+                            JsonLdError::InvalidValue(
+                              "invalid frame: @id must not include a blank node identifier",
+                            ),
+                          )
+                        } else {
+                          match
+                            IriExpander::expand_iri(
+                              self, current, iri, true, false,
+                            ) {
+                            Ok(expanded) =>
+                              id_patterns.push(literal_of(expanded, None))
+                            Err(e) => return Err(e)
+                          }
                         }
                       JsonValue::Object(_) =>
                         id_patterns.push(
@@ -1302,13 +1361,23 @@ fn StandardExpander::expand_object(
                 for item in items {
                   match item {
                     JsonValue::String(t) =>
-                      match
-                        IriExpander::expand_iri(
-                          self, type_scoped_context, t, true, true,
-                        ) {
-                        Ok(expanded) =>
-                          type_patterns.push(literal_of(expanded, None))
-                        Err(e) => return Err(e)
+                      if is_bnode_label(t) {
+                        // 负例 t0053（REC 帧 @type 值域同 @id——bnode
+                        // 标识符不在册 ⇒ invalid frame）
+                        return Err(
+                          JsonLdError::InvalidValue(
+                            "invalid frame: @type must not include a blank node identifier",
+                          ),
+                        )
+                      } else {
+                        match
+                          IriExpander::expand_iri(
+                            self, type_scoped_context, t, true, true,
+                          ) {
+                          Ok(expanded) =>
+                            type_patterns.push(literal_of(expanded, None))
+                          Err(e) => return Err(e)
+                        }
                       }
                     JsonValue::Object(_) =>
                       type_patterns.push(
@@ -1756,8 +1825,16 @@ fn StandardExpander::expand_object(
         // （⇒ invalid @embed value）随 embed 状态机批
         if options.frame_expansion && is_framing_flag_key(expanded_key) {
           match pair.1 {
-            JsonValue::String(word) =>
+            JsonValue::String(word) => {
+              // 负例 t0054（REC @embed 值域——true/false/@always/@once/
+              // @never/@last；词表外 ⇒ invalid @embed value）
+              if expanded_key is "@embed" &&
+                !(word
+                is ("true" | "false" | "@always" | "@once" | "@never" | "@last")) {
+                return Err(JsonLdError::InvalidValue("invalid @embed value"))
+              }
               properties.push((expanded_key, [literal_of(word, None)]))
+            }
             JsonValue::Bool(flag) =>
               properties.push(
                 (
@@ -5278,9 +5355,19 @@ fn StandardExpander::frame_value_pattern_component(
     JsonValue::Null => Ok(None)
     JsonValue::String(word) =>
       if key == "@type" {
-        match IriExpander::expand_iri(self, active, word, true, true) {
-          Ok(expanded) => Ok(Some(literal_of(expanded, None)))
-          Err(e) => Err(e)
+        // 负例 t0053（值 pattern 预扫路径的 @type 成分同帧文法值域——
+        // bnode 标识符不在册 ⇒ invalid frame）
+        if is_bnode_label(word) {
+          Err(
+            JsonLdError::InvalidValue(
+              "invalid frame: @type must not include a blank node identifier",
+            ),
+          )
+        } else {
+          match IriExpander::expand_iri(self, active, word, true, true) {
+            Ok(expanded) => Ok(Some(literal_of(expanded, None)))
+            Err(e) => Err(e)
+          }
         }
       } else {
         Ok(Some(literal_of(word, None)))

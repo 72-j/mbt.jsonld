@@ -1227,7 +1227,12 @@ fn frame_invoke(
                 let out_items : Array[ExpandedValue] = []
                 frame_trace(
                   state,
-                  "  LIST " + property + " patterns=" + list_patterns.length().to_string() + " items=" + items.length().to_string(),
+                  "  LIST " +
+                  property +
+                  " patterns=" +
+                  list_patterns.length().to_string() +
+                  " items=" +
+                  items.length().to_string(),
                 )
                 for listitem in items {
                   match listitem {
@@ -1262,10 +1267,7 @@ fn frame_invoke(
                                   "  LISTITEM synth-embed " + ref_id,
                                 )
                               } else {
-                                frame_trace(
-                                  state,
-                                  "  LISTITEM DROP " + ref_id,
-                                )
+                                frame_trace(state, "  LISTITEM DROP " + ref_id)
                               }
                           }
                           let sub_frame : ExpandedNode = match node_pattern {
@@ -1310,12 +1312,18 @@ fn frame_invoke(
                           n_s.write_string(probe_id_text(nn))
                           n_s.write_string(") ")
                         }
-                        ExpandedValue::List(_, ..) =>
-                          n_s.write_string("L ")
+                        ExpandedValue::List(_, ..) => n_s.write_string("L ")
                       }
                     }
                     state.probe = Some(
-                      t + "  LIST-OUT " + property + " n=" + out_items.length().to_string() + " [" + n_s.to_string() + "]\n",
+                      t +
+                      "  LIST-OUT " +
+                      property +
+                      " n=" +
+                      out_items.length().to_string() +
+                      " [" +
+                      n_s.to_string() +
+                      "]\n",
                     )
                   }
                   None => ()
@@ -1842,6 +1850,9 @@ pub fn frame_document(
 /// 或转正由用户定）：管线复刻 frame_document（probe 位开），返回 TURN/
 /// REF 判定追迹 + 结果树形貌。与 frame_document 的镜像同步责任在改二者
 /// 的同一笔（debug 面漂移不伤正确性，只伤追迹保真）。
+/// （役53 勘误注：本轮实证镜像曾漂移——debug 用原 options 展开帧、生产
+/// 用 frame_expansion=true，追迹据此误导「pre-compact 正确」勘一轮；已
+/// 对齐 frame_options 旗 + RESULTS 段升级 List 内容直出。）
 pub fn frame_debug(
   input_text : String,
   frame_text : String,
@@ -1924,7 +1935,20 @@ pub fn frame_debug(
       None => ()
     }
   }
-  let frame_expanded = match expand_top_values(frame_text, options) {
+  // 帧展开旗对齐生产（役53 勘误——frame_expansion=true，镜像漂移修）
+  let frame_options : JsonLdOptions = {
+    base: options.base,
+    expand_context: options.expand_context,
+    processing_mode: options.processing_mode,
+    load_context: options.load_context,
+    rdf_direction: options.rdf_direction,
+    produce_generalized_rdf: options.produce_generalized_rdf,
+    compact_arrays: options.compact_arrays,
+    compact_to_relative: options.compact_to_relative,
+    frame_expansion: true,
+    omit_graph: false,
+  }
+  let frame_expanded = match expand_top_values(frame_text, frame_options) {
     Ok(v) => v
     Err(e) => return "frame expand err: " + debug_show_error(e)
   }
@@ -1954,26 +1978,9 @@ pub fn frame_debug(
         )
         for pair in n.properties {
           for v in pair.1 {
-            match v {
-              ExpandedValue::Node(c) =>
-                trace.write_string(
-                  "    " +
-                  pair.0 +
-                  " -> node [" +
-                  probe_id_text(c) +
-                  "] types=" +
-                  c.types.length().to_string() +
-                  " props=" +
-                  c.properties.length().to_string() +
-                  "\n",
-                )
-              ExpandedValue::Value(lit) =>
-                trace.write_string(
-                  "    " + pair.0 + " -> value \"" + lit.value + "\"\n",
-                )
-              ExpandedValue::List(_, ..) =>
-                trace.write_string("    " + pair.0 + " -> list\n")
-            }
+            trace.write_string(
+              "    " + pair.0 + " -> " + probe_value_text(v) + "\n",
+            )
           }
         }
       }
@@ -1981,6 +1988,43 @@ pub fn frame_debug(
     }
   }
   trace.to_string()
+}
+
+///|
+/// 值位形貌（debug 面——List 递归展内容，幽灵二分用）
+fn probe_value_text(v : ExpandedValue) -> String {
+  let buf = StringBuilder()
+  fn walk(depth : Int, value : ExpandedValue) -> Unit {
+    match value {
+      ExpandedValue::Node(c) => {
+        buf.write_string(
+          "N[" + probe_id_text(c) + "] t=" + c.types.length().to_string(),
+        )
+        if depth > 0 {
+          buf.write_string("{")
+          for pair in c.properties {
+            for item in pair.1 {
+              buf.write_string(pair.0 + "=")
+              walk(depth - 1, item)
+              buf.write_string(" ")
+            }
+          }
+          buf.write_string("}")
+        }
+      }
+      ExpandedValue::Value(lit) => buf.write_string("V(" + lit.value + ")")
+      ExpandedValue::List(items, ..) => {
+        buf.write_string("L[")
+        for item in items {
+          walk(depth, item)
+          buf.write_string(" ")
+        }
+        buf.write_string("]")
+      }
+    }
+  }
+  walk(1, v)
+  buf.to_string()
 }
 
 ///|
