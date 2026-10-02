@@ -47,6 +47,15 @@ async test "framing suite harness: manifest-driven buckets" {
      "#tra01", "#tra02", "#tra03", "#teo01", "#t0022", "#t0065", "#t0066", "#t0067",
     "#t0006", "#t0007", "#t0008", "#t0012", "#t0015", "#t0016", "#t0017", "#t0020",
     "#t0021", "#t0051", "#t0061", "#t0062", "#t0063", "#t0069", "#t0070",
+    // 役54 @included 帧臂（spec §8.125——REC 步 6：同 subjects 复用 +
+    // embedded=false 拷贝态 + output 复用父位；tin01 键别名 @set/tin02
+    // @included 直键/tin03 json.api 例三连）
+     "#tin01", "#tin02", "#tin03",
+    // 役54-续 收口三连（spec §8.126）：t0064 @type default 对象三件套
+    // （预扫组件臂+关键字臂同归 expand_type_default_object 保形 / 匹配
+    // 无条件臂 / 缺位注入）；t0068 @merged 真并集（逐位并替整节点替换，
+    // 图序排序迭代）；t0018 帧无 @context ⇒ compaction context 空 map
+     "#t0064", "#t0068", "#t0018",
   ]
   let deferred : Array[String] = []
   let plain : Array[String] = []
@@ -134,8 +143,8 @@ async test "framing suite harness: manifest-driven buckets" {
       deferred.push(id)
     }
   }
-  assert_eq(deferred.length(), 7)
-  assert_eq(plain.length(), 85)
+  assert_eq(deferred.length(), 1)
+  assert_eq(plain.length(), 91)
 }
 
 ///|

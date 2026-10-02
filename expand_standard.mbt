@@ -1379,15 +1379,25 @@ fn StandardExpander::expand_object(
                           Err(e) => return Err(e)
                         }
                       }
-                    JsonValue::Object(_) =>
-                      type_patterns.push(
-                        ExpandedValue::Node(frame_empty_pattern()),
+                    JsonValue::Object(default_pairs) => {
+                      // @type default 对象保形（t0064——REC "@type MAY be a
+                      // map with a @default entry…MUST preserve"；余键
+                      // MUST be ignored）。@default 串 = type-scoped IRI
+                      // 展开；Node pattern 携 @default IRI 字面
+                      let expanded_default = self.expand_type_default_object(
+                        type_scoped_context, default_pairs,
                       )
+                      type_patterns.push(expanded_default)
+                    }
                     _ => ()
                   }
                 }
-              JsonValue::Object(_) =>
-                type_patterns.push(ExpandedValue::Node(frame_empty_pattern()))
+              JsonValue::Object(default_pairs) => {
+                let expanded_default = self.expand_type_default_object(
+                  type_scoped_context, default_pairs,
+                )
+                type_patterns.push(expanded_default)
+              }
               _ => ()
             }
             properties.push(("@type", type_patterns))
@@ -5351,7 +5361,14 @@ fn StandardExpander::frame_value_pattern_component(
   raw : JsonValue,
 ) -> Result[ExpandedValue?, JsonLdError] {
   match raw {
-    JsonValue::Object(_) => Ok(Some(ExpandedValue::Node(frame_empty_pattern())))
+    JsonValue::Object(default_pairs) =>
+      if key == "@type" {
+        // @type default 对象保形（t0064——值 pattern 预扫路径与关键字臂
+        // 同归 expand_type_default_object；坍通配即失 @default）
+        Ok(Some(self.expand_type_default_object(active, default_pairs)))
+      } else {
+        Ok(Some(ExpandedValue::Node(frame_empty_pattern())))
+      }
     JsonValue::Null => Ok(None)
     JsonValue::String(word) =>
       if key == "@type" {
@@ -5373,5 +5390,45 @@ fn StandardExpander::frame_value_pattern_component(
         Ok(Some(literal_of(word, None)))
       }
     _ => Ok(None)
+  }
+}
+
+///|
+/// @type default 对象保形（t0064——REC "@type MAY be a map with a @default
+/// entry, whose values are restricted to IRIs. Processors MUST preserve
+/// this value when expanding. All other entries of a default object MUST
+/// be ignored"）：@default 串 = type-scoped IRI 展开 ⇒ Node pattern 携
+/// @default 字面（匹配臂无条件配 + 输出侧缺型注入的载体）；无 @default
+/// （{} 通配）= 空 pattern
+fn StandardExpander::expand_type_default_object(
+  self : StandardExpander,
+  active : ActiveContext,
+  pairs : Array[(String, JsonValue)],
+) -> ExpandedValue {
+  let mut default_iri : String? = None
+  for pair in pairs {
+    if pair.0 is "@default" {
+      match pair.1 {
+        JsonValue::String(word) =>
+          match IriExpander::expand_iri(self, active, word, true, true) {
+            Ok(expanded) => default_iri = Some(expanded)
+            Err(_) => ()
+          }
+        _ => ()
+      }
+    }
+  }
+  match default_iri {
+    Some(iri) =>
+      ExpandedValue::Node({
+        id: None,
+        types: [],
+        properties: [("@default", [literal_of(iri, None)])],
+        reverse_props: [],
+        graph: None,
+        included: None,
+        index: None,
+      })
+    None => ExpandedValue::Node(frame_empty_pattern())
   }
 }

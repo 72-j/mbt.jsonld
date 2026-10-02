@@ -54,32 +54,23 @@ fn frame_trace(state : FrameState, line : String) -> Unit {
 
 ///|
 /// subject map：当前 graph 名下的 subject 集合；"@merged" = 全 graph 并集
-/// （REC Merge Node Maps——同 id 跨图首见胜）
+/// （REC Merge Node Maps 真语义——同 id 跨图**逐位并**而非整节点替换；
+/// t0068 勘定：图序排序迭代保确定序，"@default" 恒先）
 fn frame_subject_map(state : FrameState) -> Map[String, ExpandedNode] {
   if state.graph_name == "@merged" {
     let merged : Map[String, ExpandedNode] = Map([])
-    for _, nodes in state.graph_map {
-      for id, node in nodes {
-        // 最全者胜（跨图并集——t0048 根因：外层裸壳（默认图）先入，
-        // 同 id 图内容全节点被 first-wins 弃 ⇒ merge 面丢 term）
-        let existing = match merged.get(id) {
-          Some(e) => e
-          None => node
-        }
-        // fullness 判据不含 graph 位（t0048 探针定音——外层裸壳持 @graph
-        // 指针被误判全 ⇒ 图内容全节点输不过；内容 = types/properties/
-        // included）
-        let existing_full = !existing.types.is_empty() ||
-          !existing.properties.is_empty() ||
-          existing.included is Some(_)
-        let node_full = !node.types.is_empty() ||
-          !node.properties.is_empty() ||
-          node.included is Some(_)
-        if !merged.contains(id) {
-          merged[id] = node
-        } else if !existing_full && node_full {
-          merged[id] = node
-        }
+    let graph_names = state.graph_map.keys().collect()
+    graph_names.sort()
+    for graph_name in graph_names {
+      match state.graph_map.get(graph_name) {
+        Some(nodes) =>
+          for id, node in nodes {
+            match merged.get(id) {
+              Some(base) => merged[id] = frame_merged_union(base, node)
+              None => merged[id] = node
+            }
+          }
+        None => ()
       }
     }
     merged
@@ -91,6 +82,108 @@ fn frame_subject_map(state : FrameState) -> Map[String, ExpandedNode] {
         empty
       }
     }
+  }
+}
+
+///|
+/// @merged 逐位并集（t0068——types 保序去重、properties 同键值列续append
+/// 不去重（对齐 jsonld.js merge 语义）、graph/included/reverse 缺位补位、
+/// index 缺位补。值与子节点共享引用——framing 对输入树只读，新容器 =
+/// 并集载体。t0048 外层裸壳面被本式自然覆盖：壳无位可并，全节点不丢）
+fn frame_merged_union(
+  base : ExpandedNode,
+  extra : ExpandedNode,
+) -> ExpandedNode {
+  let merged_types : Array[String] = []
+  for t in base.types {
+    if !merged_types.contains(t) {
+      merged_types.push(t)
+    }
+  }
+  for t in extra.types {
+    if !merged_types.contains(t) {
+      merged_types.push(t)
+    }
+  }
+  let merged_props : Array[(String, Array[ExpandedValue])] = []
+  for pair in base.properties {
+    merged_props.push((pair.0, pair.1.copy()))
+  }
+  for pair in extra.properties {
+    let mut found = false
+    for i in 0..<merged_props.length() {
+      if merged_props[i].0 == pair.0 {
+        found = true
+        for v in pair.1 {
+          merged_props[i].1.push(v)
+        }
+        break
+      }
+    }
+    if !found {
+      merged_props.push((pair.0, pair.1.copy()))
+    }
+  }
+  let merged_reverse : Array[(String, Array[ExpandedValue])] = []
+  for pair in base.reverse_props {
+    merged_reverse.push((pair.0, pair.1.copy()))
+  }
+  for pair in extra.reverse_props {
+    let mut found = false
+    for i in 0..<merged_reverse.length() {
+      if merged_reverse[i].0 == pair.0 {
+        found = true
+        for v in pair.1 {
+          merged_reverse[i].1.push(v)
+        }
+        break
+      }
+    }
+    if !found {
+      merged_reverse.push((pair.0, pair.1.copy()))
+    }
+  }
+  let merged_graph : Array[ExpandedValue]? = match (base.graph, extra.graph) {
+    (Some(graph_a), Some(graph_b)) => {
+      let both = graph_a.copy()
+      for v in graph_b {
+        both.push(v)
+      }
+      Some(both)
+    }
+    (Some(graph_a), None) => Some(graph_a.copy())
+    (None, Some(graph_b)) => Some(graph_b.copy())
+    (None, None) => None
+  }
+  let merged_included : Array[ExpandedNode]? = match
+    (base.included, extra.included) {
+    (Some(included_a), Some(included_b)) => {
+      let both = included_a.copy()
+      for node in included_b {
+        both.push(node)
+      }
+      Some(both)
+    }
+    (Some(included_a), None) => Some(included_a.copy())
+    (None, Some(included_b)) => Some(included_b.copy())
+    (None, None) => None
+  }
+  {
+    id: if base.id is Some(_) {
+      base.id
+    } else {
+      extra.id
+    },
+    types: merged_types,
+    properties: merged_props,
+    reverse_props: merged_reverse,
+    graph: merged_graph,
+    included: merged_included,
+    index: if base.index is Some(_) {
+      base.index
+    } else {
+      extra.index
+    },
   }
 }
 
@@ -440,8 +533,14 @@ fn frame_node_matches(
             if node.types.contains(lit.value) {
               type_match = true
             }
-          ExpandedValue::Node(wild) =>
-            if frame_is_wildcard_pattern(wild) && !node.types.is_empty() {
+          ExpandedValue::Node(pattern_node) =>
+            if frame_is_wildcard_pattern(pattern_node) {
+              if !node.types.is_empty() {
+                type_match = true
+              }
+            } else if frame_property_values(pattern_node, "@default") is Some(_) {
+              // @type default 对象 = 无条件配（t0064——REC 匹配 default
+              // 臂；jsonld.js matchThis=true 不视节点类型有无）
               type_match = true
             }
           _ => ()
@@ -1106,6 +1205,27 @@ fn frame_invoke(
             state.graph_name = saved_graph_name
           }
         }
+        // @included 帧（REC 步 6——同 subjects 复用、embedded=false 拷贝态、
+        // output 复用为父、active = @included；子帧 = @included 首值节点
+        // pattern。tin01-03 面——included 键别名/@container @set 随压缩面）
+        match frame_node.included {
+          Some(included_items) =>
+            match included_items.get(0) {
+              Some(included_pattern) => {
+                let saved_embedded_included = state.embedded
+                state.embedded = false
+                frame_invoke(
+                  state,
+                  subjects,
+                  included_pattern,
+                  Prop(output, "@included"),
+                )
+                state.embedded = saved_embedded_included
+              }
+              None => ()
+            }
+          None => ()
+        }
         state.embed_stack.push(id)
         // keyword 位拷贝（REC "If property is a keyword, add"——展开 IR
         // 中 @type/@index 居专字段）；types 去重（F2 并集重复——t0057
@@ -1344,6 +1464,28 @@ fn frame_invoke(
         for frame_pair in frame_node.properties {
           let property = frame_pair.0
           if property.get_char(0) is Some('@') {
+            // @type default 注入（t0064——jsonld.js "allow through default
+            // types"：节点无型时帧 @type default IRI 即其型；有型 = 已在
+            // output 不注入。expanded 形 Node pattern 携 @default IRI）
+            if property is "@type" && output.types.is_empty() {
+              for type_value in frame_pair.1 {
+                match type_value {
+                  ExpandedValue::Node(pattern_node) =>
+                    match frame_property_values(pattern_node, "@default") {
+                      Some(default_values) =>
+                        match default_values.get(0) {
+                          Some(ExpandedValue::Value(lit)) =>
+                            if !output.types.contains(lit.value) {
+                              output.types.push(lit.value)
+                            }
+                          _ => ()
+                        }
+                      None => ()
+                    }
+                  _ => ()
+                }
+              }
+            }
             continue
           }
           let already = match frame_property_values(output, property) {
@@ -1602,7 +1744,10 @@ pub fn frame_document(
     Ok(doc) => doc
     Err(e) => return Err(e)
   }
-  let mut frame_inner : JsonValue = frame_json
+  // 帧无 @context ⇒ compaction context = 空 map（t0018 勘定——原样落整帧
+  // 对象会被 process_context 当 context 处理而炸：@type 数组项即 invalid
+  // context entry）
+  let mut frame_inner : JsonValue = JsonValue::Object([])
   let mut has_top_graph = false
   match frame_json {
     JsonValue::Object(pairs) => {

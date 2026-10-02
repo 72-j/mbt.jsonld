@@ -634,7 +634,7 @@ expand_standard/to_rdf 手写钩子），**不是模型 vs 引擎**——J2/J3 �
 | fromRdf | 54 | ❌ 未实现 | ——（§8.39） |
 | html | 50 | ❌ 未实现 | ——（§8.39） |
 | remote-doc | 18 | ⭕ 依赖外 | ——（§8.39：HTTP fetch 面） |
-| framing | 92（正 89 / 负 3，官方套件在仓 @ 3bf782ba） | 🚧 **85/92 plain**（役53 四批：@list 模式保形 + 键合法性门 + 帧文法校验门（负例 3 全清）+ 存量兑现快赢批 23 例；deferred 7 逐簇在册 §8.124） | suite_frame_test pin（85+7=92 闭合）+ canonical 直比 + bnode 兜底 |
+| framing | 92（正 89 / 负 3，官方套件在仓 @ 3bf782ba） | 🚧 **91/92 plain**（役54 @included 帧臂 tin 三连 + 收口三连 t0064/68/18；deferred 1 = t0010 张力案在册 §8.124） | suite_frame_test pin（91+1=92 闭合）+ canonical 直比 + bnode 兜底 |
 | 对账三件套 | —— | ✅ 62/62 | interface_gate（表 handler↔mock）+ gen_gate（重生成逐字节）+ j4_reconcile（路由/步骤/iri_rules 行为+值级） |
 | 判定器自检 | —— | ✅ 7 件 | tordf_judge_test（转义/解析/同构语义正反例 + 套件文件自同构） |
 | 预载通道 | —— | ✅ | loader_preload_test（BFS 预载 + join 键一致） |
@@ -2890,3 +2890,33 @@ pattern——保形语义不变）。#t0052/53/54 三连真绿，59/92→**62/92
 5. **#tin01-03**（@included 帧面）——flattening 面已有 @included，framing
    算法 @included 臂（REC 步 7）未落；tin03 json.api 例 len 719/736 近平。
    下役菜单：tin 系（@included 帧）→ t0064/68 → t0010 张力案 → t0018。
+
+**§8.125 役54 @included 帧臂（2026-10-03）**：frame_invoke 落 REC 步 6 臂
+——同 subjects 复用、embedded=false 拷贝态、output 复用父位（Prop
+"@included"）、子帧 = frame_node.included 首值节点 pattern（展开 IR 直存
+ExpandedNode）。tin01（included 键别名 @container @set 数组保形）/tin02
+（@included 直键单值塌缩）/tin03（json.api 例）三连真绿——§8.124 tin03
+len 719/736 近距差的缺口正是此臂。88/92（88+4=92 闭合）；全仓 453/453。
+
+**§8.126 役54-续 收口三连（2026-10-03）**：
+1. **t0018**：帧无 @context ⇒ compaction context = 空 map——原样落整帧
+   对象被 process_context 当 context 处理而炸（@type 数组项即 invalid
+   context entry）。一行修真绿（输出无 @context 键 = context_empty 面
+   既有逻辑自然承接）。
+2. **t0064**（@type @default 三件套）：①展开保形——`{"@default": IRI}`
+   经 expand_type_default_object 成 Node pattern 携 @default 字面，**值
+   pattern 预扫组件臂与关键字臂同归**（t0053 同款旁路教训再现：预扫先行
+   continue，单点关键字臂拦不住）；②匹配——@type default 对象无条件配
+   （REC 匹配 default 臂；jsonld.js matchThis=true 不视节点类型有无）；
+   ③输出——缺位发射口 @type 特许（jsonld.js "allow through default
+   types"）：节点无型时帧 default IRI 注入 output.types。oracle 实证
+   输出 @type ex:Foo 经 preserve 口显形。
+3. **t0068**（跨图 @type 并集）：@merged 视图整节点替换（最全者胜）⇒
+   两"全"节点相遇后到者整弃。修 = frame_merged_union **逐位并**（types
+   保序去重、properties 同键值列续 append 不去重（对齐 jsonld.js merge
+   语义）、graph/included/reverse 缺位补、index 缺位补、值/子节点共享
+   引用）；图序**排序迭代**保确定序（"@default" 恒先）。t0048 外层裸壳
+   面被并集式自然覆盖（壳无位可并），全量回归零回退。
+
+**#t0064/#t0068/#t0018 三连真绿，88/92→91/92 plain**（91+1=92 闭合）；
+全仓 453/453。**余 t0010 一例**（§8.124 张力案——多实现取证独立一役）。
