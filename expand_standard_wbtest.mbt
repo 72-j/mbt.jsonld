@@ -51,6 +51,8 @@ test "t0001 end-to-end: drop free-floating node (#t0001 对拍)" {
     base: None,
     expand_context: None,
     processing_mode: JsonLd11,
+    use_native_types: false,
+    use_rdf_type: false,
   }
   assert_true(
     expand_document("{\"@id\": \"http://example.org/test#example\"}", options)
@@ -72,6 +74,8 @@ test "empty object end-to-end: free-floating (#t0001 同族判定)" {
     base: None,
     expand_context: None,
     processing_mode: JsonLd11,
+    use_native_types: false,
+    use_rdf_type: false,
   }
   assert_true(expand_document("{}", options) is Ok(Array([])))
 }
@@ -104,6 +108,8 @@ test "contract smoke: pending hooks refuse politely (red-not-wrong)" {
     base: None,
     expand_context: None,
     processing_mode: JsonLd11,
+    use_native_types: false,
+    use_rdf_type: false,
   }
   // expand_term 已落码（①批）：属性位 null → 丢弃（空数组）——烟雾活账翻转示例
   assert_true(
@@ -200,6 +206,8 @@ test "value object family batch 1 (#t0045 对拍)" {
     base: None,
     expand_context: None,
     processing_mode: JsonLd11,
+    use_native_types: false,
+    use_rdf_type: false,
   }
   assert_true(
     expand_document("{\"@value\": \"free-floating value\"}", options)
@@ -363,6 +371,8 @@ test "property key routing via chain (②批)" {
     base: None,
     expand_context: None,
     processing_mode: JsonLd11,
+    use_native_types: false,
+    use_rdf_type: false,
   }
   let doc = match parse_json("{\"name\": \"hi\"}") {
     Ok(doc) => doc
@@ -411,6 +421,8 @@ test "@context simple term declaration end-to-end (③批对拍)" {
     base: None,
     expand_context: None,
     processing_mode: JsonLd11,
+    use_native_types: false,
+    use_rdf_type: false,
   }
   assert_true(
     expand_document(
@@ -449,6 +461,8 @@ test "@nest indexed merge keeps order semantics (tn006/tn008 同族对拍)" {
     base: None,
     expand_context: None,
     processing_mode: JsonLd11,
+    use_native_types: false,
+    use_rdf_type: false,
   }
   let input = "{\"@context\": {\"@vocab\": \"ex:\", \"n\": \"@nest\"}, \"n\": [{\"a\": \"1\", \"b\": \"2\"}, {\"b\": \"3\", \"a\": \"4\"}]}"
   assert_true(
@@ -498,6 +512,8 @@ test "@vocab declaration end-to-end (③批对拍)" {
     base: None,
     expand_context: None,
     processing_mode: JsonLd11,
+    use_native_types: false,
+    use_rdf_type: false,
   }
   assert_true(
     expand_document(
@@ -580,6 +596,8 @@ test "@version declaration (③批对拍)" {
     base: None,
     expand_context: None,
     processing_mode: JsonLd11,
+    use_native_types: false,
+    use_rdf_type: false,
   }
   let ctx = JsonValue::Object([("@version", JsonValue::String("json-ld-1.1"))])
   assert_true(
@@ -616,6 +634,8 @@ test "invalid @version rejected (③批对拍)" {
     base: None,
     expand_context: None,
     processing_mode: JsonLd11,
+    use_native_types: false,
+    use_rdf_type: false,
   }
   let ctx = JsonValue::Object([("@version", JsonValue::String("json-ld-1.2"))])
   match
@@ -683,6 +703,8 @@ test "term value expands against in-progress vocab (t0072 对拍)" {
     base: None,
     expand_context: None,
     processing_mode: JsonLd11,
+    use_native_types: false,
+    use_rdf_type: false,
   }
   let ctx = JsonValue::Object([
     ("@vocab", JsonValue::String("http://example.com/anotherVocab#")),
@@ -721,6 +743,8 @@ test "property-scoped context on @nest alias term (#tc037 对拍)" {
     base: None,
     expand_context: None,
     processing_mode: JsonLd11,
+    use_native_types: false,
+    use_rdf_type: false,
   }
   let input = "{\"@context\": {\"@version\": 1.1, \"@vocab\": \"http://example.org/\", \"nest\": {\"@id\": \"@nest\", \"@context\": {\"@vocab\": \"http://example.org/nest/\"}}}, \"nest\": {\"property\": \"should be in /nest\"}}"
   assert_true(
@@ -758,6 +782,8 @@ test "scoped context nullifies term: key dropped (#tin06 同族对拍)" {
     base: None,
     expand_context: None,
     processing_mode: JsonLd11,
+    use_native_types: false,
+    use_rdf_type: false,
   }
   let input = "{\"@context\": {\"@vocab\": \"http://example.org/\", \"data\": \"@nest\", \"c\": {\"@context\": {\"data\": null}}}, \"c\": {\"data\": \"x\", \"keep\": \"y\"}}"
   assert_true(
@@ -806,6 +832,8 @@ test "unused embedded context still checked (#tc033 对拍)" {
     base: None,
     expand_context: None,
     processing_mode: JsonLd11,
+    use_native_types: false,
+    use_rdf_type: false,
   }
   let input = "{\"@context\": {\"@version\": 1.1, \"t1\": {\"@id\": \"ex:t1\", \"@context\": {\"t2\": {\"@context\": {\"type\": null}}}}}}"
   match expand_document(input, options) {
@@ -830,6 +858,8 @@ test "element @context applies regardless of position (#t0073 对拍)" {
     base: None,
     expand_context: None,
     processing_mode: JsonLd11,
+    use_native_types: false,
+    use_rdf_type: false,
   }
   let input = "{\"name\": \"x\", \"@context\": {\"name\": \"http://example.com/name\"}}"
   assert_true(
@@ -866,6 +896,8 @@ test "type-scoped context does not propagate to nested node (#tc009 对拍)" {
     base: None,
     expand_context: None,
     processing_mode: JsonLd11,
+    use_native_types: false,
+    use_rdf_type: false,
   }
   let input = "{\"@context\": {\"@vocab\": \"http://example/\", \"Foo\": {\"@context\": {\"baz\": {\"@type\": \"@vocab\"}}}}, \"@type\": \"Foo\", \"bar\": {\"baz\": \"buzz\"}}"
   assert_true(
@@ -914,6 +946,8 @@ test "single-@id shaped value keeps type-scoped base (#tc015 同族对拍)" {
     base: Some("http://example/base-base"),
     expand_context: None,
     processing_mode: JsonLd11,
+    use_native_types: false,
+    use_rdf_type: false,
   }
   let input = "{\"@context\": {\"@base\": \"http://example/base-base\", \"@vocab\": \"http://example/\", \"Type\": {\"@context\": {\"@base\": \"http://example/typed-base\"}}}, \"p\": {\"@type\": \"Type\", \"single\": {\"@id\": \"#single-id\"}, \"nested\": {\"@id\": \"#nested-id\", \"foo\": \"bar\"}}}"
   let expanded = match expand_document(input, options) {
@@ -949,6 +983,8 @@ test "@propagate must be boolean and 1.1-only (#tc029/#tc030 对拍)" {
     base: None,
     expand_context: None,
     processing_mode: JsonLd11,
+    use_native_types: false,
+    use_rdf_type: false,
   }
   let bad = JsonValue::Object([("@propagate", JsonValue::String("yes"))])
   match
@@ -974,6 +1010,8 @@ test "@propagate must be boolean and 1.1-only (#tc029/#tc030 对拍)" {
     base: None,
     expand_context: None,
     processing_mode: JsonLd10,
+    use_native_types: false,
+    use_rdf_type: false,
   }
   let flag = JsonValue::Object([("@propagate", JsonValue::Bool(true))])
   match
@@ -1005,6 +1043,8 @@ test "protected term: equivalent redefinition keeps protection (#pr42 对拍)" {
     base: None,
     expand_context: None,
     processing_mode: JsonLd11,
+    use_native_types: false,
+    use_rdf_type: false,
   }
   // 等价（同一 IRI）重定义 → 允许，保护位保留
   let equivalent = "{\"@context\": [{\"@protected\": true, \"p\": \"ex:p\"}, {\"p\": \"ex:p\"}, {\"p\": \"ex:q\"}]}"
@@ -1032,6 +1072,8 @@ test "override protected faces: type-scoped vs property-scoped (#pr17/#pr06 对�
     base: None,
     expand_context: None,
     processing_mode: JsonLd11,
+    use_native_types: false,
+    use_rdf_type: false,
   }
   let type_scoped = "{\"@context\": {\"@vocab\": \"ex:\", \"@protected\": true, \"Foo\": {\"@context\": [null]}}, \"@type\": \"Foo\", \"p\": \"x\"}"
   match expand_document(type_scoped, options) {
@@ -1058,6 +1100,8 @@ test "td unknown key vs unimplemented key (#ter56 同族对拍)" {
     base: None,
     expand_context: None,
     processing_mode: JsonLd11,
+    use_native_types: false,
+    use_rdf_type: false,
   }
   let unknown = "{\"@context\": {\"p\": {\"@id\": \"ex:p\", \"bogus\": 1}}}"
   match expand_document(unknown, options) {
@@ -1098,6 +1142,8 @@ test "type map: prepend @type + implicit @id mapping (#tm003/#tm017 对拍)" {
     base: Some("http://example.org/base/"),
     expand_context: None,
     processing_mode: JsonLd11,
+    use_native_types: false,
+    use_rdf_type: false,
   }
   let input = "{\"@context\": {\"@vocab\": \"http://example.org/ns/\", \"@base\": \"http://example.org/base/\", \"foo\": {\"@container\": \"@type\"}}, \"foo\": {\"bar\": \"baz\"}}"
   assert_true(
@@ -1143,6 +1189,8 @@ test "index map: writes @index from map key (#tc013 同族对拍)" {
     base: None,
     expand_context: None,
     processing_mode: JsonLd11,
+    use_native_types: false,
+    use_rdf_type: false,
   }
   let input = "{\"@context\": {\"@vocab\": \"http://example/\", \"idx\": {\"@container\": \"@index\"}}, \"idx\": {\"k\": {\"@id\": \"ex:i\"}}}"
   assert_true(
@@ -1181,6 +1229,8 @@ test "container @type restricts type mapping to @id/@vocab (#tm020 对拍)" {
     base: None,
     expand_context: None,
     processing_mode: JsonLd11,
+    use_native_types: false,
+    use_rdf_type: false,
   }
   let bad = "{\"@context\": {\"foo\": {\"@type\": \"literal\", \"@container\": \"@type\"}}, \"foo\": {}}"
   match expand_document(bad, options) {
@@ -1207,6 +1257,8 @@ test "id map: writes document-relative @id, keeps existing (#tm001/#tm005 对拍
     base: Some("http://example.org/"),
     expand_context: None,
     processing_mode: JsonLd11,
+    use_native_types: false,
+    use_rdf_type: false,
   }
   let input = "{\"@context\": {\"@vocab\": \"http://example/\", \"idmap\": {\"@container\": \"@id\"}}, \"idmap\": {\"foo\": {\"label\": \"x\"}, \"http://example.org/bar\": {\"@id\": \"http://example.org/baz\"}}}"
   assert_true(
@@ -1256,6 +1308,8 @@ test "language map: @none alias and null skip (#tm010/#tl001 对拍)" {
     base: None,
     expand_context: None,
     processing_mode: JsonLd11,
+    use_native_types: false,
+    use_rdf_type: false,
   }
   let input = "{\"@context\": {\"vocab\": \"ex:v/\", \"label\": {\"@id\": \"ex:v/label\", \"@container\": \"@language\"}, \"none\": \"@none\"}, \"label\": {\"en\": \"The Queen\", \"none\": null, \"de\": [\"K\", null]}}"
   assert_true(
@@ -1305,6 +1359,8 @@ test "map container with array value falls through per element (#t0040 对拍)" 
     base: Some("http://example.com/base/"),
     expand_context: None,
     processing_mode: JsonLd11,
+    use_native_types: false,
+    use_rdf_type: false,
   }
   let input = "{\"@context\": {\"indexes\": {\"@id\": \"ex:index\", \"@container\": \"@index\"}}, \"indexes\": [\"No\", {\"@id\": \"isn\"}]}"
   assert_true(
@@ -1346,6 +1402,8 @@ test "index mapping: index written as property, appended before existing (#tpi �
     base: Some("http://example.com/"),
     expand_context: None,
     processing_mode: JsonLd11,
+    use_native_types: false,
+    use_rdf_type: false,
   }
   let input = "{\"@context\": {\"@version\": 1.1, \"@base\": \"http://example.com/\", \"@vocab\": \"http://example.com/\", \"author\": {\"@type\": \"@id\", \"@container\": \"@index\", \"@index\": \"prop\"}}, \"@id\": \"article\", \"author\": {\"regular\": \"person/1\", \"@none\": \"person/9\"}}"
   assert_true(
@@ -1397,6 +1455,8 @@ test "index mapping validation + value object rejection (#tpi 负例对拍)" {
     base: None,
     expand_context: None,
     processing_mode: JsonLd11,
+    use_native_types: false,
+    use_rdf_type: false,
   }
   let keyword_value = "{\"@context\": {\"@version\": 1.1, \"p\": {\"@id\": \"ex:p\", \"@container\": \"@index\", \"@index\": \"@id\"}}}"
   match expand_document(keyword_value, options) {
@@ -1417,6 +1477,8 @@ test "index mapping validation + value object rejection (#tpi 负例对拍)" {
     base: None,
     expand_context: None,
     processing_mode: JsonLd10,
+    use_native_types: false,
+    use_rdf_type: false,
   }
   let in_10 = "{\"@context\": {\"p\": {\"@id\": \"ex:p\", \"@container\": \"@index\", \"@index\": \"q\"}}}"
   assert_true(expand_document(in_10, options_10) is Err(InvalidContext(_)))
@@ -1443,6 +1505,8 @@ test "reverse term with index container keeps reverse-only node (#t0063/#t0131 �
     base: None,
     expand_context: None,
     processing_mode: JsonLd11,
+    use_native_types: false,
+    use_rdf_type: false,
   }
   let input = "{\"@context\": {\"isKnownBy\": {\"@reverse\": \"ex:knows\", \"@container\": \"@index\"}}, \"@id\": \"ex:me\", \"isKnownBy\": {\"Dave\": {\"@id\": \"ex:dave\"}}}"
   assert_true(

@@ -330,6 +330,8 @@ async test "interface gate smoke: mock surface is callable" {
     base: None,
     expand_context: None,
     processing_mode: @jsonld.ProcessingMode::JsonLd11,
+    use_native_types: false,
+    use_rdf_type: false,
   }
   match @jsonld.Expander::set_language(mock, active, @jsonld.JsonValue::Null) {
     Err(@jsonld.JsonLdError::Unsupported(_)) => ()

@@ -124,6 +124,8 @@ fn options_for(
     compact_to_relative,
     frame_expansion: false,
     omit_graph: false,
+    use_native_types: json_bool_option(entry, "useNativeTypes"),
+    use_rdf_type: json_bool_option(entry, "useRdfType"),
   }
 }
 

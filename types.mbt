@@ -42,6 +42,11 @@ pub(all) struct JsonLdOptions {
   /// JsonLdOptions/omitGraph 缺省 false（恒包裹）；true ⇒ 单节点不包裹
   /// （tg001 manifest 件）
   omit_graph : Bool
+  /// fromRDF 面（役57——spec §8.130）：native 词形还原（integer/double/
+  /// decimal/boolean）——REC 缺省 false
+  use_native_types : Bool
+  /// fromRDF 面（役57）：rdf:type 保留属性形——REC 缺省 false
+  use_rdf_type : Bool
 }
 
 ///|

@@ -194,5 +194,7 @@ fn frame_options_for(
     compact_to_relative: opts.compact_to_relative,
     frame_expansion: false,
     omit_graph: false,
+    use_native_types: false,
+    use_rdf_type: false,
   }
 }

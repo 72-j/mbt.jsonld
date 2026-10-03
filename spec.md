@@ -631,7 +631,7 @@ expand_standard/to_rdf 手写钩子），**不是模型 vs 引擎**——J2/J3 �
 | toRDF | 467（正 345 / 负 106 / 句法 16） | ✅ **467/467 全 plain** | suite_tordf_test pin + 判定器（迷你 N-Quads 解析 + 集合同构） |
 | compact | 246（正 229 / 负 17） | 🚧 **245/246 plain**（正 228 + 负 17 全负例入 plain）/ deferred 1 = t0038（**分叉待裁 §8.91 四理由**——@index 子键前缀资格 oracle/REC 相抵待裁；用户令不施工非缺口） | suite_compact_test pin（deferred=1）+ canonical_for_suite 直比 + bnode 双射兜底 |
 | flatten | 58（正 57 / 负 1） | ✅ **58/58 全 plain**（役56 收官——tin06 成员值级并集 + t0044 flatten+compaction 合成通道；deferred 0） | suite_flatten_test pin（deferred=0）+ canonical_for_suite 直比 + bnode 双射兜底（isomorphic_for_suite——判定器自检四钉） |
-| fromRdf | 54 | ❌ 未实现 | ——（§8.39） |
+| fromRdf | 54 | ✅ **54/54 全 plain**（役57 一役收官——§8.130 钉 + §8.131；deferred 0） | suite_fromrdf_test pin（deferred=0）+ canonical_for_suite 直比 + bnode 双射兜底 |
 | html | 50 | ❌ 未实现 | ——（§8.39） |
 | remote-doc | 18 | ⭕ 依赖外 | ——（§8.39：HTTP fetch 面） |
 | framing | 92（正 89 / 负 3，官方套件在仓 @ 3bf782ba） | ✅ **92/92 全 plain**（役55 t0010 张力案裁定收官——发射词自洽豁免 + term 键同指豁免，§8.127；deferred 0） | suite_frame_test pin（92+0=92 闭合）+ canonical 直比 + bnode 兜底 |
@@ -677,7 +677,10 @@ expand_standard/to_rdf 手写钩子），**不是模型 vs 引擎**——J2/J3 �
     **依赖外立案解除，改「已勘可开工」**（判定面 = 官方 92 例对拍）；
     排期/开工待用户令
 11. **依赖外·canonicalization 套件**（2026-09-29 役10 勘定，同 framing
-    款条 10 前例）：ffdb326 快照无 RDF Dataset Canonicalization 测试面
+    款条 10 前例；**勘定更新 2026-10-03 §8.132 路线 A 实质可得**——
+    w3c/rdf-canon tests 可达：manifest 86 条 + commit SHA 钉 15619df2 +
+    双许可三查两过一替代（SHA256SUMS 字面缺 → git-SHA 钉等价裁量在册）；
+    开工 = 用户令）：ffdb326 快照无 RDF Dataset Canonicalization 测试面
     （README 仅 JCS 注记，toRdf 面 nq_jcs 已落）——上游 W3C rdf-canon
     REC 与套件另立。**双路线判据（2026-09-29 定案，防「留案」滑向
     无限期拖延）**：**路线 A（引依赖）**——判据 = 依赖物可得（rdf-canon
@@ -3022,3 +3025,48 @@ te002 的 tag 长词非 term 键不受扰（compact 套件 66/66 复证负例仍
    非字符串 datatype ✓。
 - **判定面** = 官方 54 例对拍（canonical 直比 + bnode 双射兜底同族）；
   8 例 rdfDirection 非 normative 单列（impl-specific 语义）。
+
+**§8.131 役57 fromRDF 一次战役全收（2026-10-03）**：§8.130 钉后直落码——
+**54/54 全 plain（正 52 + 负 2，deferred 0）**，一役收官（用户「继续役」
+令内完成）。**实现面**：①解析器 nquads_parse.mbt（判定器迷你解析器派生
+生产件——Nq2BnodeHead 模式剥 "_:" 前缀、结构化 NqTerm 输出）；②
+from_rdf.mbt 三段式（全量入账 → 形态集合 → 统一渲染）：纯列表判据
+（恰 first+rest 各一、无他性质、types ⊆ {rdf:List}、链终 nil 无环、
+**bnode 键限**——IRI 键列表节点 = 常规节点 t0009）、普通性质对象位
+@list 转换、**first 位判据双面 oracle**（rest 直 nil 单节链 = 嵌套转
+@list——tli02；多节链 = {@id} 物化——t0008；**processingMode 判别子**
+——同输入 1.0/1.1 异果 t0008 vs tli03）、跨图存在账（同 bnode 标签跨图
+= 链污染——t0020/21）、复合字面折叠（compound-literal——di11/12）、
+i18n 方向 datatype 剥析（i18n-datatype——di05/06）、useNativeTypes
+（boolean 词形空间含 1/0、溢出/INF/非词形回落 typed——t0027；decimal
+不在 native 列——t0018）、@json 字面 = {@type:@json,@value:解析值}
+（解析失败 = 负例错——tjs08/09）、xsd:string datatype 剥除。
+**勘定曲折入册**：①scoped 纯列表判据的 `visiting[key] = false` 复位 +
+`contains` 入口判——**假条目永久阻塞**（复位须 remove）；②cwd 漂移期
+相对路径编辑写入**仓根 0 字节幽灵副本**——「编辑已落、产物仍旧」的假象
+源（绝对路径纪律 + 副本已清）；③langtag "@en" 词面 '@' 剥离。全仓
+454/454。
+
+**§8.132 役57-续 Canonicalization 路线 A 勘测（2026-10-03；§8.39 条 11 双路线
+决策树第一步执行）**：**三查结论 = 路线 A 实质可得**：
+1. **依赖物可得 ✓**：github.com/w3c/rdf-canon `tests/` 可达——manifest.jsonld
+   （28KB，mf/mq/rdfc vocab 结构化）+ `tests/rdfc10/` 150 文件
+   （testNNN-in.nq 输入 / testNNN-rdfc10.nq 规范形期望 / 部分含
+   -rdfc10map.json bnode 映射账）。**manifest 86 条全解析**：64
+   RDFC10EvalTest（规范形对拍）+ 21 RDFC10MapTest（bnode 映射账对拍）+
+   1 NegativeEvalTest；全 rdft:Approved；test001-in.nq = 0 字节空件
+   （套件本体形态，勘定非拉取缺陷）。**测试面 = RDFC-1.0**（URDNA2015）。
+2. **SHA256SUMS ✗ → 完整性锚替代（裁量点在册）**：tests/ 无 SHA256SUMS
+   （404）——判据字面未全过；**git commit SHA 钉等价替代**：
+   `15619df2fda7a4ca88308733789b6774517f9638`（main @ 2026-02-24，Automated
+   report generation）——clone/检出以此 SHA 为不变式锚，防漂移效力等价。
+3. **许可 ✓**：W3C Test Suite License + W3C 3-clause BSD 双许可（LICENCE.md
+   在案）。
+
+**SHA-256 实现面前瞻（开工首役裁定项）**：a) `moonbitlang/x/crypto`（官方
+实验包——HMAC-SHA256 RFC 2104 在册）依赖引入；b) 自实现 SHA-256（FIPS
+180-4，RFC 6234 向量自证，~200 行）——a 依赖裁定、b 自证面强，待用户令。
+**算法面** = RDFC-1.0 六步（nquads 化 → first-degree hash 排序 → hash
+n-degree 分解 → bnode 序排序 → serialize → SHA-256），基建已备（本仓
+N-Quads 解析/发射双面 + fromRDF 节点图构建皆在同包）。**开工 = 用户令**
+（多役规模预估：SHA-256 面 1 役 + 六步主算法 2-3 役 + 套件对拍收官 1 役）。

@@ -20,6 +20,8 @@ pub fn frame_debug(String, String, JsonLdOptions) -> String
 
 pub fn frame_document(String, String, JsonLdOptions) -> Result[JsonValue, JsonLdError]
 
+pub fn from_rdf_document(String, JsonLdOptions) -> Result[JsonValue, JsonLdError]
+
 pub fn isomorphic_for_suite(JsonValue, JsonValue) -> Bool
 
 pub fn json_canonical(JsonValue) -> JsonValue
@@ -135,6 +137,8 @@ pub(all) struct JsonLdOptions {
   compact_to_relative : Bool
   frame_expansion : Bool
   omit_graph : Bool
+  use_native_types : Bool
+  use_rdf_type : Bool
 }
 
 pub(all) struct JsonLdQuad {

@@ -1796,6 +1796,8 @@ pub fn frame_document(
     compact_to_relative: options.compact_to_relative,
     frame_expansion: true,
     omit_graph: false,
+    use_native_types: false,
+    use_rdf_type: false,
   }
   let frame_expanded = match expand_top_values(frame_text, frame_options) {
     Ok(v) => v
@@ -2118,6 +2120,8 @@ pub fn frame_debug(
     compact_to_relative: options.compact_to_relative,
     frame_expansion: true,
     omit_graph: false,
+    use_native_types: false,
+    use_rdf_type: false,
   }
   let frame_expanded = match expand_top_values(frame_text, frame_options) {
     Ok(v) => v
