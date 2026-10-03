@@ -139,4 +139,8 @@ async test "compact suite harness: manifest-driven buckets" {
   }
   assert_eq(deferred.length(), 1)
   assert_eq(plain.length(), 245)
+  // 复核面自报行（J4；suite-review.txt 抽取源——勿改格式）
+  println(
+    "[compact] entries=\{sequence.length()} plain=\{plain.length()} deferred=\{deferred.length()}",
+  )
 }

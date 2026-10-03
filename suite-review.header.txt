@@ -1,0 +1,27 @@
+# 复核表（生成物，DO NOT EDIT MANUALLY）
+# 口径：`src/jsonld/const.md` §6.4「复核面三件套」+ `bangto/world/const.md` §6.5
+#   （判据 = **可复现 + 缺口有解释**；**禁止**以"分数不降"作判据）
+# 生成命令（**整段原样复跑**；同命令 + 同留证 ⇒ 第三方得到同一张表）：
+#   cd /home/thy/moonttl
+#   { cat src/jsonld/suite-review.header.txt
+#     moon test src/jsonld 2>&1 \
+#       | grep -oE '^\[[a-zA-Z]+\] entries=[0-9]+ plain=[0-9]+ deferred=[0-9]+' | sort -u
+#   } > src/jsonld/suite-review.txt
+# 说明：本表**原样收纳套件自报行**（零纸解析：不拆数字、不重算比率/百分比）——行序由 sort -u
+#   固定，集合内容由 8 个套件 harness 的 println 自报行决定（自报行与 pin 断言同处，改格式即红）。
+# 被复核面 = **JSON-LD 官方套件面**：expand / toRdf / flatten / compact / frame / fromRdf / html /
+#   canon 八个 manifest 驱动 harness（自报行来源：`moon test src/jsonld` 的
+#   `[<面>] entries=… plain=… deferred=…` 行）。
+# 留证位置：CI test 作业日志（同上命令）；本地复跑同命令逐字节一致即"可复现"。
+# 缺口清零：各套件测试**自身 pin 断言**（桶和 = 条目数；plain 数 = 逐例迁移数）——缺口非零即
+#   `moon test` 红；本表只做"可复现"这一半。
+# 缺口解释表：见 `src/jsonld/review.md` §1.2（逐条给类别 [设计]/[立案]/[未闭] + 理由 +
+#   重评估条件 + 台账落点）。
+#
+# 覆盖边界（**必写**：本面只覆盖"它覆盖的那部分"，读者不得误以为覆盖全；`const.md` §6.5.7）
+#   本面 = **套件自报行面**：八个官方套件 manifest 的 entries/plain/deferred 自报行。
+#   **不覆盖**：① **IR/产物面**（三表 → `gen.mbt` 逐字节黄金门 = `gen_gate_test.mbt`；接口一致门
+#     = `interface_gate_test.mbt`）——门自证，另见 spec §5；② **覆盖率面**（行覆盖基线棘轮
+#     `coverage-baseline.txt`，只统计未设阈值）；③ **方言语义内部面**（各包 `*_wbtest.mbt`：
+#     IRI 规则链、JCS、RDFC-1.0、SHA-256/384、HTML 抽取等）；④ **性能面**（性能役两笔的实测
+#     对照记录在 todo §J2，不设门槛）。

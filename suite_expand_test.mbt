@@ -832,4 +832,8 @@ async test "expand suite harness: manifest-driven buckets, all deferred pre-J2" 
   assert_eq(parsed_ok + parse_err, 385)
   // 首例钉：#t0001 已迁 plain（manifest 顺序首条；J2 首件验收 = 此例端到端绿）
   assert_true(plain.contains("#t0001"))
+  // 复核面自报行（J4；suite-review.txt 抽取源——勿改格式）
+  println(
+    "[expand] entries=\{sequence.length()} plain=\{plain.length()} deferred=\{deferred.length()}",
+  )
 }

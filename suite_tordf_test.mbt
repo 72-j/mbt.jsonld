@@ -189,6 +189,10 @@ async test "toRdf suite harness: judge ready, all deferred pre-J3.1" {
   // pin 闭合：桶总和 == 普查数（467 = 345 正 + 106 负 + 16 句法——spec §8.1）
   assert_eq(deferred.length(), 0)
   assert_eq(plain.length(), 467)
+  // 复核面自报行（J4；suite-review.txt 抽取源——勿改格式）
+  println(
+    "[toRdf] entries=\{sequence.length()} plain=\{plain.length()} deferred=\{deferred.length()}",
+  )
   assert_eq(parsed_ok + parse_err, 467)
   assert_true(parse_err == 0)
 }

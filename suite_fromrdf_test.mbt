@@ -88,4 +88,8 @@ async test "fromRDF suite harness: manifest-driven buckets" {
   }
   assert_eq(deferred.length(), 0)
   assert_eq(plain.length(), 54)
+  // 复核面自报行（J4；suite-review.txt 抽取源——勿改格式）
+  println(
+    "[fromRdf] entries=\{sequence.length()} plain=\{plain.length()} deferred=\{deferred.length()}",
+  )
 }
