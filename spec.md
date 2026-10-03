@@ -160,6 +160,8 @@ vs #t0115/#t0116[1.0] 同 vocab 输入异判定）；@value:null 族 = 值对象
 | toRdf @reverse vs REC §6.3 反转形 | 展开词形分叉 | 引擎 = **t0042 保形**（@reverse 映射保留）vs REC 字面反转形（node 获反向属性） | 保形胜出——reverse 批 oracle 沿袭；J4 fixture 首写按 REC 记忆错一处实证 |
 | flatten te001 vs free-floating 字面弃置 | 弃置位分叉 | free-floating（@id-only 弃）是否豁免 **@index**：oracle 要求 @id+@index 裸节点**必达合并面**（te001「Conflicting indexes」负例——弃则冲突不可见，负例永不可红） | **@index 豁免胜出**——is_free_floating 增 `index is None` 位；expand/toRdf 套件无此形在册案例（零回归面实测） |
 | framing wrap 三分 vs REC frame() 字面 | 展开包裹分叉（**processingMode × 匹配数**；2026-10-01 役49 收录） | 1.0 恒 `@graph` 包裹（t0001-09）；1.1：空⇒`@graph:[]`（t0003）/ **单⇒解包直出**（t0023/26/31/32/34/35）/ 多⇒包裹（t0033） | oracle 胜出——1.1 单解包 = compaction compactArrays 单节点解包行为经 frame() 管线的显形。**同判两修史**：役47「恒包裹（空亦包）」与 §8.96「恒包裹修正」皆被判错再修——**前判错根因 = 版本没分**（前两批判定面只进 1.0 oracle：t0001/03/04/05/09 全 1.0），表症 = 「单匹配」情况未单独成例进面；役49 1.1 oracle 进面才定三分 |
+| **版次越界族**（族维度 = **套件 specVersion**——非处理模式；2026-10-03 役63 收录） | | | |
+| #t0038 vs #tp001 | **版次越界**（同以 processingMode=1.0 运行、反判据；specVersion 分置 1.0 / 1.1） | 套件 **specVersion**（1.0 算法遗留形态 vs 1.1 prefix flag 规则） | #t0038（specVersion 1.0）expected 要 map 形 term `title` 作前缀（`title:/value`）；#tp001（specVersion 1.1）要 map 形 term `ex` **不**作前缀（全 IRI 直出）。**#tp001 胜出**——1.1 API §6.2 IRI Compaction “true prefix flag” 规则 + 参考实现 jsonld.js 对 specVersion=1.0 的 compact 例整体跳过（1.0 勘误改判）。1.1 处理器如实产全 IRI；#t0038 判**版次越界排除**（[设计] 非缺口，§8.91.1） |
 | **scoped 来源分叉族**（族维度 = **scoped 来源**——type-scoped vs property-scoped；2026-09-29 役3 收录） | | | |
 | #tc009 vs #tc013 | **scoped 来源分叉**（同形异判对——同一定义 `baz:{"@type":"@vocab"}` 分置 type-scoped / property-scoped） | type-scoped 定义的 term **只作键名**、datatype/container/language 不参与值成形（#tc009 值保 `{@id}` 对象形）；property-scoped 全参与值成形（#tc013 @vocab 型塌缩 vocab 相对词 "buzz"） | 双 oracle 各自成立——scoped context 双链分立的实证（机制账 §8.44） |
 | **族判据** | | | **规范字面与套件 oracle 冲突时，套件 oracle 为权威**——规范是解释起点，套件是判定终点；分叉必须在账（两例皆入册），禁静默择一 |
@@ -2119,6 +2121,45 @@ plain；六套件面（expand/toRDF/flatten/compact/对账三件套/判定器自
   不划算（@index 子键位前缀资格特例 + tp 族全量回归），且若裁「按
   oracle」须动已绿的 #tp001/#tp005，成本更高；④246/246 是目标非唯一
   目标——收官不是清空 deferred，是**每个 deferred 有解释**。
+
+#### 8.91.1 裁定更新：t0038 = 版次越界排除（非分叉；2026-10-03 役63 定案）
+
+**新证据三件（推翻 §8.91「分叉待裁」定性——题不是「oracle vs 规范」，是
+「版次越界」）**：
+
+1. **同 processingMode、反判据对**：#tp001 与 #t0038 **同以
+   `option.processingMode: json-ld-1.0` 运行**（本仓 `options_for`：specVersion
+   或 processingMode **任一**指 1.0 即置 `JsonLd10`），却要求相反——#tp001 要
+   map 形 term `ex:{"@id":"http://example.org/"}` **不作前缀**（全 IRI 直出）；
+   #t0038 要 map 形 term `title:{"@id":...,"@container":"@index"}` **作前缀**
+   （`title:/value`）。**单以 processing_mode 为参的算法无法两全**（实测：
+   放开 1.0 前缀资格 → #tp001 转红；收闸 → #t0038 红）。
+2. **1.1 权威 oracle = 收闸**：1.1 API §6.2 IRI Compaction——候选 term 须
+   “`definition` has a true prefix flag”；prefix flag 仅由 §4.2.2 create term
+   definition 置真（simple term 且 IRI mapping 尾 gen-delim，或 `@prefix:true`，
+   后者 1.0 模式禁），**map 形缺省 false**。故 1.1 处理器（含 1.0 processingMode）
+   对 map 形 term 一律不作前缀——#tp001 即此规则 oracle；#tp003/#tp005/#tp006 同族。
+3. **参考实现对 specVersion=1.0 的 compact 例整体跳过**：jsonld.js 测试驱动
+   `tests/test.js` 的 `jld:CompactTest.skip = { specVersion: ['json-ld-1.0'] }`，
+   注释原文 “skip tests where behavior changed for a 1.1 processor / see JSON-LD
+   1.0 Errata”。即 **1.0 压缩行为已被 1.0 勘误改判**，1.1 处理器不再被要求产出
+   1.0 形态；#t0038 的 expected（`title:/value`）是 **1.0 算法遗留形态**。
+
+**定案**：**#t0038 = 版次越界排除**（`[设计]` 类——规范允许取舍，非缺口、非分叉）。
+本仓 = 1.1 处理器，**如实产出全 IRI 形态**（= 权威 oracle #tp001），**不**为迁就
+1.0 遗留形态破坏 1.1 一致性。定性由「分叉待裁」翻为「版次越界，按参考实现跳过」——
+**结论同为不入 plain，据不同**。compact 面终态不变：246 条 / plain 245 / 留册 1。
+
+**被考虑并否决的替代**（存档防复提）：套件 README 建议 compact 面「若未设 ordered，
+结果应重展开后与 expected 重展开比对」——若把该重展开通道作 **或** 判据，#t0038
+全 IRI 输出重展开 == expected 重展开，可判过（→ 246/246）。**否决理由**：(a) 参考
+实现（jsonld.js）对 compact 用**严格比对 + specVersion skip 表**，未采用重展开或判据，
+非套件实证惯例；(b) 或判据会**普遍弱化** compaction 面判别力（任意重展开等价的压缩
+形态皆放行），违「套件 oracle 为权威」的从严取向。故维持严格 `canonical_for_suite`
+直比 + bnode 双射兜底。
+
+**连带账**：`review.md` §1.2 类别 `[立案]`→`[设计]`、理由改写；`consistency-baseline.txt`
+留册条文同步；同形异判表增「版次越界对」一行。
 
 ### 8.92 JSON-LD 整体收官账（2026-10-01 役44；J 系全战役终态——每面有账、每个 deferred 有解释）
 

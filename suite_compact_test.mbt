@@ -137,6 +137,11 @@ async test "compact suite harness: manifest-driven buckets" {
       deferred.push(id)
     }
   }
+  // 留册 1 例 = #t0038（specVersion json-ld-1.0）：其 expected（title:/value）为
+  // 1.0 压缩算法遗留形态，1.1 处理器行为已变（JSON-LD 1.0 勘误）——如实产全 IRI
+  // （权威 oracle #tp001，与 #t0038 同以 processingMode 1.0 运行）；参考实现
+  // jsonld.js 对 specVersion=1.0 的 compact 例整体跳过。定性 = **版次越界排除**
+  // （非缺口非分叉），证据三件见 spec.md §8.91.1。
   assert_eq(deferred.length(), 1)
   assert_eq(plain.length(), 245)
   // 复核面自报行（J4；suite-review.txt 抽取源——勿改格式）

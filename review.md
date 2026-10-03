@@ -46,7 +46,7 @@
 
 | # | 缺口 | 类别 | 理由 | 重评估条件 | 台账落点 |
 |---|---|---|---|---|---|
-| 1 | `compact #t0038` "Index map round-tripping"（JSON-LD 1.0 复杂往返例，Drupal 案）未迁 plain（compact 面 = 246 条 / plain 245 / deferred 1） | `[立案]` | 1.0 模式下 index map 的往返语义细节（1.0 无 `@index` 容器语义的一致性差异），需与「1.0 index map 裁量」一并定；**非**实现停滞（expand/toRdf 面同一语义已全绿） | 擂台口径涉及 JSON-LD 1.0 compact 往返时开；或 `t0038` 分叉裁量落笔时 | `todo.md` §J2（compact 面留册）；裁量结论入 `spec.md` §8（模式分叉节） |
+| 1 | `compact #t0038` "Index map round-tripping"（JSON-LD 1.0 复杂往返例，Drupal 案）未入 plain（compact 面 = 246 条 / plain 245 / deferred 1） | `[设计]` | **版次越界排除**（非缺口、非分叉）：specVersion = json-ld-1.0——其 expected（`title:/value`）是 **1.0 压缩算法遗留形态**，已被 JSON-LD 1.0 勘误改判；1.1 API §6.2 IRI Compaction 要求候选 term 具 **true prefix flag**（map 形缺省 false），故 1.1 处理器（含 1.0 processingMode）**如实产全 IRI 形态**（权威 oracle = #tp001，与 #t0038 同以 processingMode 1.0 运行）。参考实现 jsonld.js 对 specVersion=1.0 的 compact 例**整体跳过**（`tests/test.js` skip 表）。实测：放开 1.0 前缀资格 → #tp001 转红。证据三件见 `spec.md` §8.91.1 | 若另立 1.0 引擎一致性口径时（1.1 口径下不重估） | `spec.md` §8.91.1（新裁定）+ 同形异判表「版次越界族」；`todo.md` 役63 |
 
 **其余七面零缺口**（expand 385/385、toRdf 467/467、flatten 58/58、frame 92/92、
 fromRdf 54/54、html 50/50、canon 86/86——全 plain、零 deferred；由各 harness 的 pin

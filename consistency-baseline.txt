@@ -40,8 +40,11 @@ not_implemented = 0
 #
 # 缺口解释表：**J0 范围内零缺口**。范围外留册 1 条（不属本基线分母）：
 #   `compact #t0038`（JSON-LD 1.0 index map round-tripping）——见 `src/jsonld/review.md` §1.2
-#   （类别 [立案]，重评估条件与台账落点同表）。
+#   （类别 [设计] **版次越界排除**：specVersion=json-ld-1.0，其 expected 为 1.0 压缩算法
+#     遗留形态（1.0 勘误改判）；1.1 处理器如实产全 IRI——权威 oracle #tp001，与 #t0038
+#     同以 processingMode 1.0 运行；参考实现 jsonld.js 对 specVersion=1.0 的 compact 例
+#     整体跳过。证据三件见 spec.md §8.91.1）。
 # 复核面（外生再证）：复核表 `src/jsonld/suite-review.txt`（同头含整段复现命令，幂等已实证）
 #   + 缺口解释表 `src/jsonld/review.md` §1.2；覆盖率基线 `src/jsonld/coverage-baseline.txt`
 #   （只统计，未设阈值）。
-# 重评估条件：擂台口径出现 JSON-LD 1.0 compact 往返 / framing 面时，按 review.md §1.2 重估。
+# 重评估条件：若另立 JSON-LD 1.0 引擎一致性口径时，按 review.md §1.2 重估（1.1 口径下不重估）。
