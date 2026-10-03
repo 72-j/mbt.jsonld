@@ -63,6 +63,11 @@ pub(all) enum C14nHashAlgorithm {
 } derive(Eq)
 
 ///|
+/// [0079] 消警：Eq 派生的 equal/not_equal 显式升格（const §5——derive 须同笔补
+/// extend；役59 漏此条，2026-10-03 deny-warn 门红暴露）
+pub extend C14nHashAlgorithm with Eq::{not_equal, equal}
+
+///|
 /// Canonicalization state (section 4.4.3 steps 1-2): the parsed quads,
 /// the blank node to quads map (label -> quad indices), the canonical
 /// issuer (prefix c14n) and a work budget defending the poison clique

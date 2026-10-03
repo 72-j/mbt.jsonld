@@ -728,7 +728,6 @@ fn frame_property_matches(
             }
           }
         }
-      _ => ()
     }
   }
   false
@@ -2220,6 +2219,8 @@ fn debug_show_error(e : JsonLdError) -> String {
     JsonLdError::InvalidIri(msg) => "invalid iri: " + msg
     JsonLdError::InvalidList(msg) => "invalid list: " + msg
     JsonLdError::ContextOverflow(msg) => "context overflow: " + msg
+    JsonLdError::LoadingDocumentFailed(msg) => "loading document failed: " + msg
+    JsonLdError::InvalidScriptElement(msg) => "invalid script element: " + msg
   }
 }
 

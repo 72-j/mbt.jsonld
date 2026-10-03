@@ -9,6 +9,9 @@ pub(all) enum JsonLdError {
   InvalidList(String) // @list 形态非法
   Unsupported(String) // 未实现/不在范围（如 framing）
   ContextOverflow(String) // 远程 context 链深超限（己批——REC 4.1.2 步 5.2.3）
+  // J9 HTML 面（REC 9.5——JSON-LD 1.1 API REC 错误码实名循包内先例）
+  LoadingDocumentFailed(String) // 输入文档装载失败（fragment 未命中 / 无 JSON-LD script）
+  InvalidScriptElement(String) // JSON-LD script 内容非合法 JSON（REC 9.5.2）
 } derive(Eq, Debug)
 
 ///|

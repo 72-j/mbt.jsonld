@@ -109,7 +109,13 @@ fn expand_top_values(
         }
         match expanded {
           Ok(Some(value)) =>
-            push_top_value(out, value, frame_expansion=options.frame_expansion)
+            // 数组成员位非根（te004 oracle）——仅@graph 包裹保留
+            push_top_value(
+              out,
+              value,
+              frame_expansion=options.frame_expansion,
+              root=false,
+            )
           Ok(None) => ()
           Err(e) => return Err(e)
         }
@@ -154,6 +160,7 @@ fn push_top_value(
   out : Array[ExpandedValue],
   value : ExpandedValue,
   frame_expansion? : Bool = false,
+  root? : Bool = true,
 ) -> Unit {
   match value {
     // 顶层值对象即弃（#t0045："Top-level value objects are removed"）
@@ -161,8 +168,13 @@ fn push_top_value(
     ExpandedValue::Node(node) =>
       // 顶层 @graph 单一门（文档级批——#t0009/#t0021/#t0046 oracle）：展开后
       // 仅存 @graph 的根节点对象表面化为图内容数组；带任何其他属性（含 @id、
-      // @type、正属性、@reverse）则保留节点形态（#t0021：title + @graph 并存）
-      if node.graph is Some(graph_items) &&
+      // @type、正属性、@reverse）则保留节点形态（#t0021：title + @graph 并存）。
+      // **root 限定（J9 html 面双 oracle——t0020 根位解包 vs te004 数组成员位
+      // 保留）**：仅@graph 包裹解包只属文档根位；顶层数组的成员位仅@graph map
+      // 保包裹（REC 5.1 自由浮动丢弃清单=空/@value|@list/仅@id，无仅@graph 臂
+      // ——te004 W3C 期待实证）
+      if root &&
+        node.graph is Some(graph_items) &&
         node.id is None &&
         node.types.is_empty() &&
         node.properties.is_empty() &&
@@ -1220,22 +1232,14 @@ pub fn flatten_document_with_context(
       Err(e) => return Err(e)
     }
   }
-  // wrap 三钉（compact_document 同款——compactArrays=false 单节点也包裹）
+  // 顶层包裹（**flatten API 固定形制**，与 compact_document 的"单节点解包"分道）：
+  // API compact() 明文"The final output is a map derived from compacted output.
+  // If compacted output is an array, it is included with an entry of (a possibly
+  // aliased) @graph"——flatten 的输入恒为**展平数组**，故顶层恒 `@graph` 包裹、
+  // **不适用单节点解包**（oracle：html #tf001 单节点 ⇒ 仍 @graph；#tf003 两节点 ⇒
+  // 条目内部单值仍按 compactArrays 出标量——即"顶层解包禁用、内部照旧"）
   let body_pairs : Array[(String, JsonValue)] = []
-  if compacted.length() == 1 && options.compact_arrays {
-    match compacted[0] {
-      JsonValue::Object(pairs) =>
-        for pair in pairs {
-          body_pairs.push(pair)
-        }
-      other => {
-        let graph_key = compact_iri_word(
-          "@graph", true, false, true, active, options,
-        )
-        body_pairs.push((graph_key, JsonValue::Array([other])))
-      }
-    }
-  } else if compacted.length() == 0 {
+  if compacted.length() == 0 {
     return Ok(JsonValue::Object([]))
   } else {
     let graph_key = compact_iri_word(
