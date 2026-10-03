@@ -3,7 +3,9 @@
 定位：**jsonld 子项目**的坑位清单——**只收 jsonld 特有项 + 指针**（与既有条款
 重合者只指针不重写，const §6.3）。项目通用纪律（构建 / 命名 / 生成器 / git 两仓）
 见**根 `AGENTS.md`**。权威台账：红线 = `const.md`；裁定 + 证据链 = `spec.md`；
-本地工作卷 = `ctx.md`（§3 注意事项）。本清单是它们里「会咬人」项的速查入口。
+本地工作卷 = `ctx.md`（§3 注意事项）。**库定位裁定（役65）**：src/jsonld =
+**通用库**——pub 面 = API 承诺面，动 pub 过定位判据（const §5 引用条 /
+spec §9）。本清单是它们里「会咬人」项的速查入口。
 
 ## 一、语言坑（MoonBit；jsonld 已编译器实证）
 通则见根 `AGENTS.md` §Language pitfalls。jsonld 侧高频：

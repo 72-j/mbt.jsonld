@@ -3142,3 +3142,52 @@ i18n 方向 datatype 剥析（i18n-datatype——di05/06）、useNativeTypes
 n-degree 分解 → bnode 序排序 → serialize → SHA-256），基建已备（本仓
 N-Quads 解析/发射双面 + fromRDF 节点图构建皆在同包）。**开工 = 用户令**
 （多役规模预估：SHA-256 面 1 役 + 六步主算法 2-3 役 + 套件对拍收官 1 役）。
+
+## 9 库定位裁定（役65 · J10 库化整形，2026-10-03 拍板）
+
+**裁定：src/jsonld = 通用库（MoonBit JSON-LD 1.1 实现），非 harness 附属件。**
+定位由用户拍板（2026-10-03）；依据：仓内零依赖者、38 条 pub 面分类审计、
+对外交付判据（发版名片面）。本节是定位的**证据链与执行账**；pub 面自此 =
+**API 承诺面**——动 pub 须过定位判据（const §5 引用条）。§1「暂不做」三行
+系立项期记录，现状以八面套件成绩与本节为准。
+
+### 9.1 四条 harness 专用入口处置（开工前钉①逐条核）
+| 入口 | 核验结论 | 处置 |
+|---|---|---|
+| `frame_debug` 族（frame_debug + probe_value_text / debug_show_error / has_top_level_graph） | 真调用点 = **0**（役62 收紧后仅存壳） | **删除**（184 行死件；役62 红线「仅测试/零调用不留 pub」的首例兑现；生产 caller probe_id_text 保留） |
+| `flatten_document` / `flatten_document_with_context` 双入口 | REC 9.1 flatten(input, context, options) 本是**单入口可选参**；双入口是役56 分叉遗产 | **合一**：`flatten_document(text, context?, options)`——context 缺省 = 展平直出（数组形）；给定 = 展平后以该 context 压缩（恒 map 形含 @graph，API 形制逐入口定案不变） |
+| `canonical_for_suite` / `isomorphic_for_suite` | 依赖 priv 内部件（规范化比对 / bnode 双射），**无「pub 限测试域」可见性可用**（黑盒 `_test.mbt` 伪包只见 pub——审计结论） | **定位改判留 pub**：doc 改写为「JSON-LD 文档比对/同构判定（通用功能）；『suite』系历史名非用途限定」 |
+| `rdfc10_canonicalize_with_hash` | RDFC-1.0 规范入口（库特征非 harness 专用）；役62「非通用 API 承诺」随定位拍板解除 | **定位改判留 pub**：doc 改写（规范入口 + `_with_hash` 换哈希族接缝，真调用点在册） |
+
+### 9.2 render_json 晋 pub（开工前钉③「谁是真调用点」）
+- 真调用点审计：`html_extract` 合并源 1 处 + `compact_standard` 1 处（均包内）；
+  晋 pub 后包外可用性 = 库定位的直接兑现（诊断 / 比对输出面）。
+- **转义门前科修复**：原 jv_render 字符串零转义带病——含 `"` 输入产非法 JSON；
+  html 50/50 全绿纯因套件无此形输入（「机制缺席天然通过」的镜像案，const §5
+  假绿两态之外第三态：**出口门缺失**）。晋 pub 同笔补全转义门（`"` `\` 控制
+  字符：`\b\f\n\r\t` 命名形 + 其余 \u00XX 大写十六进制）+ 三钉 wbtest
+  （转义门逐形 / render∘parse 往返值等价 / min-JSON 零空白 + 键序保真）。
+- 语义边界：render_json = **往返保真 min-JSON**（键序 / 数词形原样）≠
+  json_canonical（RDFC-1.0 规范化形）——两函数各有用途，不复不混。
+
+### 9.3 圈外裁定保持（定位拍板的边界）
+- **remote-doc 19 例维持圈外**：load_context 同步注入 = 调用方供 fetch——
+  通用库不做内建网络面；此裁定在库定位下落定为**设计**（非缺口）。
+- **CLI 不做**：render_json 晋 pub 是库输出面，不附 CLI。
+
+### 9.4 覆盖率棘轮立阈（拍一）
+- `coverage-baseline.txt` 棘轮：未覆盖行数 ≤ **608**（役65 收官实测；沿革
+  689 J4 立 → 645 中途 → 608，净 −81 = 补 12 白盒钉 + 删 frame_debug 族
+  184 死件行）。只降不升，上调须写明理由。未覆盖带大头（expand_standard
+  218 / compact_standard 117 / frame 91）= 系统性负例路径批量补测，留
+  下役「覆盖率战役」本体。
+- 役65 负例钉批附带修出 **3 个产品 bug**：html 裸属性值 '/' 断裂
+  （`type=application/ld+json` 截成 `application`——HTML 规范裸值仅被
+  空白/'>' 终结）+ nquads 两处 `\\{ch}` 双反斜杠错误文案插值失效。
+
+### 9.5 mbti 净账（承诺面收支）
+- `pkg.generated.mbti`：−`flatten_document(String, JsonLdOptions)`、
+  −`flatten_document_with_context`、−`frame_debug`；
+  ＋`flatten_document(String, context? : String, JsonLdOptions)`、
+  ＋`render_json(JsonValue) -> String`——**净 −1 条目**（承诺面收缩与
+  通用输出入口兼得）。
