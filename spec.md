@@ -137,6 +137,8 @@ vs #t0115/#t0116[1.0] 同 vocab 输入异判定）；@value:null 族 = 值对象
 | #tec02 vs #pr30 | 形态分叉（**关键字 term 的 td 值**） | `{"@container":"@set"}`/`{"@protected":…}` 的有无 | "only either **or both of** following entries" ⇒ 须**至少一条**：`{"@type": {}}` → `keyword redefinition`；`{"@container":"@set","@protected":true}` → 合法（关键字可保护） |
 | #t0003 vs #tjs18/#tjs22 | **@json term 豁免**（形态+成员分叉） | `@value: null`——普通属性整体丢弃；**@json term** 的 null = JSON null 字面量保留（第三组同形异判） |
 | #ter01 vs #t0005/#tpr34~#tpr39 | **@ 前缀 ≠ 关键字**分叉 | "@iri": "@id"（keyword 形态**非真关键字**）定义**忽略不报错**、节点键随之丢弃；"@type": "@id"（**真关键字**映射异关键字）→ keyword redefinition。同族判据：@ 前缀 + 非关键字形态的键 → 忽略不产出属性（#t0119/#tpr34/#tpr36） |
+| #te006 vs #tr006 | **通道分叉**（同一输入、同一 option） | 无 JSON-LD script 时走哪条通道 | expand 面 ⇒ `loading document failed`（#te006 负）；**toRDF 面 ⇒ 空数据集**（#tr006 正）。处置：抽取器只报事实（`no_scripts` 旗 + 空数组源），通道语义留 harness |
+| #tf001 vs #tc001 | **API 形制分叉**（同一 HTML 输入与 context） | flatten vs compact | flatten 的输入恒为展平**数组** ⇒ 顶层**恒 `@graph` 包裹**（单节点也包裹，#tf001）；compact 才有单节点解包（#tc001）。条目内部单值仍随 compactArrays（#tf003 标量 / #tf005 @list 数组） |
 | **@value:null 分叉族**（三对归组；族维度 = **值形态/辖域**；2026-09-28 并入 #t0014 辖域行） | | | |
 | #t0019 vs #t0004 | 值形态（**@value:null 值对象** vs 空数组字面值） | @value:null 值对象 ⇒ 属性**整体丢弃**（预扫描）；空数组字面值属性保留（"set3": []）——同文档两形态并存（t0019/t0004 oracle） |
 | #t0008 vs #t0022 系 | 值对象成员完备性 | 仅 @language/@direction 无 @value ⇒ 值对象**丢弃**（language-only 不产出）；有 @value ⇒ 正常展开 |
@@ -253,6 +255,26 @@ type-scoped 快照必须以"元素 @context 已生效"的 active context 为底�
 **共享 context 面规则**（map context 来源 / from-map 语境），合并降低机制切换成本；
 仍按**逐例归因**记账（@id map #tm001/#tm002/#tm005/#tm011 + language map #tm009/#tm010，
 开工时按现状复勘"直接相关同族例"再定终稿）。
+
+### HTML 面已落实现注记（J9——REC 9.5；2026-10-03）
+- **提取（REC 9.5.1 Extract all JSON-LD scripts）**：`html_script_source`。fragment ⇒
+  按 script id 选中（percent 解码），未命中 → `loading document failed`；无 fragment ⇒
+  **extractAllScripts 缺省为 false = 只取首个**（#te002/#tf004 "by default" oracle），
+  `true` 则合并全部（数组并尾 / 标量追加；#te004/#te005/#tc004/#tf005）；`true` 且 0 个
+  script ⇒ **空结果**（#te007 "expands as empty" 正例）。
+- **逐 script 校验（REC 9.5.2）**：注释包裹形缺失（`<!--` 无 `-->` / 缺 `<!--`）或包裹内
+  含注释、内容非合法 JSON → `invalid script element`（#te014~#te017 / #tr014~#tr017）。
+- **文档基**：`<base href>`（对检索 URL 解析为绝对）优先于 `option.base` 与文档位置
+  （#te018~#te021 oracle）。
+- **通道复用（50 例全 plain、0 deferred）**：ExpandTest 21（13 正 + 8 负）→ `expand_document`；
+  ToRDFTest 20（13 + 7）→ `to_rdf_document` + N-Quads 数据集同构判定；FlattenTest 5 →
+  `flatten_document_with_context`；CompactTest 4 → `compact_document`。
+- **flatten API 形制**（#tf001/#tf003 oracle）：flatten 的输入恒为**展平数组** ⇒ 顶层
+  **恒 `@graph` 包裹**（单节点也包裹），**不适用 compact API 的单节点解包**；条目内部单值
+  仍随 compactArrays（#tf003 标量 / #tf005 `@list` 数组）。
+- **无 script 的通道分叉**（#te006 vs #tr006：同一 HTML、同一 option）：expand 面 ⇒
+  `loading document failed`；**toRDF 面 ⇒ 空数据集成功**。实现 = 抽取器只报事实
+  （`no_scripts` 旗 + 空数组源），**通道语义留在 harness**（唯一知道通道之处）。
 
 ### keyword 形态与 @ 键面已落实现注记（戊批 + 回归修，2026-09-27）
 - **keyword 形态**（REC 3.1：`"@"` 后接 ≥1 个纯 ALPHA）**≠ 真关键字**（形态 + 关键字表
