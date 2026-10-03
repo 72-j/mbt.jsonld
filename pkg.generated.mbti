@@ -34,6 +34,10 @@ pub fn jsonld_keyword_routes() -> Array[JsonLdKeywordRoute]
 
 pub fn parse_json(String) -> Result[JsonValue, JsonLdError]
 
+pub fn sha256_hex(Bytes) -> String
+
+pub fn sha256_utf8_hex(String) -> String
+
 pub fn to_rdf_document(String, JsonLdOptions) -> Result[Array[JsonLdQuad], JsonLdError]
 
 // Errors
