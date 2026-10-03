@@ -177,8 +177,7 @@ async fn html_run_channel(
     }
     "flatten" => {
       let context_text = html_context_text(id, entry)
-      match
-        @jsonld.flatten_document_with_context(source, context_text, options) {
+      match @jsonld.flatten_document(source, context=context_text, options) {
         Err(m) => fail("\{id}: flatten 报错 \{html_error_text(m)}")
         Ok(compacted) => html_expect_json(id, entry, compacted, plain)
       }

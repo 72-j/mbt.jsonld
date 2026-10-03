@@ -1139,7 +1139,7 @@ fn compact_property_values(
   for v in vals {
     match compact_value_item(v, td_opt, active, active, options) {
       Ok(jv) => {
-        let key = jv_render(jv)
+        let key = render_json(jv)
         if !seen.contains(key) {
           seen[key] = true
           vals_jv.push(jv)

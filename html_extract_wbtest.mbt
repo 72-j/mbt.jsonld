@@ -73,3 +73,58 @@ test "html_percent_decode: ascii and percent forms" {
   assert_eq(html_percent_decode("%E6%9C%88"), "月")
   assert_eq(html_percent_decode("bad%2"), "bad%2")
 }
+
+///|
+test "html_ld_scripts: markup corner arms" {
+  // '<' 残字符 / DOCTYPE / 标签名内杂字符——都不产 script 也不阻断后续
+  let scripts = html_scripts_of(
+    "< 5<!DOCTYPE html><a!>x<script type=\"application/ld+json\">{\"ok\":1}</script>",
+  )
+  assert_true(scripts.length() == 1)
+  assert_eq(scripts[0].content, "{\"ok\":1}")
+}
+
+///|
+test "html_ld_scripts: bare attribute value and empty valued attr" {
+  // 裸值属性合法识别；空值属性（type=）= 非法媒体类型 → 非 ld+json
+  let bare = html_scripts_of(
+    "<script type=application/ld+json>{\"bare\":1}</script>",
+  )
+  assert_true(bare.length() == 1)
+  assert_eq(bare[0].content, "{\"bare\":1}")
+  let empty_val = html_scripts_of("<script type=>{\"gone\":1}</script>")
+  assert_true(empty_val.length() == 0)
+}
+
+///|
+test "html_ld_scripts: script end-tag corner shapes" {
+  // </scriptx 非终止符 → 候选回填续读原文；</script > 带空白 → EndSkip
+  let scriptx = html_scripts_of(
+    "<script type=\"application/ld+json\">{\"a\":1}</scriptx</script>",
+  )
+  assert_true(scriptx.length() == 1)
+  assert_eq(scriptx[0].content, "{\"a\":1}</scriptx")
+  let spaced = html_scripts_of(
+    "<script id=\"s\" type=\"application/ld+json\">{\"b\":2}</script >",
+  )
+  assert_true(spaced.length() == 1)
+  assert_true(spaced[0].id_attr == Some("s"))
+  assert_eq(spaced[0].content, "{\"b\":2}")
+}
+
+///|
+test "html_ld_scripts: base href first wins and base without href" {
+  // <base href> 首现生效（te020 口径）；无 href 的 <base> 不动基
+  let doc = "<head><base href=\"http://a/\"><base href=\"http://b/\"><base></head><script type=\"application/ld+json\">{\"c\":3}</script>"
+  let scan = html_ld_scripts(doc)
+  assert_true(scan.scripts.length() == 1)
+  assert_true(scan.base_href == Some("http://a/"))
+}
+
+///|
+test "html_percent_decode: mid-string broken hex and raw non-ascii" {
+  // '%XX' 破形（第二位非 hex）→ '%' 字面 + 续读；裸非 ASCII 标量直通
+  assert_eq(html_percent_decode("a%2gb"), "a%2gb")
+  assert_eq(html_percent_decode("月"), "月")
+  assert_eq(html_percent_decode("a+b"), "a+b")
+}

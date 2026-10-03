@@ -373,9 +373,10 @@ pub fn json_canonical(value : JsonValue) -> JsonValue {
 }
 
 ///|
-/// W3C 官方比对归一（suite 比对通道；README「JSON-LD Object comparison」移植）：
-/// 对象键序不敏感；数组默认无序——唯一例外 @list 键下的数组保序；标量严格
-/// 相等。语言标签大小写不敏感项未采（现役从严）。tn004 双 nest 保序输出
+/// JSON-LD 文档比对（W3C README「JSON-LD Object comparison」移植；役65
+/// 定位改判：功能=通用文档比对器——对象键序不敏感；数组默认无序——唯一
+/// 例外 @list 键下的数组保序；标量严格相等。语言标签大小写不敏感项未采
+/// （现役从严）。「suite」系历史名非用途限定。tn004 双 nest 保序输出
 /// [v2,v4,v3] 与 expected [v2,v3,v4] 同判——合法置换。
 pub fn canonical_for_suite(value : JsonValue) -> JsonValue {
   canonical_suite_inner(value, false)
@@ -464,20 +465,21 @@ fn json_total_compare(a : JsonValue, b : JsonValue) -> Int {
 }
 
 ///|
-/// suite 判定器 bnode 双射兜底（flatten 批——引用实现重标签语义 oracle）：
-/// 直比对拍不过时，bnode 词面升为存在变量——存在标签双射 f 使 relabel 后
-/// 规范形逐字节相等 ⇒ 同构成立。词面位三钉（flatten 输出形）：谓词键位 /
-/// "@id" 值位 / "@type" 数组串值位；"@value" 字面量串不重标（字面量
-/// "_:x" 非节点词面）。标签数 > 8 直接 false——**8 是排列数工作界，非经验
-/// 值**：回溯最坏 = n! 次全文档重标规范渲染，8! = 40320 次为可接受上界；
-/// 套件实测最大 4 标签（#t0038，24 排列），8 留 4 倍标签余量。
+/// JSON-LD 文档同构判定（bnode 双射兜底；役65 定位改判：功能=通用同构
+/// 比对器——直比对拍不过时，bnode 词面升为存在变量——存在标签双射 f 使
+/// relabel 后规范形逐字节相等 ⇒ 同构成立。词面位三钉（flatten 输出形）：
+/// 谓词键位 / "@id" 值位 / "@type" 数组串值位；"@value" 字面量串不重标
+/// （字面量 "_:x" 非节点词面）。标签数 > 8 直接 false——**8 是排列数工作
+/// 界，非经验值**：回溯最坏 = n! 次全文档重标规范渲染，8! = 40320 次为可
+/// 接受上界；套件实测最大 4 标签（#t0038，24 排列），8 留 4 倍标签余量。
+/// 「suite」系历史名非用途限定。
 pub fn isomorphic_for_suite(ours : JsonValue, expected : JsonValue) -> Bool {
   // @graph 数组集合语义（役52 交棒钉兑现——RDF 图无序；framing unordered
   // oracle 序不判定。只松不紧：canonical 直比通道不受扰，兜底面放宽）
   let ours_norm = jv_sort_graph_arrays(ours)
   let expected_norm = jv_sort_graph_arrays(expected)
-  let ours_canon = jv_render(canonical_for_suite(ours_norm))
-  let expected_canon = jv_render(canonical_for_suite(expected_norm))
+  let ours_canon = render_json(canonical_for_suite(ours_norm))
+  let expected_canon = render_json(canonical_for_suite(expected_norm))
   if ours_canon == expected_canon {
     return true
   }
@@ -511,7 +513,7 @@ fn jv_sort_graph_arrays(value : JsonValue) -> JsonValue {
             JsonValue::Array(items) => {
               let keyed : Array[(String, JsonValue)] = []
               for item in items {
-                keyed.push((jv_render(canonical_for_suite(item)), item))
+                keyed.push((render_json(canonical_for_suite(item)), item))
               }
               keyed.sort_by(fn(a, b) { String::compare(a.0, b.0) })
               let sorted : Array[JsonValue] = []
@@ -633,7 +635,7 @@ fn jv_bnode_assign(
 ) -> Bool {
   if depth == left.length() {
     let relabeled = jv_relabel_bnodes(ours, mapping)
-    return jv_render(canonical_for_suite(relabeled)) == expected_canon
+    return render_json(canonical_for_suite(relabeled)) == expected_canon
   }
   for j in 0..<right.length() {
     if !used.contains(right[j]) {
@@ -739,13 +741,19 @@ fn flatten_reserve(value : ExpandedValue, into : Map[String, Bool]) -> Unit {
 }
 
 ///|
-/// JsonValue 渲染（去重键用——主包侧无 diag_json_str，测试包件不可见）
-fn jv_render(value : JsonValue) -> String {
+/// JsonValue → JSON 文本（**往返保真 min-JSON**；役65 库化整形晋 pub——
+/// 真调用点 = html extract_all 合并源 + isomorphic_for_suite 规范渲染 +
+/// 去重键；库出口承诺 = compact/expand 返回 JsonValue 须有官方序列化器）。
+/// **≠ json_canonical**：键序/数词形/数组序一概不动（规范形归
+/// json_canonical，本函数只管词法保真）。字符串转义 `"` `\` 与全部控制
+/// 字符（`\b\f\n\r\t` 命名形 + 其余 \u00XX）；数词形 = Double 插值词形
+/// （render∘parse 往返值等价，wbtest 钉）。
+pub fn render_json(value : JsonValue) -> String {
   match value {
     JsonValue::Null => "null"
     JsonValue::Bool(b) => if b { "true" } else { "false" }
     JsonValue::Number(nv) => "\{nv}"
-    JsonValue::String(sv) => "\"" + sv + "\""
+    JsonValue::String(sv) => render_json_string(sv)
     JsonValue::Array(items) => {
       let parts = StringBuilder()
       parts.write_string("[")
@@ -753,7 +761,7 @@ fn jv_render(value : JsonValue) -> String {
         if i > 0 {
           parts.write_string(",")
         }
-        parts.write_string(jv_render(item))
+        parts.write_string(render_json(item))
       }
       parts.write_string("]")
       parts.to_string()
@@ -765,13 +773,58 @@ fn jv_render(value : JsonValue) -> String {
         if i > 0 {
           parts.write_string(",")
         }
-        parts.write_string(jv_render(JsonValue::String(pair.0)))
+        parts.write_string(render_json(JsonValue::String(pair.0)))
         parts.write_string(":")
-        parts.write_string(jv_render(pair.1))
+        parts.write_string(render_json(pair.1))
       }
       parts.write_string("}")
       parts.to_string()
     }
+  }
+}
+
+///|
+/// JSON 字符串词形（引号包裹 + 转义门：`"` `\` 控制字符——役65 晋 pub 前
+/// 补，此前零转义渲染含 `"` 串值产非法 JSON；html 50/50 纯因无此形输入）
+fn render_json_string(sv : String) -> String {
+  let parts = StringBuilder()
+  parts.write_char('"')
+  for ch in sv {
+    let code = ch.to_int()
+    if ch == '"' {
+      parts.write_string("\\\"")
+    } else if ch == '\\' {
+      parts.write_string("\\\\")
+    } else if code == 8 {
+      parts.write_string("\\b")
+    } else if code == 12 {
+      parts.write_string("\\f")
+    } else if code == 10 {
+      parts.write_string("\\n")
+    } else if code == 13 {
+      parts.write_string("\\r")
+    } else if code == 9 {
+      parts.write_string("\\t")
+    } else if code < 0x20 {
+      // 其余控制字符 → \u00XX（大写十六进制，JSON 惯例）
+      parts.write_string("\\u00")
+      parts.write_char(render_json_hex_digit(code / 16))
+      parts.write_char(render_json_hex_digit(code % 16))
+    } else {
+      parts.write_char(ch)
+    }
+  }
+  parts.write_char('"')
+  parts.to_string()
+}
+
+///|
+/// 0-15 → 十六进制位字符（大写；控制字符 \u 转义用）
+fn render_json_hex_digit(n : Int) -> Char {
+  if n < 10 {
+    Int::unsafe_to_char(48 + n)
+  } else {
+    Int::unsafe_to_char(55 + n)
   }
 }
 
@@ -823,7 +876,7 @@ fn flatten_vals(
       _ =>
         match flatten_walk_value(state, v, scope) {
           Some(jv) => {
-            let key = jv_render(jv)
+            let key = render_json(jv)
             if !seen.contains(key) {
               seen[key] = true
               vals.push(jv)
@@ -1100,7 +1153,7 @@ fn flatten_walk_node(
           // 注入目标 = child 成员对列表（**并入既有同谓词对**——#t0037/#t0039
           // oracle：@reverse 注入与显式 knows 同值只留一份，RDF 集合语义）
           let value_obj = JsonValue::Object([("@id", JsonValue::String(term))])
-          let value_key = jv_render(value_obj)
+          let value_key = render_json(value_obj)
           let child_pairs : Array[(String, JsonValue)] = match found {
             Some(target) => target
             None => {
@@ -1118,7 +1171,7 @@ fn flatten_walk_node(
                 JsonValue::Array(vals) => {
                   let mut dup = false
                   for existing in vals {
-                    if jv_render(existing) == value_key {
+                    if render_json(existing) == value_key {
                       dup = true
                     }
                   }
@@ -1146,19 +1199,32 @@ fn flatten_walk_node(
 ///|
 /// flatten 文档入口（J5——spec §8.40）：JSON 文本 → 展开全链 → F2 同 id
 /// 预合并 → 作用域成员注册 → 顶层作用域枚举。负例 = 任一段 Err。
+
+///|
+/// flatten 唯一入口（REC flatten(input, context, options) 同形——context
+/// 可选；役65 库化整形：原 flatten_document/with_context 双入口合一，
+/// 兑现役56「暴露面随 harness 裁量收缩」承诺）。context 缺省 = 展平直出
+/// （数组形）；context 给定 = 展平后以该 context 压缩（flatten_with_context_inner）。
 pub fn flatten_document(
   text : String,
+  context? : String,
   options : JsonLdOptions,
 ) -> Result[JsonValue, JsonLdError] {
-  let top = match flatten_core(text, options) {
-    Ok(top) => top
-    Err(e) => return Err(e)
+  match context {
+    Some(context_text) =>
+      flatten_with_context_inner(text, context_text, options)
+    None => {
+      let top = match flatten_core(text, options) {
+        Ok(top) => top
+        Err(e) => return Err(e)
+      }
+      let out : Array[JsonValue] = []
+      for pairs in top {
+        out.push(JsonValue::Object(pairs))
+      }
+      Ok(JsonValue::Array(out))
+    }
   }
-  let out : Array[JsonValue] = []
-  for pairs in top {
-    out.push(JsonValue::Object(pairs))
-  }
-  Ok(JsonValue::Array(out))
 }
 
 ///|
@@ -1167,10 +1233,7 @@ pub fn flatten_document(
 /// 展开形幂等——绝对 IRI 键/引用/@value 形不变形）后走压缩正机
 /// （compact_node_jv）；wrap 三钉同 compact_document，compactArrays=false
 /// 单节点也 @graph 包裹（#t0091 同款）。
-/// **pub 理由 = 套件 harness 通道**（suite_flatten_test 为 blackbox 伪包
-/// 只见 pub 面——内部无第二调用方；非通用 API 承诺，暴露面随 harness
-/// 裁量收缩）
-pub fn flatten_document_with_context(
+fn flatten_with_context_inner(
   text : String,
   context_text : String,
   options : JsonLdOptions,

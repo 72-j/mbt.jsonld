@@ -144,7 +144,7 @@ fn nq2_parse_statement(line : String) -> Result[NqQuad?, String] {
             hex_acc = 0
             mode = Nq2IriHex
           }
-          _ => return Err("invalid IRI escape: \\{ch}")
+          _ => return Err("invalid IRI escape: \{ch}")
         }
       Nq2IriHex =>
         // 十六进制收满写 buf（IRI 词面），与字面量 Nq2LitHex 同谱
@@ -306,7 +306,7 @@ fn nq2_parse_statement(line : String) -> Result[NqQuad?, String] {
             hex_acc = 0
             mode = Nq2DtIriHex
           }
-          _ => return Err("invalid datatype IRI escape: \\{ch}")
+          _ => return Err("invalid datatype IRI escape: \{ch}")
         }
       Nq2DtIriHex =>
         // 十六进制收满写 suffix；终结 '>' 恒为末写字符，位剥离不受扰

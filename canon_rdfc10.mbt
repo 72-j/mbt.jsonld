@@ -664,12 +664,12 @@ fn C14nState::run(
 /// SHA384 variant pinned by suite test075. Output shape matches the
 /// mapping variant.
 ///
-/// **真调用点（开工钉，2026-10-03 役62）**：唯一外部调用者 = **套件 harness**
-/// `suite_canon_test.mbt`（blackbox `_test.mbt` 伪包，86 例 candidates）——
-/// 故本入口**保留 `pub`**；库内其余入口（`rdfc10_canonicalize` /
-/// `_with_mapping` / `sha256_hex` / `sha256_utf8_hex` / `sha384_hex` /
-/// `sha384_utf8_hex`）真调用点全在包内（内部委托 + wbtest），本轮**已收 `priv`**。
-/// **非通用 API 承诺**：暴露面随 harness 裁量收缩（改走内部入口即同笔收 `priv`）。
+/// **定位改判（役65 库化整形）**：本入口=RDFC-1.0 规范入口（库特征，
+/// 非 harness 专用）——hash 算法可配（SHA-256/384），返回规范形 + bnode
+/// 映射，是 RDFC-1.0 对外能力的直出口。原「非通用 API 承诺」（役62）随
+/// 库定位拍板解除；包内其余入口（`rdfc10_canonicalize` / `_with_mapping` /
+/// `sha256_hex` / `sha256_utf8_hex` / `sha384_hex` / `sha384_utf8_hex`）
+/// 真调用点逐处 grep 定性，役62 已收 `priv`。
 pub fn rdfc10_canonicalize_with_hash(
   input_nquads : String,
   hash_algorithm : C14nHashAlgorithm,

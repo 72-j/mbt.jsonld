@@ -86,9 +86,7 @@ async test "flatten suite harness: manifest-driven buckets" {
           let context_text = @utf8.decode(
             @fs.read_file("./src/jsonld/.rdf-tests/json-ld-api/" + context_path).binary(),
           )
-          @jsonld.flatten_document_with_context(
-            input_text, context_text, options,
-          )
+          @jsonld.flatten_document(input_text, context=context_text, options)
         }
         None => @jsonld.flatten_document(input_text, options)
       }

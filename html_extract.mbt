@@ -215,10 +215,11 @@ fn HtmlScanner::step(self : HtmlScanner, ch : Char) -> Unit {
         // 空值属性（type= → 非法媒体类型，非 ld+json）
         self.finalize_attr()
         self.close_start_tag()
-      } else if html_is_space(ch) || ch == '/' {
+      } else if html_is_space(ch) {
         self.finalize_attr()
         self.mode = HtmlTagBody
       } else {
+        // '/' 亦起裸值（HTML 规范 `=` 后 '/' 是值首字符）
         self.attr_value = StringBuilder()
         self.attr_value.write_char(ch)
         self.mode = HtmlAttrBare
@@ -231,10 +232,12 @@ fn HtmlScanner::step(self : HtmlScanner, ch : Char) -> Unit {
         self.attr_value.write_char(ch)
       }
     HtmlAttrBare =>
+      // 裸值只被空白/'>' 终结——'/' 属值内字符（HTML 规范裸值不含 '/'
+      // 终结形；application/ld+json 含 '/'，役65 探针实证断裂 bug）
       if ch == '>' {
         self.finalize_attr()
         self.close_start_tag()
-      } else if html_is_space(ch) || ch == '/' {
+      } else if html_is_space(ch) {
         self.finalize_attr()
         self.mode = HtmlTagBody
       } else {
@@ -522,7 +525,7 @@ pub fn html_script_source(
           }
         }
         Ok(HtmlScriptSource::{
-          source: jv_render(JsonValue::Array(parts)),
+          source: render_json(JsonValue::Array(parts)),
           document_base,
           // extractAllScripts=true 时空抽取是**正常空结果**（#te007 正例
           // "expands as empty"）⇒ 不置无 script 旗（该旗专表 #te006 臂）

@@ -12,11 +12,7 @@ pub fn compact_document(String, String, JsonLdOptions) -> Result[JsonValue, Json
 
 pub fn expand_document(String, JsonLdOptions) -> Result[JsonValue, JsonLdError]
 
-pub fn flatten_document(String, JsonLdOptions) -> Result[JsonValue, JsonLdError]
-
-pub fn flatten_document_with_context(String, String, JsonLdOptions) -> Result[JsonValue, JsonLdError]
-
-pub fn frame_debug(String, String, JsonLdOptions) -> String
+pub fn flatten_document(String, context? : String, JsonLdOptions) -> Result[JsonValue, JsonLdError]
 
 pub fn frame_document(String, String, JsonLdOptions) -> Result[JsonValue, JsonLdError]
 
@@ -37,6 +33,8 @@ pub fn jsonld_keyword_routes() -> Array[JsonLdKeywordRoute]
 pub fn parse_json(String) -> Result[JsonValue, JsonLdError]
 
 pub fn rdfc10_canonicalize_with_hash(String, C14nHashAlgorithm) -> Result[(String, Map[String, String]), JsonLdError]
+
+pub fn render_json(JsonValue) -> String
 
 pub fn to_rdf_document(String, JsonLdOptions) -> Result[Array[JsonLdQuad], JsonLdError]
 
