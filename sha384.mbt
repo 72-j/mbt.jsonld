@@ -177,7 +177,7 @@ fn sha384_words(data : Bytes) -> Array[UInt64] {
 ///|
 /// Digest as 96-char lowercase hex (the RDFC-1.0 ordering-key shape for
 /// the SHA384 variant; six state words truncated per section 6.5).
-pub fn sha384_hex(data : Bytes) -> String {
+fn sha384_hex(data : Bytes) -> String {
   let builder = StringBuilder()
   let state = sha384_words(data)
   for index in 0..<6 {
@@ -197,6 +197,6 @@ pub fn sha384_hex(data : Bytes) -> String {
 
 ///|
 /// SHA-384 of a string via UTF-8 bytes (the RDFC-1.0 SHA384 entry shape).
-pub fn sha384_utf8_hex(input : String) -> String {
+fn sha384_utf8_hex(input : String) -> String {
   sha384_hex(@utf8.encode(input))
 }

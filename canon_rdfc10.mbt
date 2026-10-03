@@ -660,32 +660,16 @@ fn C14nState::run(
 }
 
 ///|
-/// RDFC-1.0 canonicalization entry: N-Quads document in, canonical
-/// N-Quads document out (byte-exact appendix A form). Poison graphs
-/// (suite test074c) end in JsonLdError::Unsupported via the work budget.
-pub fn rdfc10_canonicalize(
-  input_nquads : String,
-) -> Result[String, JsonLdError] {
-  match rdfc10_canonicalize_with_mapping(input_nquads) {
-    Ok((canonical_form, _mapping)) => Ok(canonical_form)
-    Err(message) => Err(message)
-  }
-}
-
-///|
-/// Mapping variant (REC 4.4.3 step 6: the issued identifiers map is part
-/// of the algorithm's defined output): canonical form + original-label →
-/// canonical-label ledger (bare labels, matching the suite map ledgers).
-pub fn rdfc10_canonicalize_with_mapping(
-  input_nquads : String,
-) -> Result[(String, Map[String, String]), JsonLdError] {
-  rdfc10_canonicalize_with_hash(input_nquads, C14nHashAlgorithm::Sha256)
-}
-
-///|
 /// Full-option entry (REC section 3.1): the hash algorithm selects the
 /// SHA384 variant pinned by suite test075. Output shape matches the
 /// mapping variant.
+///
+/// **真调用点（开工钉，2026-10-03 役62）**：唯一外部调用者 = **套件 harness**
+/// `suite_canon_test.mbt`（blackbox `_test.mbt` 伪包，86 例 candidates）——
+/// 故本入口**保留 `pub`**；库内其余入口（`rdfc10_canonicalize` /
+/// `_with_mapping` / `sha256_hex` / `sha256_utf8_hex` / `sha384_hex` /
+/// `sha384_utf8_hex`）真调用点全在包内（内部委托 + wbtest），本轮**已收 `priv`**。
+/// **非通用 API 承诺**：暴露面随 harness 裁量收缩（改走内部入口即同笔收 `priv`）。
 pub fn rdfc10_canonicalize_with_hash(
   input_nquads : String,
   hash_algorithm : C14nHashAlgorithm,

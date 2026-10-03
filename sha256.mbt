@@ -156,7 +156,7 @@ fn sha256_words(data : Bytes) -> Array[UInt] {
 ///|
 /// Digest as 64-char lowercase hex (the RDFC-1.0 ordering-key shape,
 /// rdfc-1.0 spec section 4.6.2: hash expressed as lowercase hex string).
-pub fn sha256_hex(data : Bytes) -> String {
+fn sha256_hex(data : Bytes) -> String {
   let builder = StringBuilder()
   for word in sha256_words(data) {
     for shift in [28, 24, 20, 16, 12, 8, 4, 0] {
@@ -175,6 +175,6 @@ pub fn sha256_hex(data : Bytes) -> String {
 ///|
 /// SHA-256 of a string via UTF-8 bytes (the RDFC-1.0 entry shape: the
 /// algorithm hashes the canonical serialization strings, section 4.6.2).
-pub fn sha256_utf8_hex(input : String) -> String {
+fn sha256_utf8_hex(input : String) -> String {
   sha256_hex(@utf8.encode(input))
 }
