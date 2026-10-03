@@ -455,6 +455,15 @@ type-scoped 快照必须以"元素 @context 已生效"的 active context 为底�
 - 手写：在骨架钩子里实现递归
 - 对账门：接口一致 + 步骤覆盖 + 值级对拍
 
+### J4 收官态（2026-10-03）
+- **三件套落点**：接口一致门 `interface_gate_test.mbt` / 步骤覆盖门 `gen_gate_test.mbt`
+  （含三表重生成逐字节黄金门）/ 值级对拍门 = 八面套件 harness
+  （expand 385/385 · toRdf 467/467 · flatten 58/58 · compact 245/246 · frame 92/92 ·
+  fromRdf 54/54 · html 50/50 · canon 86/86 = 1437 条目，唯一留册 `compact #t0038`）。
+- **复核面**（外生再证）：复核表 `suite-review.txt`（自报行原样收纳 + 整段复现命令，复跑幂等）
+  + 缺口解释表 `review.md` §1.2 + 覆盖率基线 `coverage-baseline.txt`（只统计未设阈值）。
+- **一致性基线**：`consistency-baseline.txt` = J0 范围 852/852 全绿（零缺口），四注脚齐。
+
 ### 5.1 J4 对账三件套（2026-09-29 开工钉；J2/J3 全 plain ≠ 收官）
 **J4 的比较对象 = 骨架 vs 手写**（gen 产物 jsonld_gen.toml 声明面 ↔
 expand_standard/to_rdf 手写钩子），**不是模型 vs 引擎**——J2/J3 的套件对拍

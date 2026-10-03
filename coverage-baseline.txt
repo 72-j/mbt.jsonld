@@ -1,0 +1,25 @@
+# 覆盖率基线（JSON-LD 子项目独立基线；J4 立，2026-10-03）
+#
+# 状态：**只统计，未设阈值**（承 const §6.1「门不开即红」——先只统计，待擂台口径需要时再设棘轮；
+#   设阈时用整数取整式，见 ttl 先例 `src/ttl/coverage-baseline.txt`）。
+#
+# 度量口径（**固定顺序保证可复现**）：
+#   cd /home/thy/moonttl
+#   moon coverage clean && moon coverage analyze -p thy1016/bitbang/jsonld | tail -1
+#
+# **两个实测坑（必读；都不是可选项）**：
+#   坑① **`moon coverage clean` 不可省**——源码改动后 `_build` 里会留**旧插桩产物**，与新产物
+#     混跑会写出对不上的 trace ⇒ 报告直接 `length mismatch` / `index out of bounds`
+#     （ttl 先例 2026-09-18 实测踩过；本包 2026-10-03 沿用同序命令）。
+#   坑② **`-p` 取包名（`thy1016/bitbang/jsonld`），不是路径**——给 `src/jsonld` 会报
+#     "package name `src/jsonld` is incorrect / No coverage source data found"（本包实测）。
+#
+# 读数（2026-10-03，首次，J4 收官；同命令 + 同一留证 ⇒ 第三方得到同一读数）：
+#   Total: 689 uncovered line(s) in 10 file(s)   （jsonld 包 10 个源文件）
+#   注：本读数只统计**未覆盖行数**（棘轮方向 = 该数只降不升）；全模块读数另在 CI 静态作业口径内。
+#
+# 进步留痕纪律（承 ttl 先例）：补测试把线推上去后**同笔更新本文件**并在 todo.md 记一笔；
+#   要上调（未覆盖行数变多）必须写明理由（例如新增整块被测代码 / 统计口径变化）。
+#
+# 覆盖边界：本基线只覆盖 `src/jsonld` 包（不含 rdf-canon/sha 等已内联件的**分支级**语义面——
+#   那些由 wbtest 各自钉，见 `suite-review.txt` 表头"覆盖边界"节）。
