@@ -3,6 +3,7 @@
 // self-implementation end to end: empty (padding only), "abc" (single
 // block), 56-byte (exact pad boundary, forces the extra block), and
 // million-a (long multi-block).
+
 ///|
 test "SHA-256 utf8 entry wrapper" {
   assert_eq(

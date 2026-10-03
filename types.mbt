@@ -1,5 +1,6 @@
 ///|
-/// JSON-LD 处理阶段的错误
+/// JSON-LD 处理阶段的错误（役59 起 derive(Eq, Debug)——canon 白盒锚点
+/// assert_eq Result 需错误型实现 Eq/Debug；变体全 String 包装，结构性成立）
 pub(all) enum JsonLdError {
   Syntax(String) // JSON 文本语法错误（解析层包装，2026-09-25 增）
   InvalidContext(String) // context 处理失败
@@ -8,7 +9,14 @@ pub(all) enum JsonLdError {
   InvalidList(String) // @list 形态非法
   Unsupported(String) // 未实现/不在范围（如 framing）
   ContextOverflow(String) // 远程 context 链深超限（己批——REC 4.1.2 步 5.2.3）
-}
+} derive(Eq, Debug)
+
+///|
+/// 役59：Eq/Debug 的隐式方法晋升弃用警告——extend 双清（moonxt 战线范式）
+pub extend JsonLdError with Eq::{not_equal, equal}
+
+///|
+pub extend JsonLdError with @moonbitlang/core/debug.Debug::{to_repr}
 
 ///|
 /// 处理选项（对应 expansion 的 options）

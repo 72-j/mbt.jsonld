@@ -25,6 +25,8 @@ priv struct NqQuad {
 priv enum Nq2Mode {
   Nq2Between
   Nq2Iri
+  Nq2IriEscape
+  Nq2IriHex
   Nq2BnodeHead
   Nq2Bnode
   Nq2Literal
@@ -34,6 +36,8 @@ priv enum Nq2Mode {
   Nq2Lang
   Nq2Caret1
   Nq2DtIri
+  Nq2DtIriEscape
+  Nq2DtIriHex
   Nq2AfterLit
   Nq2Done
 }
@@ -122,8 +126,41 @@ fn nq2_parse_statement(line : String) -> Result[NqQuad?, String] {
         if ch == '>' {
           terms.push(NqIriTerm(buf.to_string()))
           mode = Nq2Between
+        } else if ch == '\\' {
+          mode = Nq2IriEscape
         } else {
           buf.write_char(ch)
+        }
+      Nq2IriEscape =>
+        // IRIREF 只容 UCHAR（u4/U8；短转义属字面量文法，IRI 内报错）
+        match ch {
+          'u' => {
+            hex_left = 4
+            hex_acc = 0
+            mode = Nq2IriHex
+          }
+          'U' => {
+            hex_left = 8
+            hex_acc = 0
+            mode = Nq2IriHex
+          }
+          _ => return Err("invalid IRI escape: \\{ch}")
+        }
+      Nq2IriHex =>
+        // 十六进制收满写 buf（IRI 词面），与字面量 Nq2LitHex 同谱
+        match nq2_hex_digit(ch) {
+          Some(d) => {
+            hex_acc = hex_acc * 16 + d
+            hex_left -= 1
+            if hex_left == 0 {
+              match hex_acc.to_char() {
+                Some(c) => buf.write_char(c)
+                None => return Err("invalid IRI \\u codepoint")
+              }
+              mode = Nq2Iri
+            }
+          }
+          None => return Err("bad hex digit in IRI \\u escape")
         }
       Nq2BnodeHead =>
         // '_:' 的 ':' 剥离（标签裸存——渲染位统一 "_:" 前缀）
@@ -251,8 +288,41 @@ fn nq2_parse_statement(line : String) -> Result[NqQuad?, String] {
           suffix.write_string(">")
           terms.push(nq2_literal_term(lit.to_string(), suffix.to_string()))
           mode = Nq2AfterLit
+        } else if ch == '\\' {
+          mode = Nq2DtIriEscape
         } else {
           suffix.write_char(ch)
+        }
+      Nq2DtIriEscape =>
+        // datatype IRI 同 IRIREF 文法：只容 UCHAR
+        match ch {
+          'u' => {
+            hex_left = 4
+            hex_acc = 0
+            mode = Nq2DtIriHex
+          }
+          'U' => {
+            hex_left = 8
+            hex_acc = 0
+            mode = Nq2DtIriHex
+          }
+          _ => return Err("invalid datatype IRI escape: \\{ch}")
+        }
+      Nq2DtIriHex =>
+        // 十六进制收满写 suffix；终结 '>' 恒为末写字符，位剥离不受扰
+        match nq2_hex_digit(ch) {
+          Some(d) => {
+            hex_acc = hex_acc * 16 + d
+            hex_left -= 1
+            if hex_left == 0 {
+              match hex_acc.to_char() {
+                Some(c) => suffix.write_char(c)
+                None => return Err("invalid datatype IRI \\u codepoint")
+              }
+              mode = Nq2DtIri
+            }
+          }
+          None => return Err("bad hex digit in datatype IRI \\u escape")
         }
       Nq2AfterLit =>
         if ch == ' ' || ch == '\t' || ch == '\r' {

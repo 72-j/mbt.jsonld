@@ -34,9 +34,19 @@ pub fn jsonld_keyword_routes() -> Array[JsonLdKeywordRoute]
 
 pub fn parse_json(String) -> Result[JsonValue, JsonLdError]
 
+pub fn rdfc10_canonicalize(String) -> Result[String, JsonLdError]
+
+pub fn rdfc10_canonicalize_with_hash(String, C14nHashAlgorithm) -> Result[(String, Map[String, String]), JsonLdError]
+
+pub fn rdfc10_canonicalize_with_mapping(String) -> Result[(String, Map[String, String]), JsonLdError]
+
 pub fn sha256_hex(Bytes) -> String
 
 pub fn sha256_utf8_hex(String) -> String
+
+pub fn sha384_hex(Bytes) -> String
+
+pub fn sha384_utf8_hex(String) -> String
 
 pub fn to_rdf_document(String, JsonLdOptions) -> Result[Array[JsonLdQuad], JsonLdError]
 
@@ -51,6 +61,11 @@ pub(all) struct ActiveContext {
   default_language : String?
   default_direction : String?
 }
+
+pub(all) enum C14nHashAlgorithm {
+  Sha256
+  Sha384
+} derive(Eq)
 
 pub(all) enum ContainerType {
   List
@@ -110,7 +125,10 @@ pub(all) enum JsonLdError {
   InvalidList(String)
   Unsupported(String)
   ContextOverflow(String)
-}
+} derive(Eq, @debug.Debug)
+pub fn JsonLdError::equal(Self, Self) -> Bool
+pub fn JsonLdError::not_equal(Self, Self) -> Bool
+pub fn JsonLdError::to_repr(Self) -> @debug.Repr
 
 pub(all) struct JsonLdIriRoute {
   order : Int
