@@ -1,6 +1,6 @@
 // ===== GENERATED FILE — DO NOT EDIT（生成物禁手写，世界宪法 §4.1）=====
-// 源表：src/jsonld/jsonld_gen.toml（schema 1.0）
-// 再生：moon run src/jsonld/cmd（改表 → 重跑 → 黄金门对拍）
+// 源表：src/fsm/jsonld_gen/jsonld_gen.toml（schema 1.0）
+// 再生：moon run src/fsm/jsonld_gen/cmd（改表 → 重跑 → 黄金门对拍）
 // 绑定器：src/fsm/jsonld_toml_gen.mbt（parse / validate / emit）
 
 ///|
