@@ -1,5 +1,5 @@
 // Generated using `moon info`, DON'T EDIT IT
-package "thy1016/bitbang/jsonld"
+package "thy1016/jsonld"
 
 import {
   "moonbitlang/core/debug",

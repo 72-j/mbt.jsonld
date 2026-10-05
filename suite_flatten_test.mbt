@@ -5,7 +5,7 @@
 /// bnode 标签：引用实现 _:b0 顺序 vs 本实现遍历序——直比不过再补双射兜底。
 async test "flatten suite harness: manifest-driven buckets" {
   let manifest_text = @utf8.decode(
-    @fs.read_file("./src/jsonld/.rdf-tests/json-ld-api/flatten-manifest.jsonld").binary(),
+    @fs.read_file("./.rdf-tests/json-ld-api/flatten-manifest.jsonld").binary(),
   )
   let doc = match @jsonld.parse_json(manifest_text) {
     Ok(doc) => doc
@@ -66,7 +66,7 @@ async test "flatten suite harness: manifest-driven buckets" {
         None => fail("\{id}: migrated but no input")
       }
       let input_text = @utf8.decode(
-        @fs.read_file("./src/jsonld/.rdf-tests/json-ld-api/" + input_path).binary(),
+        @fs.read_file("./.rdf-tests/json-ld-api/" + input_path).binary(),
       )
       let context_map : Map[String, String] = Map([])
       match @jsonld.parse_json(input_text) {
@@ -84,7 +84,7 @@ async test "flatten suite harness: manifest-driven buckets" {
       let flatten_result = match json_string_get(entry, "context") {
         Some(context_path) => {
           let context_text = @utf8.decode(
-            @fs.read_file("./src/jsonld/.rdf-tests/json-ld-api/" + context_path).binary(),
+            @fs.read_file("./.rdf-tests/json-ld-api/" + context_path).binary(),
           )
           @jsonld.flatten_document(input_text, context=context_text, options)
         }
@@ -101,9 +101,7 @@ async test "flatten suite harness: manifest-driven buckets" {
               None => fail("\{id}: 正例无 expect")
             }
             let expect_text = @utf8.decode(
-              @fs.read_file(
-                "./src/jsonld/.rdf-tests/json-ld-api/" + expect_path,
-              ).binary(),
+              @fs.read_file("./.rdf-tests/json-ld-api/" + expect_path).binary(),
             )
             let expected_value = match @jsonld.parse_json(expect_text) {
               Ok(v) => v

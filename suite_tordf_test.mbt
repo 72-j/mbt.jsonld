@@ -7,7 +7,7 @@
 /// rdfDirection×4/produceGeneralizedRdf×2 随管线批接线（JCS 独立子役）。
 async test "toRdf suite harness: judge ready, all deferred pre-J3.1" {
   let manifest_text = @utf8.decode(
-    @fs.read_file("./src/jsonld/.rdf-tests/json-ld-api/toRdf-manifest.jsonld").binary(),
+    @fs.read_file("./.rdf-tests/json-ld-api/toRdf-manifest.jsonld").binary(),
   )
   let doc = match @jsonld.parse_json(manifest_text) {
     Ok(doc) => doc
@@ -94,7 +94,7 @@ async test "toRdf suite harness: judge ready, all deferred pre-J3.1" {
     let input_path = json_string_get(entry, "input")
     if input_path is Some(p) {
       let text = @utf8.decode(
-        @fs.read_file("./src/jsonld/.rdf-tests/json-ld-api/" + p).binary(),
+        @fs.read_file("./.rdf-tests/json-ld-api/" + p).binary(),
       )
       match @jsonld.parse_json(text) {
         Ok(_) => parsed_ok += 1
@@ -130,7 +130,7 @@ async test "toRdf suite harness: judge ready, all deferred pre-J3.1" {
         None => fail("\{id}: migrated but no input")
       }
       let input_text = @utf8.decode(
-        @fs.read_file("./src/jsonld/.rdf-tests/json-ld-api/" + p).binary(),
+        @fs.read_file("./.rdf-tests/json-ld-api/" + p).binary(),
       )
       let context_map : Map[String, String] = Map([])
       match json_object_get(entry, "option") {
@@ -165,9 +165,7 @@ async test "toRdf suite harness: judge ready, all deferred pre-J3.1" {
               None => fail("\{id}: 正例无 expect")
             }
             let expect_text = @utf8.decode(
-              @fs.read_file(
-                "./src/jsonld/.rdf-tests/json-ld-api/" + expect_path,
-              ).binary(),
+              @fs.read_file("./.rdf-tests/json-ld-api/" + expect_path).binary(),
             )
             let expected = match parse_nquads(expect_text) {
               Ok(qs) => qs

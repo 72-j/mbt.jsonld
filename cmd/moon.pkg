@@ -1,8 +1,0 @@
-import {
-  "moonbitlang/async",
-  "moonbitlang/async/fs",
-  "moonbitlang/core/encoding/utf8",
-  "thy1016/bitbang/fsm",
-}
-
-pkgtype(kind: "executable")

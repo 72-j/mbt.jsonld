@@ -1,9 +1,9 @@
 ///|
 /// 接口一致门（对账红线第一件：骨架 handler ↔ 手写 trait 方法逐一对应）。
-/// 拦截两类漂移：① 表里 handler 指向未声明的 trait/方法；② trait 方法改名后表未同步。
+/// 拦截两类漂移：① 生成面 handler 指向未声明的 trait/方法；② trait 方法改名后生成面未同步。
 /// 机制：mock 全实现四 trait（`with` 形逐条，编译器钉住 trait 声明面）+
-/// table_handlers 清单与真表 handler 集合双向对表（多一少一即红）。
-/// 表行增删 ⇒ 同笔补 mock 分支 + 本清单。
+/// table_handlers 清单与生成面 handler 集合双向对表（多一少一即红）。
+/// 生成面增删 ⇒ 同笔补 mock 分支 + 本清单（生成物 ≡ 源表由外层黄金门把关）。
 
 ///|
 /// 表引用的全部 handler 方法名（与 mock 实现面一致）
@@ -251,18 +251,38 @@ impl @jsonld.ToRdfProcessor for MockHooks with fn node_to_quads(
 }
 
 ///|
-/// 门体：真表 handler 集合 ⟷ mock 面（table_handlers）双向对表
-async test "interface gate: every table handler resolves to a declared trait method" {
-  let toml_text = @utf8.decode(
-    @fs.read_file("./src/jsonld/jsonld_gen.toml").binary(),
-  )
-  let def = match @fsm.parse_jsonld_gen(toml_text) {
-    Ok(def) => def
-    Err(msg) => fail("parse rejected: \{msg}")
+/// 生成面全量步骤（JsonLdStep 变体；生成物每加一步须同笔补此处 —— 与 table_handlers 同款双录）
+fn all_jsonld_steps() -> Array[@jsonld.JsonLdStep] {
+  [
+    @jsonld.JsonLdStep::ExpansionEntry,
+    @jsonld.JsonLdStep::ExpansionExpandValue,
+    @jsonld.JsonLdStep::ExpansionExpandArray,
+    @jsonld.JsonLdStep::ExpansionExpandObject,
+    @jsonld.JsonLdStep::ExpansionPostprocess,
+    @jsonld.JsonLdStep::TorfEntry,
+    @jsonld.JsonLdStep::TorfEmit,
+  ]
+}
+
+///|
+/// 门体：生成面 handler 集合 ⟷ mock 面（table_handlers）双向对表。
+/// 数据源 = 编译后的生成模块 pub 面（JsonLdStep::handler / jsonld_keyword_routes()
+/// / jsonld_iri_routes()）；该生成物 ≡ 源表（jsonld_gen.toml）由**外层**黄金门
+/// 逐字节把关，故本门不再直读 toml —— 本仓据此去除对 `thy1016/bitbang/fsm` 的依赖。
+async test "interface gate: every generated handler resolves to a declared trait method" {
+  let hooks : Array[String?] = []
+  for step in all_jsonld_steps() {
+    hooks.push(step.handler())
+  }
+  for row in @jsonld.jsonld_keyword_routes() {
+    hooks.push(row.handler)
+  }
+  for row in @jsonld.jsonld_iri_routes() {
+    hooks.push(row.handler)
   }
   let seen : Map[String, Int] = Map([])
-  for step in def.steps {
-    match step.handler_hook {
+  for hook in hooks {
+    match hook {
       Some(h) =>
         match h.split("::").to_array() {
           [trait_name, handler_method] => {
@@ -274,33 +294,7 @@ async test "interface gate: every table handler resolves to a declared trait met
       None => ()
     }
   }
-  for row in def.keyword_dispatch {
-    match row.handler_hook {
-      Some(h) =>
-        match h.split("::").to_array() {
-          [trait_name, handler_method] => {
-            assert_true(trait_whitelist.contains(trait_name.to_owned()))
-            seen[handler_method.to_owned()] = 1
-          }
-          _ => fail("handler must be Trait::method: \{h}")
-        }
-      None => ()
-    }
-  }
-  for row in def.iri_rules {
-    match row.handler_hook {
-      Some(h) =>
-        match h.split("::").to_array() {
-          [trait_name, handler_method] => {
-            assert_true(trait_whitelist.contains(trait_name.to_owned()))
-            seen[handler_method.to_owned()] = 1
-          }
-          _ => fail("handler must be Trait::method: \{h}")
-        }
-      None => ()
-    }
-  }
-  // 双向对表：表引用集合 == mock 面（多一少一即红）
+  // 双向对表：生成面引用集合 == mock 面（多一少一即红）
   assert_eq(seen.length(), table_handlers.length())
   for handler_method in table_handlers {
     assert_true(seen.contains(handler_method))

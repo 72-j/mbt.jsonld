@@ -675,7 +675,7 @@ test "nquads judge: escape round trip (canonical wordform)" {
 ///|
 async test "nquads judge: ground quad parse (0001)" {
   let text = @utf8.decode(
-    @fs.read_file("./src/jsonld/.rdf-tests/json-ld-api/toRdf/0001-out.nq").binary(),
+    @fs.read_file("./.rdf-tests/json-ld-api/toRdf/0001-out.nq").binary(),
   )
   let quads = match parse_nquads(text) {
     Ok(qs) => qs
@@ -691,7 +691,7 @@ async test "nquads judge: ground quad parse (0001)" {
 ///|
 async test "nquads judge: named graph parse (0027)" {
   let text = @utf8.decode(
-    @fs.read_file("./src/jsonld/.rdf-tests/json-ld-api/toRdf/0027-out.nq").binary(),
+    @fs.read_file("./.rdf-tests/json-ld-api/toRdf/0027-out.nq").binary(),
   )
   let quads = match parse_nquads(text) {
     Ok(qs) => qs
@@ -719,7 +719,7 @@ async test "nquads judge: named graph parse (0027)" {
 ///|
 async test "nquads judge: bnode parse + JSON literal (0008/js01)" {
   let text0008 = @utf8.decode(
-    @fs.read_file("./src/jsonld/.rdf-tests/json-ld-api/toRdf/0008-out.nq").binary(),
+    @fs.read_file("./.rdf-tests/json-ld-api/toRdf/0008-out.nq").binary(),
   )
   let quads0008 = match parse_nquads(text0008) {
     Ok(qs) => qs
@@ -728,7 +728,7 @@ async test "nquads judge: bnode parse + JSON literal (0008/js01)" {
   assert_eq(quads0008.length(), 1)
   assert_eq(quads0008[0].subject, "_:b0")
   let textjs01 = @utf8.decode(
-    @fs.read_file("./src/jsonld/.rdf-tests/json-ld-api/toRdf/js01-out.nq").binary(),
+    @fs.read_file("./.rdf-tests/json-ld-api/toRdf/js01-out.nq").binary(),
   )
   let quadsjs01 = match parse_nquads(textjs01) {
     Ok(qs) => qs
@@ -792,7 +792,7 @@ async test "nquads judge: suite files self-isomorphic" {
   let names = ["0008-out.nq", "0027-out.nq", "js13-out.nq", "0113-out.nq"]
   for name in names {
     let text = @utf8.decode(
-      @fs.read_file("./src/jsonld/.rdf-tests/json-ld-api/toRdf/" + name).binary(),
+      @fs.read_file("./.rdf-tests/json-ld-api/toRdf/" + name).binary(),
     )
     let quads = match parse_nquads(text) {
       Ok(qs) => qs

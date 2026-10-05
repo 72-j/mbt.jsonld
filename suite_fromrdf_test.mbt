@@ -4,7 +4,7 @@
 /// 兜底。通道 = from_rdf_document(输入 N-Quads 原文, options)。
 async test "fromRDF suite harness: manifest-driven buckets" {
   let manifest_text = @utf8.decode(
-    @fs.read_file("./src/jsonld/.rdf-tests/json-ld-api/fromRdf-manifest.jsonld").binary(),
+    @fs.read_file("./.rdf-tests/json-ld-api/fromRdf-manifest.jsonld").binary(),
   )
   let doc = match @jsonld.parse_json(manifest_text) {
     Ok(doc) => doc
@@ -40,8 +40,7 @@ async test "fromRDF suite harness: manifest-driven buckets" {
     plain.push(id)
     let input_text = @utf8.decode(
       @fs.read_file(
-        "./src/jsonld/.rdf-tests/json-ld-api/" +
-        json_string_get(entry, "input").unwrap(),
+        "./.rdf-tests/json-ld-api/" + json_string_get(entry, "input").unwrap(),
       ).binary(),
     )
     let context_map : Map[String, String] = Map([])
@@ -66,7 +65,7 @@ async test "fromRDF suite harness: manifest-driven buckets" {
             None => fail("\{id}: 正例无 expect")
           }
           let expect_text = @utf8.decode(
-            @fs.read_file("./src/jsonld/.rdf-tests/json-ld-api/" + expect_path).binary(),
+            @fs.read_file("./.rdf-tests/json-ld-api/" + expect_path).binary(),
           )
           let expected_value = match @jsonld.parse_json(expect_text) {
             Ok(v) => v

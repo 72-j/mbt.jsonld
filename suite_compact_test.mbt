@@ -5,7 +5,7 @@
 /// 通道 = compact_document(输入原文, context 文件原文, options)。
 async test "compact suite harness: manifest-driven buckets" {
   let manifest_text = @utf8.decode(
-    @fs.read_file("./src/jsonld/.rdf-tests/json-ld-api/compact-manifest.jsonld").binary(),
+    @fs.read_file("./.rdf-tests/json-ld-api/compact-manifest.jsonld").binary(),
   )
   let doc = match @jsonld.parse_json(manifest_text) {
     Ok(doc) => doc
@@ -85,10 +85,10 @@ async test "compact suite harness: manifest-driven buckets" {
         None => fail("\{id}: migrated but no context")
       }
       let input_text = @utf8.decode(
-        @fs.read_file("./src/jsonld/.rdf-tests/json-ld-api/" + input_path).binary(),
+        @fs.read_file("./.rdf-tests/json-ld-api/" + input_path).binary(),
       )
       let context_text = @utf8.decode(
-        @fs.read_file("./src/jsonld/.rdf-tests/json-ld-api/" + context_path).binary(),
+        @fs.read_file("./.rdf-tests/json-ld-api/" + context_path).binary(),
       )
       let context_map : Map[String, String] = Map([])
       match @jsonld.parse_json(input_text) {
@@ -112,9 +112,7 @@ async test "compact suite harness: manifest-driven buckets" {
               None => fail("\{id}: 正例无 expect")
             }
             let expect_text = @utf8.decode(
-              @fs.read_file(
-                "./src/jsonld/.rdf-tests/json-ld-api/" + expect_path,
-              ).binary(),
+              @fs.read_file("./.rdf-tests/json-ld-api/" + expect_path).binary(),
             )
             let expected_value = match @jsonld.parse_json(expect_text) {
               Ok(v) => v

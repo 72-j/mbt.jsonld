@@ -187,7 +187,7 @@ fn diag_json_str(value : @jsonld.JsonValue) -> String {
 ///|
 async test "expand suite harness: manifest-driven buckets, all deferred pre-J2" {
   let manifest_text = @utf8.decode(
-    @fs.read_file("./src/jsonld/.rdf-tests/json-ld-api/expand-manifest.jsonld").binary(),
+    @fs.read_file("./.rdf-tests/json-ld-api/expand-manifest.jsonld").binary(),
   )
   let doc = match @jsonld.parse_json(manifest_text) {
     Ok(doc) => doc
@@ -716,7 +716,7 @@ async test "expand suite harness: manifest-driven buckets, all deferred pre-J2" 
     match json_string_get(entry, "input") {
       Some(input_path) => {
         let text = @utf8.decode(
-          @fs.read_file("./src/jsonld/.rdf-tests/json-ld-api/" + input_path).binary(),
+          @fs.read_file("./.rdf-tests/json-ld-api/" + input_path).binary(),
         )
         match @jsonld.parse_json(text) {
           Ok(_) => parsed_ok += 1
@@ -750,7 +750,7 @@ async test "expand suite harness: manifest-driven buckets, all deferred pre-J2" 
         None => fail("\{id}: migrated but no input")
       }
       let input_text = @utf8.decode(
-        @fs.read_file("./src/jsonld/.rdf-tests/json-ld-api/" + input_path).binary(),
+        @fs.read_file("./.rdf-tests/json-ld-api/" + input_path).binary(),
       )
       // 己批：预载 @context/@import 引用链（先解析输入、BFS 预载建表，loader =
       // 同步查表；core 侧解析键 = options.base 合并引用 = 预载 join 键）
@@ -800,7 +800,7 @@ async test "expand suite harness: manifest-driven buckets, all deferred pre-J2" 
             }
         }
         let expected_text = @utf8.decode(
-          @fs.read_file("./src/jsonld/.rdf-tests/json-ld-api/" + expect_path).binary(),
+          @fs.read_file("./.rdf-tests/json-ld-api/" + expect_path).binary(),
         )
         let expected = match @jsonld.parse_json(expected_text) {
           Ok(value) => value

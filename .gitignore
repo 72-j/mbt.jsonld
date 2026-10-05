@@ -1,0 +1,9 @@
+# MoonBit 构建产物 / 依赖解析目录
+_build
+_build/
+.mooncakes/
+.repos/
+
+# 杂项
+*.log
+target/

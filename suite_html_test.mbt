@@ -8,7 +8,7 @@
 /// id 选择；extractAllScripts=true 合并数组；无 script + false → 负例）。
 async test "HTML suite harness: manifest-driven buckets" {
   let manifest_text = @utf8.decode(
-    @fs.read_file("./src/jsonld/.rdf-tests/json-ld-api/html-manifest.jsonld").binary(),
+    @fs.read_file("./.rdf-tests/json-ld-api/html-manifest.jsonld").binary(),
   )
   let doc = match @jsonld.parse_json(manifest_text) {
     Ok(doc) => doc
@@ -91,7 +91,7 @@ async test "HTML suite harness: manifest-driven buckets" {
       None => ()
     }
     let html_text = @utf8.decode(
-      @fs.read_file("./src/jsonld/.rdf-tests/json-ld-api/" + path).binary(),
+      @fs.read_file("./.rdf-tests/json-ld-api/" + path).binary(),
     )
     match
       @jsonld.html_script_source(
@@ -191,7 +191,7 @@ async fn html_run_channel(
             None => fail("\{id}: 正例无 expect")
           }
           let expect_text = @utf8.decode(
-            @fs.read_file("./src/jsonld/.rdf-tests/json-ld-api/" + expect_path).binary(),
+            @fs.read_file("./.rdf-tests/json-ld-api/" + expect_path).binary(),
           )
           let expected = match parse_nquads(expect_text) {
             Ok(quads_out) => quads_out
@@ -225,7 +225,7 @@ async fn html_expect_json(
     None => fail("\{id}: 正例无 expect")
   }
   let expect_text = @utf8.decode(
-    @fs.read_file("./src/jsonld/.rdf-tests/json-ld-api/" + expect_path).binary(),
+    @fs.read_file("./.rdf-tests/json-ld-api/" + expect_path).binary(),
   )
   let expected_value = match @jsonld.parse_json(expect_text) {
     Ok(v) => v
@@ -247,7 +247,7 @@ async fn html_context_text(id : String, entry : @jsonld.JsonValue) -> String {
   match json_string_get(entry, "context") {
     Some(context_ref) =>
       @utf8.decode(
-        @fs.read_file("./src/jsonld/.rdf-tests/json-ld-api/" + context_ref).binary(),
+        @fs.read_file("./.rdf-tests/json-ld-api/" + context_ref).binary(),
       )
     None => {
       let _ = id

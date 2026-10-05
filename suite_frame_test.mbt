@@ -7,9 +7,7 @@
 /// ——§8.93 勘 4 簇表为逐簇解释）——首役起逐役迁移清桶（#t0001 冒烟起）。
 async test "framing suite harness: manifest-driven buckets" {
   let manifest_text = @utf8.decode(
-    @fs.read_file(
-      "./src/jsonld/.rdf-tests/json-ld-framing/frame-manifest.jsonld",
-    ).binary(),
+    @fs.read_file("./.rdf-tests/json-ld-framing/frame-manifest.jsonld").binary(),
   )
   let doc = match @jsonld.parse_json(manifest_text) {
     Ok(doc) => doc
@@ -95,10 +93,10 @@ async test "framing suite harness: manifest-driven buckets" {
         None => fail("\{id}: migrated but no frame")
       }
       let input_text = @utf8.decode(
-        @fs.read_file("./src/jsonld/.rdf-tests/json-ld-framing/" + input_path).binary(),
+        @fs.read_file("./.rdf-tests/json-ld-framing/" + input_path).binary(),
       )
       let frame_text = @utf8.decode(
-        @fs.read_file("./src/jsonld/.rdf-tests/json-ld-framing/" + frame_path).binary(),
+        @fs.read_file("./.rdf-tests/json-ld-framing/" + frame_path).binary(),
       )
       let context_map : Map[String, String] = Map([])
       match @jsonld.parse_json(input_text) {
@@ -122,9 +120,7 @@ async test "framing suite harness: manifest-driven buckets" {
               None => fail("\{id}: 正例无 expect")
             }
             let expect_text = @utf8.decode(
-              @fs.read_file(
-                "./src/jsonld/.rdf-tests/json-ld-framing/" + expect_path,
-              ).binary(),
+              @fs.read_file("./.rdf-tests/json-ld-framing/" + expect_path).binary(),
             )
             let expected_value = match @jsonld.parse_json(expect_text) {
               Ok(v) => v

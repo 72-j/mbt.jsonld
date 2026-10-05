@@ -30,8 +30,7 @@ async fn load_one_context(
   }
   let mirror_prefix = "https://w3c.github.io/json-ld-api/tests/"
   let prefix_len = mirror_prefix.length()
-  let local_path = "./src/jsonld/.rdf-tests/json-ld-api/" +
-    url[prefix_len:].to_owned()
+  let local_path = "./.rdf-tests/json-ld-api/" + url[prefix_len:].to_owned()
   let text = @utf8.decode(@fs.read_file(local_path).binary())
   map[url] = text
   match @jsonld.parse_json(text) {

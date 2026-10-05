@@ -8,7 +8,7 @@
 /// suite).
 async test "RDFC-1.0 suite harness: manifest-driven buckets" {
   let manifest_text = @utf8.decode(
-    @fs.read_file("./src/jsonld/.rdf-tests/rdf-canon/manifest.jsonld").binary(),
+    @fs.read_file("./.rdf-tests/rdf-canon/manifest.jsonld").binary(),
   )
   let doc = match @jsonld.parse_json(manifest_text) {
     Ok(doc) => doc
@@ -34,7 +34,7 @@ async test "RDFC-1.0 suite harness: manifest-driven buckets" {
       None => fail("\{id}: manifest action missing")
     }
     let input_text = @utf8.decode(
-      @fs.read_file("./src/jsonld/.rdf-tests/rdf-canon/" + action).binary(),
+      @fs.read_file("./.rdf-tests/rdf-canon/" + action).binary(),
     )
     let hash_algorithm = match json_string_get(entry, "hashAlgorithm") {
       Some("SHA384") => @jsonld.C14nHashAlgorithm::Sha384
@@ -54,7 +54,7 @@ async test "RDFC-1.0 suite harness: manifest-driven buckets" {
         None => fail("\{id}: map test without result ledger")
       }
       let map_text = @utf8.decode(
-        @fs.read_file("./src/jsonld/.rdf-tests/rdf-canon/" + map_path).binary(),
+        @fs.read_file("./.rdf-tests/rdf-canon/" + map_path).binary(),
       )
       let expected_map = match @jsonld.parse_json(map_text) {
         Ok(@jsonld.JsonValue::Object(pairs)) => {
@@ -99,7 +99,7 @@ async test "RDFC-1.0 suite harness: manifest-driven buckets" {
       None => fail("\{id}: eval test without result")
     }
     let result_text = @utf8.decode(
-      @fs.read_file("./src/jsonld/.rdf-tests/rdf-canon/" + result_path).binary(),
+      @fs.read_file("./.rdf-tests/rdf-canon/" + result_path).binary(),
     )
     match @jsonld.rdfc10_canonicalize_with_hash(input_text, hash_algorithm) {
       Err(_) => fail("\{id}: eval canonicalization errored")
