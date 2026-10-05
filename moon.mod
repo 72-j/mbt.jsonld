@@ -9,7 +9,7 @@ version = "0.1.0"
 
 repository = "https://www.gitlink.org.cn/thy7/mbt.jsonld"
 
-license = "MulanPSL-2.0"
+license = "Apache-2.0"
 
 keywords = [ "jsonld", "json-ld", "rdf", "linked-data", "canonicalization" ]
 
