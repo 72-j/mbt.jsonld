@@ -836,3 +836,446 @@ test "imap: error inside array member propagates" {
     neg_plain_options(),
   )
 }
+
+///|
+test "vcv: @graph duplicate in array" {
+  expect_invalid_context(
+    "{\"@context\":{\"p\":{\"@id\":\"http://a/p\",\"@container\":[\"@graph\",\"@graph\"]}}}",
+    neg_plain_options(),
+  )
+}
+
+///|
+test "vcv: @set duplicate in array" {
+  expect_invalid_context(
+    "{\"@context\":{\"p\":{\"@id\":\"http://a/p\",\"@container\":[\"@set\",\"@set\"]}}}",
+    neg_plain_options(),
+  )
+}
+
+///|
+test "vcv: @list duplicate in array" {
+  expect_invalid_context(
+    "{\"@context\":{\"p\":{\"@id\":\"http://a/p\",\"@container\":[\"@list\",\"@list\"]}}}",
+    neg_plain_options(),
+  )
+}
+
+///|
+test "vcv: unknown member in array" {
+  expect_invalid_context(
+    "{\"@context\":{\"p\":{\"@id\":\"http://a/p\",\"@container\":[\"@foo\"]}}}",
+    neg_plain_options(),
+  )
+}
+
+///|
+test "vcv: non-string member in array" {
+  expect_invalid_context(
+    "{\"@context\":{\"p\":{\"@id\":\"http://a/p\",\"@container\":[123]}}}",
+    neg_plain_options(),
+  )
+}
+
+///|
+test "vcv: number container value" {
+  expect_invalid_context(
+    "{\"@context\":{\"p\":{\"@id\":\"http://a/p\",\"@container\":123}}}",
+    neg_plain_options(),
+  )
+}
+
+///|
+/// 批5b：装载面两钉（loader 缺省 = Unsupported 契约；loader 出非 JSON）
+fn neg_base_options(base : String) -> JsonLdOptions {
+  {
+    base: Some(base),
+    expand_context: None,
+    processing_mode: JsonLd11,
+    load_context: None,
+    rdf_direction: None,
+    produce_generalized_rdf: false,
+    compact_arrays: true,
+    compact_to_relative: true,
+    frame_expansion: false,
+    omit_graph: false,
+    use_native_types: false,
+    use_rdf_type: false,
+  }
+}
+
+///|
+test "load: no loader provided is Unsupported" {
+  match
+    expand_document(
+      "{\"@context\":{\"@import\":\"ctx.json\",\"p\":\"http://a/p\"}}",
+      neg_base_options("http://a/"),
+    ) {
+    Err(Unsupported(_)) => ()
+    _ => fail("expected JsonLdError::Unsupported (loader not provided)")
+  }
+}
+
+///|
+test "load: loader returning invalid json" {
+  let bad_json_loader : (String) -> Result[String, String] = _ => Ok("not json")
+  let options : JsonLdOptions = {
+    base: Some("http://a/"),
+    expand_context: None,
+    processing_mode: JsonLd11,
+    load_context: Some(bad_json_loader),
+    rdf_direction: None,
+    produce_generalized_rdf: false,
+    compact_arrays: true,
+    compact_to_relative: true,
+    frame_expansion: false,
+    omit_graph: false,
+    use_native_types: false,
+    use_rdf_type: false,
+  }
+  expect_invalid_context(
+    "{\"@context\":{\"@import\":\"ctx.json\",\"p\":\"http://a/p\"}}", options,
+  )
+}
+
+///|
+/// 批5c：merge_base_reference 相对合并边角（query 追加 / 无 authority 根 /
+/// 无斜杠无冒号 base）
+test "base: query reference appends to queryless base" {
+  match expand_document("{\"@id\":\"?q\"}", neg_base_options("http://a/b")) {
+    Ok(value) => assert_eq(render_json(value), "[]") // @id-only 节点顶层被弃；合并发生在弃置前
+    _ => fail("expected Ok (query reference merged)")
+  }
+}
+
+///|
+test "base: slash reference on authorityless base" {
+  match expand_document("{\"@id\":\"/x\"}", neg_base_options("abc")) {
+    Ok(value) => assert_eq(render_json(value), "[]") // 同上
+    _ => fail("expected Ok (slash reference merged)")
+  }
+}
+
+///|
+test "base: plain reference on slashless colonless base" {
+  match expand_document("{\"@id\":\"x\"}", neg_base_options("abc")) {
+    Ok(value) => assert_eq(render_json(value), "[]") // 同上
+    _ => fail("expected Ok (plain reference merged)")
+  }
+}
+
+///|
+/// 批5d：杂项单钉
+test "selfprefix: colonless id skips self-compact check" {
+  match
+    expand_document(
+      "{\"@context\":{\"p\":{\"@id\":\"noself\"}},\"p\":\"v\"}",
+      neg_plain_options(),
+    ) {
+    Ok(_) => ()
+    _ => fail("expected Ok (colonless id term usable)")
+  }
+}
+
+///|
+test "ftd: @type default non-string ignored" {
+  match expand_document("{\"@type\":{\"@default\":123}}", neg_frame_options()) {
+    Ok(_) => ()
+    _ => fail("expected Ok (non-string default ignored)")
+  }
+}
+
+///|
+test "shape: nested array under nullified graph gate" {
+  match
+    expand_document(
+      "{\"@context\":{\"t\":{\"@id\":\"http://a/t\",\"@container\":\"@type\",\"@context\":null}},\"@id\":\"http://n/\",\"@type\":\"t\",\"@graph\":[[\"a\"]]}",
+      neg_plain_options(),
+    ) {
+    Ok(_) => ()
+    _ => fail("expected Ok (nested array at nullified gate)")
+  }
+}
+
+///|
+test "elem: top-level value null" {
+  match expand_document("{\"@value\":null}", neg_plain_options()) {
+    Ok(value) => assert_true(render_json(value) == "[]")
+    Err(_) => fail("expected Ok (value null dropped at top)")
+  }
+}
+
+///|
+test "elem: top-level array of scalars" {
+  match expand_document("[\"x\",1.5]", neg_plain_options()) {
+    Ok(value) => assert_eq(render_json(value), "[]") // 标量串顶层展开后被弃
+    Err(_) => fail("expected Ok (scalar array)")
+  }
+}
+
+///|
+test "prot: equivalent protected redefinition allowed" {
+  match
+    expand_document(
+      "{\"@context\":[{\"@protected\":true,\"p\":{\"@id\":\"http://a/p\",\"@container\":\"@type\",\"@context\":{\"q\":\"http://b/q\"}}},{\"p\":{\"@id\":\"http://a/p\",\"@container\":\"@type\",\"@context\":{\"q\":\"http://b/q\"}}}],\"p\":{\"http://a/t\":{\"@id\":\"http://x/\"}}}",
+      neg_plain_options(),
+    ) {
+    Ok(value) => assert_true(render_json(value).contains("http://x/"))
+    _ => fail("expected Ok (equivalent redefinition kept)")
+  }
+}
+
+///|
+test "prot: inequivalent protected redefinition rejected" {
+  expect_invalid_context(
+    "{\"@context\":[{\"@protected\":true,\"p\":{\"@id\":\"http://a/p\",\"@container\":\"@type\"}},{\"p\":{\"@id\":\"http://a/p\",\"@container\":\"@index\"}}]}",
+    neg_plain_options(),
+  )
+}
+
+///|
+test "selfprefix: null-term prefix falls through compact" {
+  match
+    expand_document(
+      "{\"@context\":{\"p\":null},\"p:x\":\"v\"}",
+      neg_plain_options(),
+    ) {
+    Ok(_) => ()
+    _ => fail("expected Ok (null term prefix falls through)")
+  }
+}
+
+///|
+/// 批5 mini-wave2：base 边角（"//"引用×无冒号 base / 斜杠引用×非//scheme base）
+test "base: scheme-relative reference on colonless base" {
+  match expand_document("{\"@id\":\"//h/p\"}", neg_base_options("abc")) {
+    Ok(value) => assert_eq(render_json(value), "[]")
+    _ => fail("expected Ok")
+  }
+}
+
+///|
+test "base: slash reference on non-authority scheme base" {
+  match expand_document("{\"@id\":\"/x\"}", neg_base_options("ex:a")) {
+    Ok(value) => assert_eq(render_json(value), "[]")
+    _ => fail("expected Ok")
+  }
+}
+
+///|
+/// 批5 mini-wave2：expand_element / expand_array 臂
+test "elem: invalid @type value propagates at top" {
+  match expand_document("{\"@type\":123}", neg_plain_options()) {
+    Err(InvalidValue(_)) => ()
+    _ => fail("expected InvalidValue for numeric @type")
+  }
+}
+
+///|
+test "elem: bool scalar is unsupported" {
+  match expand_document("true", neg_plain_options()) {
+    Err(Unsupported(_)) => ()
+    _ => fail("expected Unsupported for boolean scalar")
+  }
+}
+
+///|
+test "elem: nested array via element dispatch" {
+  // 顶层驱动卫兵：嵌套数组顶层 = Unsupported("nested array at top pending")
+  // （engine.mbt 驱动层卫兵，不经 expand_array）
+  match expand_document("[[\"a\"]]", neg_plain_options()) {
+    Err(Unsupported(_)) => ()
+    _ => fail("expected Unsupported (nested array at top)")
+  }
+}
+
+///|
+test "elem: array item unknown-only node" {
+  // 未知属性独占节点 = 空节点，驱动层直弃（[]）
+  match expand_document("[{\"unknown\":\"v\"}]", neg_plain_options()) {
+    Ok(value) => assert_eq(render_json(value), "[]")
+    Err(_) => fail("expected Ok (empty node dropped)")
+  }
+}
+
+///|
+/// 批5 mini-wave2：等价重定义逐字段面（同容器双型 / graph 双型 / datatype /
+/// 同 scoped context）
+test "prot: equivalent type-container redefinition" {
+  match
+    expand_document(
+      "{\"@context\":[{\"@protected\":true,\"p\":{\"@id\":\"http://a/p\",\"@container\":\"@type\"}},{\"p\":{\"@id\":\"http://a/p\",\"@container\":\"@type\"}}]}",
+      neg_plain_options(),
+    ) {
+    Ok(_) => ()
+    _ => fail("expected Ok (type/type equivalent)")
+  }
+}
+
+///|
+test "prot: equivalent graph-container redefinition" {
+  match
+    expand_document(
+      "{\"@context\":[{\"@protected\":true,\"p\":{\"@id\":\"http://a/p\",\"@container\":\"@graph\"}},{\"p\":{\"@id\":\"http://a/p\",\"@container\":\"@graph\"}}]}",
+      neg_plain_options(),
+    ) {
+    Ok(_) => ()
+    _ => fail("expected Ok (graph/graph equivalent)")
+  }
+}
+
+///|
+test "prot: equivalent datatype redefinition" {
+  match
+    expand_document(
+      "{\"@context\":[{\"@protected\":true,\"p\":{\"@id\":\"http://a/p\",\"@type\":\"http://a/d\"}},{\"p\":{\"@id\":\"http://a/p\",\"@type\":\"http://a/d\"}}]}",
+      neg_plain_options(),
+    ) {
+    Ok(_) => ()
+    _ => fail("expected Ok (datatype equivalent)")
+  }
+}
+
+///|
+test "prot: equivalent local context redefinition" {
+  match
+    expand_document(
+      "{\"@context\":[{\"@protected\":true,\"p\":{\"@id\":\"http://a/p\",\"@context\":{\"q\":\"http://b/q\"}}},{\"p\":{\"@id\":\"http://a/p\",\"@context\":{\"q\":\"http://b/q\"}}}],\"p\":\"v\"}",
+      neg_plain_options(),
+    ) {
+    Ok(_) => ()
+    _ => fail("expected Ok (local context equivalent)")
+  }
+}
+
+///|
+/// 批5 mini-wave3：frame pattern 面（@list 项循环 / pattern 保形 / @default
+/// 数组保形）——expand_array·expand_value 残臂的真实入口
+test "frame: @list pattern with nested array item" {
+  // 嵌套数组经 @list 模式项循环展开成 List[literal]，非节点形落空 pattern {}
+  match
+    expand_document(
+      "{\"@context\":{\"rev\":{\"@reverse\":\"http://a/p\"}},\"rev\":{\"@list\":[[\"a\"]]}}",
+      neg_frame_options(),
+    ) {
+    Ok(value) =>
+      assert_eq(render_json(value), "[{\"@reverse\":{\"http://a/p\":[{}]}}]")
+    _ => fail("expected Ok (list pattern empty node fallback)")
+  }
+}
+
+///|
+test "frame: @list pattern with bool item" {
+  // 模式项 Bool 落值 pattern 保形（不经 expand_value 标量臂）
+  match
+    expand_document(
+      "{\"@context\":{\"rev\":{\"@reverse\":\"http://a/p\"}},\"rev\":{\"@list\":[true]}}",
+      neg_frame_options(),
+    ) {
+    Ok(_) => ()
+    _ => fail("expected Ok (bool as value pattern)")
+  }
+}
+
+///|
+test "frame: pattern object with invalid @id" {
+  match
+    expand_document(
+      "{\"@context\":{\"rev\":{\"@reverse\":\"http://a/p\"}},\"rev\":{\"@id\":123}}",
+      neg_frame_options(),
+    ) {
+    Ok(_) => () // 模式位 @id 数值 = 容忍（pattern node 原样保形）
+    _ => fail("expected Ok (numeric @id tolerated in pattern)")
+  }
+}
+
+///|
+test "frame: pattern object with value null" {
+  match
+    expand_document(
+      "{\"@context\":{\"rev\":{\"@reverse\":\"http://a/p\"}},\"rev\":{\"@value\":null}}",
+      neg_frame_options(),
+    ) {
+    Ok(value) =>
+      assert_eq(
+        render_json(value),
+        "[{\"@reverse\":{\"http://a/p\":[{\"@value\":[]}]}}]",
+      ) // @value:null 保形为空值 pattern
+    _ => fail("expected Ok (null value pattern preserved)")
+  }
+}
+
+///|
+test "frame: @default with nested array values" {
+  match
+    expand_document(
+      "{\"@context\":{\"rev\":{\"@reverse\":\"http://a/p\"}},\"rev\":{\"@default\":[[\"a\"],[\"b\"]]}}",
+      neg_frame_options(),
+    ) {
+    Ok(_) => ()
+    Err(_) => fail("expected Ok (default array preservation)")
+  }
+}
+
+///|
+test "frame: pattern value object with invalid language" {
+  // 值对象 @language 非串 → expand_object 错误 → expand_element Err 臂传播
+  match
+    expand_document(
+      "{\"@context\":{\"rev\":{\"@reverse\":\"http://a/p\"}},\"rev\":{\"@value\":\"x\",\"@language\":123}}",
+      neg_frame_options(),
+    ) {
+    Ok(_) => () // 模式位值对象 @language 非串 = 容忍（保形不校验）
+    _ => fail("expected Ok (pattern tolerance)")
+  }
+}
+
+///|
+test "graph: array with bool item" {
+  // @graph 数组项 Bool = 值对象形被弃（顶层空）
+  match expand_document("{\"@graph\":[true]}", neg_plain_options()) {
+    Ok(value) => assert_eq(render_json(value), "[]")
+    _ => fail("expected Ok (bool item dropped)")
+  }
+}
+
+///|
+test "graph: node with invalid nest reference" {
+  // @nest 引用未声明 term → 错误穿 @graph 臂 → expand_element Err 臂传播
+  match
+    expand_document(
+      "{\"@graph\":{\"@id\":\"http://x/\",\"@nest\":\"unknown\"}}",
+      neg_plain_options(),
+    ) {
+    Err(InvalidContext("invalid @nest value")) => ()
+    _ => fail("expected InvalidContext (invalid @nest value)")
+  }
+}
+
+///|
+test "graph: array of scalars" {
+  // 标量串/数经 @graph 数组臂展开后值对象被弃（顶层空）
+  match expand_document("{\"@graph\":[\"x\",1.5]}", neg_plain_options()) {
+    Ok(value) => assert_eq(render_json(value), "[]")
+    _ => fail("expected Ok (scalar graph items dropped)")
+  }
+}
+
+///|
+/// 批6：1.0 模式面助手
+fn neg_plain10_options() -> JsonLdOptions {
+  {
+    base: None,
+    expand_context: None,
+    processing_mode: JsonLd10,
+    load_context: None,
+    rdf_direction: None,
+    produce_generalized_rdf: false,
+    compact_arrays: true,
+    compact_to_relative: true,
+    frame_expansion: false,
+    omit_graph: false,
+    use_native_types: false,
+    use_rdf_type: false,
+  }
+}

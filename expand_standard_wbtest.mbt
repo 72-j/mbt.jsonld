@@ -1603,3 +1603,75 @@ test "nq_canonical_number canonical form pinning" {
   assert_eq(nq_canonical_number("1", true), ("1.0E0", true))
   assert_eq(nq_canonical_number("0", true), ("0.0E0", true))
 }
+
+///|
+/// 批5 B 族：IriExpander 单件未触臂直调（烟雾钉只盖各单件首 Err 门；
+/// 此处补 td iri=None / 无冒号 / vocab 命中三面）
+fn wb_td_null() -> TermDefinition {
+  {
+    iri: None,
+    datatype: None,
+    container: None,
+    reverse: None,
+    graph_secondary: None,
+    local_context: None,
+    context_base_url: None,
+    index_mapping: None,
+    is_protected: false,
+    is_prefix: None,
+    language_mapping: None,
+    direction_mapping: None,
+    nest: None,
+    simple_form: true,
+    graph_set: false,
+    container_set: false,
+  }
+}
+
+///|
+fn wb_active_null_td(vocab : String?) -> ActiveContext {
+  {
+    base: None,
+    vocab,
+    terms: Map([("p", wb_td_null())]),
+    previous: None,
+    default_language: None,
+    default_direction: None,
+  }
+}
+
+///|
+test "compact: prefix td without IRI refused" {
+  let e = StandardExpander::{ }
+  assert_true(
+    IriExpander::expand_compact(e, wb_active_null_td(None), "p:x", true, false)
+    is Err(InvalidValue("compact prefix without IRI")),
+  )
+}
+
+///|
+test "compact: colonless value refused" {
+  let e = StandardExpander::{ }
+  assert_true(
+    IriExpander::expand_compact(e, wb_active_null_td(None), "abc", true, false)
+    is Err(InvalidValue("expand_compact: no colon")),
+  )
+}
+
+///|
+test "concat: vocab declared joins" {
+  let e = StandardExpander::{ }
+  assert_true(
+    IriExpander::concat_vocab(e, wb_active_null_td(Some("http://v/")), "t")
+    is Ok("http://v/t"),
+  )
+}
+
+///|
+test "lookup: td without IRI refused" {
+  let e = StandardExpander::{ }
+  assert_true(
+    IriExpander::lookup_term(e, wb_active_null_td(None), "p")
+    is Err(InvalidValue("term definition without IRI")),
+  )
+}
