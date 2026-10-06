@@ -566,3 +566,126 @@ test "graph: @none entry in @id map" {
     _ => fail("expected Ok (@none graph map entry)")
   }
 }
+
+///|
+/// 批3：append_collection_item 族（节点位 @graph 双形通道 + @set 递归形）
+test "col: @set array item error propagates" {
+  expect_invalid_value(
+    "{\"@id\":\"http://a/\",\"@graph\":[{\"@set\":[{\"@value\":\"x\",\"@language\":123}]}]}",
+    neg_plain_options(),
+  )
+}
+
+///|
+test "col: @set null transparent drop" {
+  match
+    expand_document(
+      "{\"@id\":\"http://a/\",\"@graph\":[{\"@set\":null}]}",
+      neg_plain_options(),
+    ) {
+    Ok(_) => ()
+    _ => fail("expected Ok (@set null dropped)")
+  }
+}
+
+///|
+test "col: @set single scalar recursion" {
+  match
+    expand_document(
+      "{\"@id\":\"http://a/\",\"@graph\":[{\"@set\":\"x\"}]}",
+      neg_plain_options(),
+    ) {
+    Ok(_) => ()
+    _ => fail("expected Ok (@set single scalar dropped)")
+  }
+}
+
+///|
+test "col: scoped context reaches graph item" {
+  match
+    expand_document(
+      "{\"@context\":{\"p\":{\"@id\":\"http://a/p\",\"@context\":{\"q\":\"http://b/q\"}}},\"p\":{\"@graph\":{\"@id\":\"http://x/\",\"q\":\"z\"}}}",
+      neg_plain_options(),
+    ) {
+    Ok(value) => assert_true(render_json(value).contains("http://b/q"))
+    _ => fail("expected Ok (scoped context applied in graph item)")
+  }
+}
+
+///|
+test "col: expand_object error at graph item" {
+  expect_invalid_value(
+    "{\"@id\":\"http://a/\",\"@graph\":[{\"@value\":\"x\",\"@language\":123}]}",
+    neg_plain_options(),
+  )
+}
+
+///|
+test "col: nested array at graph position ignored" {
+  match
+    expand_document(
+      "{\"@id\":\"http://a/\",\"@graph\":[[\"a\"]]}",
+      neg_plain_options(),
+    ) {
+    Ok(_) => ()
+    _ => fail("expected Ok (nested array ignored)")
+  }
+}
+
+///|
+/// 双键 @list 形（绕 2070 单键守卫）直达 expand_object：List 产物被
+/// 2131 防御臂丢弃（与单键 @list 整弃一致）——内容不浮出
+test "col: two-key @list form at graph position" {
+  match
+    expand_document(
+      "{\"@id\":\"http://a/\",\"@graph\":[{\"@list\":[\"x\"],\"@index\":\"i\"}]}",
+      neg_plain_options(),
+    ) {
+    Ok(value) =>
+      // DIAG 定谳：@list 内容在属性展开内部被弃（list 位先验），节点本体
+      // 带 @index 存活——2131 List 防御臂不经此形（文本难达，留账）
+      assert_true(
+        render_json(value) ==
+        "[{\"@id\":\"http://a/\",\"@graph\":[{\"@index\":\"i\"}]}]",
+      )
+    Err(_) => fail("expected Ok (two-key @list dropped)")
+  }
+}
+
+///|
+/// previous=Some 入口：term 定义 "@context": null（nullification 臂
+/// previous_after(None, false) 造快照）→ 节点位 @graph 的集合项在
+/// previous=Some 位展开（2109-2110 回退门求值）
+test "col: nullified term context reaches graph item gate" {
+  match
+    expand_document(
+      "{\"@context\":{\"p\":{\"@id\":\"http://a/p\",\"@context\":null}},\"p\":{\"@graph\":{\"@id\":\"http://x/\",\"@index\":\"i\"}}}",
+      neg_plain_options(),
+    ) {
+    Ok(value) => assert_true(render_json(value).contains("http://x/"))
+    _ => fail("expected Ok (nullified context graph item kept)")
+  }
+}
+
+///|
+/// type-scoped 空化造 previous（REC 4.1.2 步 5.2.1 唯一制造点：type_scoped
+/// 面 propagate=false + "@context": null 整空化）→ 节点位 @graph 集合项在
+/// previous=Some 位展开（2109-2110 回退门第二合取项求值）
+test "col: type-scoped nullification reaches graph item gate" {
+  match
+    expand_document(
+      "{\"@context\":{\"t\":{\"@id\":\"http://a/t\",\"@container\":\"@type\",\"@context\":null}},\"@id\":\"http://n/\",\"@type\":\"t\",\"@graph\":{\"@id\":\"http://x/\",\"@index\":\"i\"}}",
+      neg_plain_options(),
+    ) {
+    Ok(value) => assert_true(render_json(value).contains("http://x/"))
+    _ => fail("expected Ok (type-scoped nullified graph item)")
+  }
+}
+
+///|
+test "col: @set single value error propagates" {
+  expect_invalid_value(
+    "{\"@id\":\"http://a/\",\"@graph\":[{\"@set\":{\"@value\":\"x\",\"@language\":123}}]}",
+    neg_plain_options(),
+  )
+}
