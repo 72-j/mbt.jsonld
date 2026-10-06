@@ -1383,3 +1383,593 @@ test "kw: keyword-shaped non-keyword term is redefinition" {
     _ => fail("expected InvalidContext (keyword-shaped term)")
   }
 }
+
+///|
+/// 批7-A：process_context 校验面负例 + @vocab 解析边角 + 装载成功路由
+test "ctx: non-bool context-level @protected" {
+  match
+    expand_document("{\"@context\":{\"@protected\":123}}", neg_plain_options()) {
+    Err(InvalidContext(msg)) => assert_eq(msg, "invalid @protected value")
+    _ => fail("expected InvalidContext (numeric @protected)")
+  }
+}
+
+///|
+test "ctx: context-level @protected in 1.0" {
+  match
+    expand_document(
+      "{\"@context\":{\"@protected\":true,\"p\":\"http://a/p\"},\"p\":\"v\"}",
+      neg_plain10_options(),
+    ) {
+    Err(InvalidContext(msg)) => assert_eq(msg, "invalid context entry")
+    _ => fail("expected InvalidContext (1.0 context @protected)")
+  }
+}
+
+///|
+test "ctx: @vocab naming null-iri term falls to join" {
+  // @vocab="x"，x=null term → 精确命中臂得 None → 回落拼接（无 vocab 无
+  // base → 原样）
+  match
+    expand_document(
+      "{\"@context\":{\"x\":null,\"@vocab\":\"x\",\"p\":\"http://a/p\"},\"p\":\"v\"}",
+      neg_plain_options(),
+    ) {
+    Ok(_) => ()
+    _ => fail("expected Ok (vocab falls through to raw value)")
+  }
+}
+
+///|
+test "ctx: @vocab compact with null-iri prefix" {
+  match
+    expand_document(
+      "{\"@context\":{\"zz\":null,\"@vocab\":\"zz:suf\",\"q\":\"http://a/q\"},\"q\":\"v\"}",
+      neg_plain_options(),
+    ) {
+    Ok(_) => ()
+    _ => fail("expected Ok (compact lookup misses on null iri)")
+  }
+}
+
+///|
+test "ctx: relative @vocab without vocab and base" {
+  match
+    expand_document(
+      "{\"@context\":{\"@vocab\":\"rel\",\"p\":\"http://a/p\"},\"p\":\"v\"}",
+      neg_plain_options(),
+    ) {
+    Ok(_) => ()
+    _ => fail("expected Ok (raw relative vocab kept)")
+  }
+}
+
+///|
+test "ctx: string @version rejected" {
+  match
+    expand_document(
+      "{\"@context\":{\"@version\":\"1.1\",\"p\":\"http://a/p\"},\"p\":\"v\"}",
+      neg_plain_options(),
+    ) {
+    Err(InvalidContext(msg)) => assert_eq(msg, "invalid @version value (1.1)")
+    _ => fail("expected InvalidContext (string @version)")
+  }
+}
+
+///|
+test "ctx: null @direction resets" {
+  match
+    expand_document(
+      "{\"@context\":{\"@direction\":null,\"p\":\"http://a/p\"},\"p\":\"v\"}",
+      neg_plain_options(),
+    ) {
+    Ok(_) => ()
+    _ => fail("expected Ok (null direction reset)")
+  }
+}
+
+///|
+test "ctx: non-string @direction rejected" {
+  match
+    expand_document("{\"@context\":{\"@direction\":123}}", neg_plain_options()) {
+    Err(InvalidContext(msg)) => assert_eq(msg, "invalid base direction")
+    _ => fail("expected InvalidContext (numeric @direction)")
+  }
+}
+
+///|
+test "ctx: successful import reaches skip arm" {
+  // 远程 context 文档 = {"@context":{…}} 包裹形（裸对象不算）
+  let empty_loader : (String) -> Result[String, String] = _ => {
+    Ok("{\"@context\":{}}")
+  }
+  let options : JsonLdOptions = {
+    base: Some("http://a/"),
+    expand_context: None,
+    processing_mode: JsonLd11,
+    load_context: Some(empty_loader),
+    rdf_direction: None,
+    produce_generalized_rdf: false,
+    compact_arrays: true,
+    compact_to_relative: true,
+    frame_expansion: false,
+    omit_graph: false,
+    use_native_types: false,
+    use_rdf_type: false,
+  }
+  match
+    expand_document(
+      "{\"@context\":{\"@import\":\"c.json\",\"p\":\"http://a/p\"},\"p\":\"v\"}",
+      options,
+    ) {
+    Ok(_) => ()
+    _ => fail("expected Ok (import consumed, skip arm)")
+  }
+}
+
+///|
+test "ctx: self-prefix compact is cyclic" {
+  match expand_document("{\"@context\":{\"a\":\"a:b\"}}", neg_plain_options()) {
+    Err(InvalidContext(msg)) => assert_eq(msg, "cyclic IRI mapping")
+    _ => fail("expected InvalidContext (cyclic)")
+  }
+}
+
+///|
+test "ctx: null removal of protected term rejected" {
+  match
+    expand_document(
+      "{\"@context\":[{\"@protected\":true,\"p\":\"http://a/p\"},{\"p\":null}],\"p\":\"v\"}",
+      neg_plain_options(),
+    ) {
+    Err(InvalidContext(msg)) => assert_eq(msg, "protected term redefinition")
+    _ => fail("expected InvalidContext (protected null removal)")
+  }
+}
+
+///|
+/// 批7-B：expand_term_values(_inner) 残臂——先 DIAG 学形
+test "tv: list container two-key object" {
+  match
+    expand_document(
+      "{\"@context\":{\"p\":{\"@id\":\"http://a/p\",\"@container\":\"@list\"}},\"p\":{\"@list\":[\"x\"],\"@set\":[\"y\"]}}",
+      neg_plain_options(),
+    ) {
+    Ok(value) => fail("DIAG11 ok: " + render_json(value))
+    Err(InvalidList(msg)) => assert_eq(msg, "invalid set or list object")
+    _ => fail("expected InvalidList (two-key value object)")
+  }
+}
+
+///|
+test "tv: null item in list container array" {
+  match
+    expand_document(
+      "{\"@context\":{\"p\":{\"@id\":\"http://a/p\",\"@container\":\"@list\"}},\"p\":[null,\"x\"]}",
+      neg_plain_options(),
+    ) {
+    Ok(value) =>
+      assert_eq(
+        render_json(value),
+        "[{\"http://a/p\":[{\"@list\":[{\"@value\":\"x\"}]}]}]",
+      ) // null 项丢弃
+    _ => fail("expected Ok (null dropped in list container)")
+  }
+}
+
+///|
+test "tv: scalar under type container" {
+  match
+    expand_document(
+      "{\"@context\":{\"p\":{\"@id\":\"http://a/p\",\"@container\":\"@type\"}},\"p\":\"v\"}",
+      neg_plain_options(),
+    ) {
+    Ok(value) =>
+      assert_eq(render_json(value), "[{\"http://a/p\":[{\"@id\":\"v\"}]}]")
+    // 标量入 @type 容器 → 节点 id 强转
+    _ => fail("expected Ok (node id coercion)")
+  }
+}
+
+///|
+test "tv: scalar under id container" {
+  match
+    expand_document(
+      "{\"@context\":{\"p\":{\"@id\":\"http://a/p\",\"@container\":\"@id\"}},\"p\":\"v\"}",
+      neg_plain_options(),
+    ) {
+    Ok(value) =>
+      assert_eq(render_json(value), "[{\"http://a/p\":[{\"@value\":\"v\"}]}]")
+    _ => fail("expected Ok (plain literal)")
+  }
+}
+
+///|
+test "tv: two-key list-set object plain property" {
+  match
+    expand_document(
+      "{\"@context\":{\"p\":\"http://a/p\"},\"p\":{\"@list\":[\"x\"],\"@set\":[\"y\"]}}",
+      neg_plain_options(),
+    ) {
+    Ok(value) => fail("DIAG15 ok: " + render_json(value))
+    Err(InvalidList(msg)) => assert_eq(msg, "invalid set or list object")
+    _ => fail("expected InvalidList (two-key value object)")
+  }
+}
+
+///|
+test "tv: type-scoped protection error at value position" {
+  match
+    expand_document(
+      "{\"@context\":{\"q\":{\"@id\":\"http://b/q\",\"@protected\":true},\"t\":{\"@id\":\"http://a/t\",\"@container\":\"@type\",\"@context\":{\"q\":\"http://b/q2\"}}},\"@type\":\"t\",\"http://a/v\":{\"q\":\"x\"}}",
+      neg_plain_options(),
+    ) {
+    Ok(value) => fail("DIAG16 ok: " + render_json(value))
+    Err(InvalidContext(msg)) => assert_eq(msg, "protected term redefinition")
+    _ => fail("expected InvalidContext (type-scoped protection)")
+  }
+}
+
+///|
+test "tv: nest misuse in value object" {
+  match
+    expand_document(
+      "{\"@context\":{\"p\":\"http://a/p\"},\"p\":{\"@nest\":\"unknown\"}}",
+      neg_plain_options(),
+    ) {
+    Ok(value) => fail("DIAG17 ok: " + render_json(value))
+    Err(InvalidContext(msg)) => assert_eq(msg, "invalid @nest value")
+    _ => fail("expected InvalidContext (nest in value object)")
+  }
+}
+
+///|
+test "tv: nest misuse in value array item" {
+  match
+    expand_document(
+      "{\"@context\":{\"p\":\"http://a/p\"},\"p\":[{\"@nest\":\"unknown\"}]}",
+      neg_plain_options(),
+    ) {
+    Ok(value) => fail("DIAG18 ok: " + render_json(value))
+    Err(InvalidContext(msg)) => assert_eq(msg, "invalid @nest value")
+    _ => fail("expected InvalidContext (nest in array item)")
+  }
+}
+
+///|
+test "tv: set-only object under list container" {
+  match
+    expand_document(
+      "{\"@context\":{\"p\":{\"@id\":\"http://a/p\",\"@container\":\"@list\"}},\"p\":{\"@set\":[\"x\"]}}",
+      neg_plain_options(),
+    ) {
+    Ok(value) =>
+      assert_eq(render_json(value), "[{\"http://a/p\":[{\"@value\":\"x\"}]}]")
+    // @set 包裹在 list 容器位解包为普通字面量
+    _ => fail("expected Ok (set unwrapped under list container)")
+  }
+}
+
+///|
+/// 批7-C：list_item / graph_container / frame_preserve 残臂
+test "li: 1.0 bare array item is list of lists" {
+  match
+    expand_document(
+      "{\"@context\":{\"p\":{\"@id\":\"http://a/p\",\"@container\":\"@list\"}},\"p\":[[\"x\"]]}",
+      neg_plain10_options(),
+    ) {
+    Err(InvalidList(msg)) => assert_eq(msg, "list of lists")
+    _ => fail("expected InvalidList (1.0 nested array)")
+  }
+}
+
+///|
+test "li: 1.0 nested list object is list of lists" {
+  match
+    expand_document(
+      "{\"@context\":{\"p\":{\"@id\":\"http://a/p\",\"@container\":\"@list\"}},\"p\":[{\"@list\":[{\"@list\":[\"y\"]}]}]}",
+      neg_plain10_options(),
+    ) {
+    Err(InvalidList(msg)) => assert_eq(msg, "list of lists")
+    _ => fail("expected InvalidList (1.0 nested list object)")
+  }
+}
+
+///|
+test "li: 1.0 flat list object tolerated" {
+  match
+    expand_document(
+      "{\"@context\":{\"p\":{\"@id\":\"http://a/p\",\"@container\":\"@list\"}},\"p\":[{\"@list\":[\"x\"]}]}",
+      neg_plain10_options(),
+    ) {
+    // 1.0 对 list 位的 @list 对象同样判 list of lists
+    Err(InvalidList(msg)) => assert_eq(msg, "list of lists")
+    _ => fail("expected InvalidList (1.0 list object)")
+  }
+}
+
+///|
+test "li: two-key object inside list rejected" {
+  match
+    expand_document(
+      "{\"@context\":{\"p\":{\"@id\":\"http://a/p\",\"@container\":\"@list\"}},\"p\":[{\"@list\":[1],\"@set\":[2]}]}",
+      neg_plain_options(),
+    ) {
+    Err(InvalidList(msg)) => assert_eq(msg, "invalid set or list object")
+    _ => fail("expected InvalidList (two-key in list)")
+  }
+}
+
+///|
+test "li: null inside nested array dropped" {
+  match
+    expand_document(
+      "{\"@context\":{\"p\":{\"@id\":\"http://a/p\",\"@container\":\"@list\"}},\"p\":[[\"x\",null]]}",
+      neg_plain_options(),
+    ) {
+    Ok(value) =>
+      assert_eq(
+        render_json(value),
+        "[{\"http://a/p\":[{\"@list\":[{\"@list\":[{\"@value\":\"x\"}]}]}]}]",
+      ) // 嵌套数组 1.1 保嵌套 List、null 丢
+    _ => fail("expected Ok (nested list kept)")
+  }
+}
+
+///|
+test "td: colon-initial value is not cyclic" {
+  match
+    expand_document(
+      "{\"@context\":{\"a\":\":x\",\"b\":\"http://b/\"},\"a\":\"v\"}",
+      neg_plain_options(),
+    ) {
+    Ok(_) => ()
+    _ => fail("expected Ok (colon-initial not cyclic)")
+  }
+}
+
+///|
+test "gc: non-map value under id-secondary rejected" {
+  match
+    expand_document(
+      "{\"@context\":{\"p\":{\"@id\":\"http://a/p\",\"@container\":[\"@graph\",\"@id\"]}},\"p\":\"v\"}",
+      neg_plain_options(),
+    ) {
+    Err(InvalidValue(msg)) => assert_eq(msg, "invalid graph container value")
+    _ => fail("expected InvalidValue (non-map graph id value)")
+  }
+}
+
+///|
+test "gc: map entry nest misuse" {
+  match
+    expand_document(
+      "{\"@context\":{\"p\":{\"@id\":\"http://a/p\",\"@container\":[\"@graph\",\"@id\"]}},\"p\":{\"http://x/\":{\"@nest\":\"unknown\"}}}",
+      neg_plain_options(),
+    ) {
+    Err(InvalidContext(msg)) => assert_eq(msg, "invalid @nest value")
+    _ => fail("expected InvalidContext (nest in graph map entry)")
+  }
+}
+
+///|
+test "gc: bare graph array item nest misuse" {
+  match
+    expand_document(
+      "{\"@context\":{\"p\":{\"@id\":\"http://a/p\",\"@container\":\"@graph\"}},\"p\":[{\"@nest\":\"unknown\"}]}",
+      neg_plain_options(),
+    ) {
+    Err(InvalidContext(msg)) => assert_eq(msg, "invalid @nest value")
+    _ => fail("expected InvalidContext (nest in graph array item)")
+  }
+}
+
+///|
+test "gc: index secondary without mapping" {
+  match
+    expand_document(
+      "{\"@context\":{\"p\":{\"@id\":\"http://a/p\",\"@container\":[\"@graph\",\"@index\"]}},\"p\":{\"i\":{\"@id\":\"http://x/\"}}}",
+      neg_plain_options(),
+    ) {
+    Ok(value) =>
+      assert_eq(
+        render_json(value),
+        "[{\"http://a/p\":[{\"@graph\":[{\"@id\":\"http://x/\"}],\"@index\":\"i\"}]}]",
+      ) // 无映射 → 键附挂 @index
+    _ => fail("expected Ok (index attach)")
+  }
+}
+
+///|
+test "gc: index mapping named attaches property" {
+  match
+    expand_document(
+      "{\"@context\":{\"p\":{\"@id\":\"http://a/p\",\"@container\":[\"@graph\",\"@index\"],\"@index\":\"http://a/idx\"}},\"p\":{\"i\":{\"@id\":\"http://x/\"}}}",
+      neg_plain_options(),
+    ) {
+    Ok(value) =>
+      assert_eq(
+        render_json(value),
+        "[{\"http://a/p\":[{\"http://a/idx\":[{\"@value\":\"i\"}],\"@graph\":[{\"@id\":\"http://x/\"}]}]}]",
+      ) // 命名映射 → 索引成属性
+    _ => fail("expected Ok (mapping property attach)")
+  }
+}
+
+///|
+test "gc: scalar entry value in id map" {
+  match
+    expand_document(
+      "{\"@context\":{\"p\":{\"@id\":\"http://a/p\",\"@container\":[\"@graph\",\"@id\"]}},\"p\":{\"http://x/\":\"v\"}}",
+      neg_plain_options(),
+    ) {
+    Ok(value) =>
+      assert_eq(render_json(value), "[{\"http://a/p\":[{\"@value\":\"v\"}]}]")
+    // 标量条目值直出字面量
+    _ => fail("expected Ok (scalar entry literal)")
+  }
+}
+
+///|
+test "fp: null default is @null literal" {
+  match
+    expand_document(
+      "{\"@context\":{\"rev\":{\"@reverse\":\"http://a/p\"}},\"rev\":{\"@default\":null}}",
+      neg_frame_options(),
+    ) {
+    Ok(value) =>
+      assert_eq(
+        render_json(value),
+        "[{\"@reverse\":{\"http://a/p\":[{\"@default\":[{\"@value\":\"@null\"}]}]}}]",
+      ) // null 默认 = "@null" 字面
+    _ => fail("expected Ok (null default literal)")
+  }
+}
+
+///|
+test "fp: object default with nest misuse" {
+  match
+    expand_document(
+      "{\"@context\":{\"rev\":{\"@reverse\":\"http://a/p\"}},\"rev\":{\"@default\":{\"@nest\":\"unknown\"}}}",
+      neg_frame_options(),
+    ) {
+    Err(InvalidContext(msg)) => assert_eq(msg, "invalid @nest value")
+    _ => fail("expected InvalidContext (nest in default object)")
+  }
+}
+
+///|
+test "li: unknown-only node in list position" {
+  match
+    expand_document(
+      "{\"@context\":{\"p\":{\"@id\":\"http://a/p\",\"@container\":\"@list\"}},\"p\":[{\"unknown\":\"v\"}]}",
+      neg_plain_options(),
+    ) {
+    Ok(value) =>
+      assert_eq(render_json(value), "[{\"http://a/p\":[{\"@list\":[{}]}]}]")
+    // 未知属性独占节点 = 空 pattern 保留在 list 位
+    _ => fail("expected Ok (empty node kept in list)")
+  }
+}
+
+///|
+test "ctx: bool @version rejected" {
+  match
+    expand_document("{\"@context\":{\"@version\":true}}", neg_plain_options()) {
+    Err(InvalidContext(msg)) => assert_eq(msg, "invalid @version value")
+    _ => fail("expected InvalidContext (bool @version)")
+  }
+}
+
+///|
+test "li: 1.0 set object in list tolerated" {
+  match
+    expand_document(
+      "{\"@context\":{\"p\":{\"@id\":\"http://a/p\",\"@container\":\"@list\"}},\"p\":[{\"@set\":[\"x\"]}]}",
+      neg_plain10_options(),
+    ) {
+    Ok(value) =>
+      assert_eq(
+        render_json(value),
+        "[{\"http://a/p\":[{\"@list\":[{\"@value\":\"x\"}]}]}]",
+      ) // 1.0 下 @set 对象同样解包为裸字面量（与 1.1 DIAG19 同形）
+    Err(InvalidList(msg)) => fail("unexpected list error: " + msg)
+    Err(_) => fail("unexpected error")
+  }
+}
+
+///|
+test "gc: graph-object entry attaches in place" {
+  match
+    expand_document(
+      "{\"@context\":{\"p\":{\"@id\":\"http://a/p\",\"@container\":[\"@graph\",\"@index\"],\"@index\":\"http://a/idx\"}},\"p\":{\"i\":{\"@graph\":{\"@id\":\"http://x/\"}}}}",
+      neg_plain_options(),
+    ) {
+    Ok(value) =>
+      assert_eq(
+        render_json(value),
+        "[{\"http://a/p\":[{\"http://a/idx\":[{\"@value\":\"i\"}],\"@graph\":[]}]}]",
+      ) // 既有 graph 对象支：条目值即 graph 形 → 原位附挂（index 映射属性 + @graph）
+    Err(_) => fail("unexpected error")
+  }
+}
+
+///|
+test "gc: plain graph+index without index mapping" {
+  match
+    expand_document(
+      "{\"@context\":{\"p\":{\"@id\":\"http://a/p\",\"@container\":[\"@graph\",\"@index\"]}},\"p\":{\"i\":{\"@id\":\"http://x/\"}}}",
+      neg_plain_options(),
+    ) {
+    Ok(value) =>
+      assert_eq(
+        render_json(value),
+        "[{\"http://a/p\":[{\"@graph\":[{\"@id\":\"http://x/\"}],\"@index\":\"i\"}]}]",
+      ) // 无 @index 映射：条目键走默认 @index 附挂（graph+index 双容器缺省形）
+    Err(_) => fail("unexpected error")
+  }
+}
+
+///|
+test "set: node object value passes through set arm" {
+  match
+    expand_document(
+      "{\"@context\":{\"p\":{\"@id\":\"http://a/p\",\"@container\":\"@set\"}},\"p\":{\"@id\":\"http://x/\"}}",
+      neg_plain_options(),
+    ) {
+    Ok(value) =>
+      assert_eq(
+        render_json(value),
+        "[{\"http://a/p\":[{\"@id\":\"http://x/\"}]}]",
+      ) // @set 容器摊平不包裹——节点对象直过 set 臂（4968 Ok(None) → expand_object）
+    Err(_) => fail("unexpected error")
+  }
+}
+
+///|
+test "set: nest misuse single object propagates" {
+  match
+    expand_document(
+      "{\"@context\":{\"p\":{\"@id\":\"http://a/p\",\"@container\":\"@set\"}},\"p\":{\"@nest\":\"unknown\"}}",
+      neg_plain_options(),
+    ) {
+    Err(InvalidContext(msg)) => assert_eq(msg, "invalid @nest value")
+    _ => fail("expected InvalidContext (nest misuse single)")
+  }
+}
+
+///|
+test "set: nest misuse array item propagates" {
+  match
+    expand_document(
+      "{\"@context\":{\"p\":{\"@id\":\"http://a/p\",\"@container\":\"@set\"}},\"p\":[{\"@nest\":\"unknown\"}]}",
+      neg_plain_options(),
+    ) {
+    Err(InvalidContext(msg)) => assert_eq(msg, "invalid @nest value")
+    _ => fail("expected InvalidContext (nest misuse array)")
+  }
+}
+
+///|
+test "DIAGO: plain set-object nest single" {
+  match
+    expand_document(
+      "{\"p\":{\"@set\":{\"@nest\":\"unknown\"}}}",
+      neg_plain_options(),
+    ) {
+    Err(InvalidContext(msg)) => assert_eq(msg, "invalid @nest value") // 明文 @set 对象拦截 → set 臂 single → nest 误用上抛（4966）
+    _ => fail("expected InvalidContext (set single nest)")
+  }
+}
+
+///|
+test "DIAGP: plain set-object nest array" {
+  match
+    expand_document(
+      "{\"p\":{\"@set\":[{\"@nest\":\"unknown\"}]}}",
+      neg_plain_options(),
+    ) {
+    Err(InvalidContext(msg)) => assert_eq(msg, "invalid @nest value") // 明文 @set 数组拦截 → set 臂逐项 → nest 误用上抛（4946）
+    _ => fail("expected InvalidContext (set array nest)")
+  }
+}
