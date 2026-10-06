@@ -268,7 +268,7 @@ fn all_jsonld_steps() -> Array[@jsonld.JsonLdStep] {
 /// 门体：生成面 handler 集合 ⟷ mock 面（table_handlers）双向对表。
 /// 数据源 = 编译后的生成模块 pub 面（JsonLdStep::handler / jsonld_keyword_routes()
 /// / jsonld_iri_routes()）；该生成物 ≡ 源表（jsonld_gen.toml）由**外层**黄金门
-/// 逐字节把关，故本门不再直读 toml —— 本仓据此去除对 `thy1016/bitbang/fsm` 的依赖。
+/// 逐字节把关，故本门不再直读 toml —— 本仓据此去除对 `thy1016/bitbang/mbtgen` 的依赖。
 async test "interface gate: every generated handler resolves to a declared trait method" {
   let hooks : Array[String?] = []
   for step in all_jsonld_steps() {

@@ -1,6 +1,6 @@
 // MoonBit module manifest — mbt.jsonld
 // 定位：JSON-LD 1.1 通用库（expand / compact / flatten / frame / toRDF / fromRDF）
-//       + RDFC-1.0 canonicalization。生成器（jsonld_gen.toml / fsm）由主仓管理；
+//       + RDFC-1.0 canonicalization。生成器（jsonld_gen.toml / mbtgen）由主仓管理；
 //       本仓只留产物 gen.mbt + 手写库面（见 AGENTS.md）。
 
 name = "thy1016/jsonld"

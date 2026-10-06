@@ -1,6 +1,6 @@
 # ===== 行尾归一（CI 役 CI-2 同款；2026-10-06 主仓拍平役补）=====
 # 为什么补：本仓升为子仓时**漏配**属性文件 ⇒ Windows（`core.autocrlf=true`）检出把
-# 文本件转 CRLF，而主仓黄金门 `fsm/jsonld_gen/gen_gate_test.mbt` **逐字节**读本仓
+# 文本件转 CRLF，而主仓黄金门 `mbtgen/jsonld_gen/gen_gate_test.mbt` **逐字节**读本仓
 # `gen.mbt`（重生成 ≡ 入库件）⇒ 净检出 crlf 口径实测红 1 条（`ci/netcheck.sh crlf`）。
 # 口径：判据面文本件一律 **LF 检出**——判据是字节，必须跨 OS 同形。
 # 边界：git 按**子仓自己的** `.gitattributes` 查属性，主仓那份不管本仓。
