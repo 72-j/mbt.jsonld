@@ -689,3 +689,150 @@ test "col: @set single value error propagates" {
     neg_plain_options(),
   )
 }
+
+///|
+/// 钉死 InvalidContext 变体（文案不钉）
+fn expect_invalid_context(text : String, options : JsonLdOptions) -> Unit raise {
+  match expand_document(text, options) {
+    Err(InvalidContext(_)) => ()
+    _ => fail("expected JsonLdError::InvalidContext")
+  }
+}
+
+///|
+/// 批4：@import / 远程 context 装载链失败径（resolve_context_reference 无 base
+/// 拒 + load_context 注入 loader 失败传）
+test "imp: @import without base unresolvable" {
+  expect_invalid_context(
+    "{\"@context\":{\"@import\":\"http://x/c\",\"p\":\"http://a/p\"}}",
+    neg_plain_options(),
+  )
+}
+
+///|
+/// loader 失败注入（(String) -> Result[String, String] 契约面）
+test "imp: @import loader failure propagates" {
+  let fail_loader : (String) -> Result[String, String] = s => Err("boom")
+  let options : JsonLdOptions = {
+    base: Some("http://a/"),
+    expand_context: None,
+    processing_mode: JsonLd11,
+    load_context: Some(fail_loader),
+    rdf_direction: None,
+    produce_generalized_rdf: false,
+    compact_arrays: true,
+    compact_to_relative: true,
+    frame_expansion: false,
+    omit_graph: false,
+    use_native_types: false,
+    use_rdf_type: false,
+  }
+  expect_invalid_context(
+    "{\"@context\":{\"@import\":\"ctx.json\",\"p\":\"http://a/p\"}}", options,
+  )
+}
+
+///|
+test "str: remote context ref without base unresolvable" {
+  expect_invalid_context(
+    "{\"@context\":\"http://x/c\",\"p\":\"v\"}",
+    neg_plain_options(),
+  )
+}
+
+///|
+/// 批4b：expand_container_map / expand_map_item_values 族
+test "tmap: entry scoped context invalid term def" {
+  expect_invalid_context(
+    "{\"@context\":{\"p\":{\"@id\":\"http://a/p\",\"@container\":\"@type\"},\"t\":{\"@id\":\"http://a/t\",\"@context\":{\"q\":123}}},\"p\":{\"t\":{\"@id\":\"http://x/\"}}}",
+    neg_plain_options(),
+  )
+}
+
+///|
+test "tmap: vo item without datatype gets @type" {
+  match
+    expand_document(
+      "{\"@context\":{\"p\":{\"@id\":\"http://a/p\",\"@container\":\"@type\"}},\"p\":{\"http://a/t\":{\"@value\":\"x\"}}}",
+      neg_plain_options(),
+    ) {
+    Ok(value) => assert_true(render_json(value).contains("http://a/t"))
+    _ => fail("expected Ok (vo datatype written from type map index)")
+  }
+}
+
+///|
+test "tmap: list item in type container" {
+  match
+    expand_document(
+      "{\"@context\":{\"p\":{\"@id\":\"http://a/p\",\"@container\":\"@type\"}},\"p\":{\"http://a/t\":{\"@list\":[\"x\"]}}}",
+      neg_plain_options(),
+    ) {
+    Ok(_) => ()
+    _ => fail("expected Ok (list item in type container)")
+  }
+}
+
+///|
+test "imap: vo item is invalid value object" {
+  expect_invalid_value(
+    "{\"@context\":{\"p\":{\"@id\":\"http://a/p\",\"@container\":\"@index\",\"@index\":\"http://a/idx\"}},\"p\":{\"k\":{\"@value\":\"x\"}}}",
+    neg_plain_options(),
+  )
+}
+
+///|
+test "imap: list item with index mapping" {
+  match
+    expand_document(
+      "{\"@context\":{\"p\":{\"@id\":\"http://a/p\",\"@container\":\"@index\",\"@index\":\"http://a/idx\"}},\"p\":{\"k\":{\"@list\":[\"x\"]}}}",
+      neg_plain_options(),
+    ) {
+    Ok(_) => ()
+    _ => fail("expected Ok (list item with index mapping)")
+  }
+}
+
+///|
+test "imap: list item without index mapping" {
+  match
+    expand_document(
+      "{\"@context\":{\"p\":{\"@id\":\"http://a/p\",\"@container\":\"@index\"}},\"p\":{\"k\":{\"@list\":[\"x\"]}}}",
+      neg_plain_options(),
+    ) {
+    Ok(_) => ()
+    _ => fail("expected Ok (list item without index mapping)")
+  }
+}
+
+///|
+test "idmap: vo item in id container" {
+  match
+    expand_document(
+      "{\"@context\":{\"p\":{\"@id\":\"http://a/p\",\"@container\":\"@id\"}},\"p\":{\"http://x/\":{\"@value\":\"v\"}}}",
+      neg_plain_options(),
+    ) {
+    Ok(_) => ()
+    _ => fail("expected Ok (vo item in id container)")
+  }
+}
+
+///|
+test "imap: array-of-array member flattens" {
+  match
+    expand_document(
+      "{\"@context\":{\"p\":{\"@id\":\"http://a/p\",\"@container\":\"@index\"}},\"p\":{\"k\":[[\"a\",\"b\"]]}}",
+      neg_plain_options(),
+    ) {
+    Ok(_) => ()
+    _ => fail("expected Ok (array member flattened)")
+  }
+}
+
+///|
+test "imap: error inside array member propagates" {
+  expect_invalid_value(
+    "{\"@context\":{\"p\":{\"@id\":\"http://a/p\",\"@container\":\"@index\"}},\"p\":{\"k\":[[{\"@value\":\"x\",\"@language\":123}]]}}",
+    neg_plain_options(),
+  )
+}
