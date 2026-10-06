@@ -1973,3 +1973,214 @@ test "DIAGP: plain set-object nest array" {
     _ => fail("expected InvalidContext (set array nest)")
   }
 }
+
+///|
+test "DIAGR: at-vocab with at-sign routes fast-path fallback" {
+  match
+    expand_document(
+      "{\"@context\":{\"@vocab\":\"http://a@ex/\",\"p\":\"http://a/p\"},\"p\":\"x\"}",
+      neg_plain_options(),
+    ) {
+    Ok(value) =>
+      assert_eq(render_json(value), "[{\"http://a/p\":[{\"@value\":\"x\"}]}]") // vocab 含 @ → key_expands_to_keyword 快路回退全展开（694）
+    Err(_) => fail("unexpected error")
+  }
+}
+
+///|
+test "DIAGS: frame reverse nested value error propagates" {
+  match
+    expand_document(
+      "{\"@reverse\":{\"http://a/p\":{\"@id\":[\"_:b\"]}}}",
+      neg_frame_options(),
+    ) {
+    Ok(value) => fail("DIAGS ok: " + render_json(value))
+    Err(InvalidValue(msg)) =>
+      assert_eq(
+        msg, "invalid frame: @id must not include a blank node identifier",
+      ) // 帧门嵌套校验错穿 @reverse pattern 臂上抛（1014）
+    Err(_) => fail("unexpected error")
+  }
+}
+
+///|
+test "DIAGT: frame reverse non-object value" {
+  match expand_document("{\"@reverse\":[]}", neg_frame_options()) {
+    Ok(value) => fail("DIAGT ok: " + render_json(value))
+    Err(InvalidValue(msg)) => assert_eq(msg, "invalid @reverse value") // 非对象 @reverse 门前拦（1019 疑死挂账）
+    Err(_) => fail("unexpected error")
+  }
+}
+
+///|
+test "DIAGU: frame default nested value error propagates" {
+  match
+    expand_document(
+      "{\"@context\":{\"p\":\"http://a/p\"},\"p\":{\"@default\":{\"@id\":[\"_:b\"]}}}",
+      neg_frame_options(),
+    ) {
+    Ok(value) => fail("DIAGU ok: " + render_json(value))
+    Err(InvalidValue(msg)) =>
+      assert_eq(
+        msg, "invalid frame: @id must not include a blank node identifier",
+      ) // 帧门错穿 frame_preserve_default 上抛（1076）
+    Err(_) => fail("unexpected error")
+  }
+}
+
+///|
+test "DIAGV: frame list pattern single scalar" {
+  match
+    expand_document(
+      "{\"@context\":{\"p\":\"http://a/p\"},\"p\":{\"@list\":\"x\"}}",
+      neg_frame_options(),
+    ) {
+    Ok(value) =>
+      assert_eq(
+        render_json(value),
+        "[{\"http://a/p\":[{\"@list\":[{\"@value\":\"x\"}]}]}]",
+      ) // @list 模式非数组值 = 单元素 list pattern（1112）
+    Err(_) => fail("unexpected error")
+  }
+}
+
+///|
+test "DIAGW: frame list pattern item error propagates" {
+  match
+    expand_document(
+      "{\"@context\":{\"p\":\"http://a/p\"},\"p\":{\"@list\":[{\"@id\":[\"_:b\"]}]}}",
+      neg_frame_options(),
+    ) {
+    Ok(value) => fail("DIAGW ok: " + render_json(value))
+    Err(InvalidValue(msg)) =>
+      assert_eq(
+        msg, "invalid frame: @id must not include a blank node identifier",
+      ) // 帧门错穿 @list pattern 项上抛（1121）
+    Err(_) => fail("unexpected error")
+  }
+}
+
+///|
+test "DIAGX: frame graph object property falls to empty pattern" {
+  match
+    expand_document(
+      "{\"@context\":{\"p\":\"http://a/p\"},\"p\":{\"@graph\":[{\"@id\":\"http://x/\"}]}}",
+      neg_frame_options(),
+    ) {
+    Ok(value) =>
+      assert_eq(
+        render_json(value),
+        "[{\"http://a/p\":[{\"@graph\":[{\"@id\":\"http://x/\"}]}]}]",
+      ) // @graph 对象值展开为带 graph 的 Node → 走 Node 支（1143），1146 非节点支疑死挂账
+    Err(_) => fail("unexpected error")
+  }
+}
+
+///|
+test "DIAGY: frame id array non-string item skipped" {
+  match expand_document("{\"@id\":[123]}", neg_frame_options()) {
+    Ok(value) => assert_eq(render_json(value), "[{\"@id\":[]}]") // @id 数组非串非对象项跳过（1326）
+    Err(_) => fail("unexpected error")
+  }
+}
+
+///|
+test "DIAGZ: frame type array non-string item skipped" {
+  match expand_document("{\"@type\":[123]}", neg_frame_options()) {
+    Ok(value) => assert_eq(render_json(value), "[{\"@type\":[]}]") // @type 数组非串非对象项跳过（1398）
+    Err(_) => fail("unexpected error")
+  }
+}
+
+///|
+test "DIAGaa: frame type scalar skipped" {
+  match expand_document("{\"@type\":123}", neg_frame_options()) {
+    Ok(value) => assert_eq(render_json(value), "[{\"@type\":[]}]") // @type 标量跳过（1407）
+    Err(_) => fail("unexpected error")
+  }
+}
+
+///|
+test "DIAGab: type array with non-string item rejected" {
+  match
+    expand_document(
+      "{\"@id\":\"http://x/\",\"@type\":[123]}",
+      neg_plain_options(),
+    ) {
+    Err(InvalidValue(msg)) => assert_eq(msg, "invalid type value") // @type 数组非串项 = invalid type value（1481）
+    _ => fail("unexpected error")
+  }
+}
+
+///|
+test "DIAGac: duplicate value keys number overwrite" {
+  match
+    expand_document("{\"@value\":\"a\",\"@value\":1}", neg_plain_options()) {
+    Ok(value) => assert_eq(render_json(value), "[]") // 重复 @value 键 → 值对象弃置（1532 双键复径不入，挂账）
+    Err(_) => fail("unexpected error")
+  }
+}
+
+///|
+test "DIAGad: duplicate value keys bool overwrite" {
+  match
+    expand_document("{\"@value\":\"a\",\"@value\":true}", neg_plain_options()) {
+    Ok(value) => assert_eq(render_json(value), "[]") // 同上 bool 形（1552 挂账）
+    Err(_) => fail("unexpected error")
+  }
+}
+
+///|
+test "DIAGae: td-reverse scalar value empty pattern" {
+  match
+    expand_document(
+      "{\"@context\":{\"p\":{\"@id\":\"http://a/p\",\"@reverse\":\"http://a/rev\"}},\"p\":\"x\"}",
+      neg_frame_options(),
+    ) {
+    Ok(value) => fail("DIAGae ok: " + render_json(value))
+    Err(InvalidContext(msg)) => assert_eq(msg, "invalid reverse property") // td-@reverse 标量门先行拦（1019 疑死挂账）
+    Err(_) => fail("unexpected error")
+  }
+}
+
+///|
+test "DIAGaf: alias type array pattern item skipped" {
+  match
+    expand_document(
+      "{\"@context\":{\"type\":\"@type\"},\"@id\":\"http://x/\",\"type\":[123]}",
+      neg_frame_options(),
+    ) {
+    Ok(value) =>
+      assert_eq(render_json(value), "[{\"@id\":\"http://x/\",\"@type\":[]}]") // 别名键 @type 数组 pattern：非串项跳过（1398——批1 注记 1351 别名带）
+    Err(_) => fail("unexpected error")
+  }
+}
+
+///|
+test "DIAGag: alias type scalar pattern skipped" {
+  match
+    expand_document(
+      "{\"@context\":{\"type\":\"@type\"},\"@id\":\"http://x/\",\"type\":123}",
+      neg_frame_options(),
+    ) {
+    Ok(value) => fail("DIAGag ok: " + render_json(value))
+    Err(InvalidValue(msg)) => assert_eq(msg, "invalid type value") // 别名 @type 标量 → pattern_form 假 → 常规路 1487；1407 `_` 臂由门保证死（挂账）
+    Err(_) => fail("unexpected error")
+  }
+}
+
+///|
+test "DIAGah: td-reverse pattern nested frame error" {
+  match
+    expand_document(
+      "{\"@context\":{\"p\":{\"@reverse\":\"http://a/rev\"}},\"p\":{\"http://a/q\":{\"@id\":[\"_:b\"]}}}",
+      neg_frame_options(),
+    ) {
+    Ok(value) => fail("DIAGah ok: " + render_json(value))
+    Err(InvalidValue(msg)) =>
+      assert_eq(
+        msg, "invalid frame: @id must not include a blank node identifier",
+      ) // td-@reverse pattern 臂（reverse-only td——@id 同 td 即 4434 错）嵌套帧错上抛（1014）
+    Err(_) => fail("unexpected error")
+  }
+}
