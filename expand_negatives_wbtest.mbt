@@ -364,3 +364,205 @@ test "frame: aliased @id array with object item" {
     _ => fail("expected Ok (aliased @id array with object item)")
   }
 }
+
+///|
+/// 钉死 InvalidList 变体（文案不钉）
+fn expect_invalid_list(text : String, options : JsonLdOptions) -> Unit raise {
+  match expand_document(text, options) {
+    Err(InvalidList(_)) => ()
+    _ => fail("expected JsonLdError::InvalidList")
+  }
+}
+
+///|
+/// 1.0 档 options（list-of-lists 门控探针用）
+fn neg_options_10() -> JsonLdOptions {
+  {
+    base: None,
+    expand_context: None,
+    processing_mode: JsonLd10,
+    load_context: None,
+    rdf_direction: None,
+    produce_generalized_rdf: false,
+    compact_arrays: true,
+    compact_to_relative: true,
+    frame_expansion: false,
+    omit_graph: false,
+    use_native_types: false,
+    use_rdf_type: false,
+  }
+}
+
+///|
+/// @set 族（expand_list_set_object 拦截器 @set 臂——数组/单值双形）
+test "set: @set array value object" {
+  match
+    expand_document(
+      "{\"@context\":{\"p\":\"http://a/p\"},\"p\":{\"@set\":[\"x\",\"y\"]}}",
+      neg_plain_options(),
+    ) {
+    Ok(value) => {
+      let rendered = render_json(value)
+      assert_true(rendered.contains("\"x\""))
+      assert_true(rendered.contains("\"y\""))
+    }
+    _ => fail("expected Ok (@set array)")
+  }
+}
+
+///|
+test "set: @set single value object" {
+  match
+    expand_document(
+      "{\"@context\":{\"p\":\"http://a/p\"},\"p\":{\"@set\":\"x\"}}",
+      neg_plain_options(),
+    ) {
+    Ok(value) => assert_true(render_json(value).contains("\"x\""))
+    _ => fail("expected Ok (@set single)")
+  }
+}
+
+///|
+test "set: @set with @index" {
+  match
+    expand_document(
+      "{\"@context\":{\"p\":\"http://a/p\"},\"p\":{\"@set\":[\"x\"],\"@index\":\"i\"}}",
+      neg_plain_options(),
+    ) {
+    Ok(_) => ()
+    _ => fail("expected Ok (@set with @index)")
+  }
+}
+
+///|
+/// list_item 族（expand_list_item 缺口臂）
+test "list: nested array in list (1.1 nested list)" {
+  match
+    expand_document(
+      "{\"@context\":{\"p\":\"http://a/p\"},\"p\":{\"@list\":[[\"a\",\"b\"]]}}",
+      neg_plain_options(),
+    ) {
+    Ok(_) => ()
+    _ => fail("expected Ok (nested array in list)")
+  }
+}
+
+///|
+test "list: nested list object as list item" {
+  match
+    expand_document(
+      "{\"@context\":{\"p\":\"http://a/p\"},\"p\":{\"@list\":[{\"@list\":[\"x\"]}]}}",
+      neg_plain_options(),
+    ) {
+    Ok(_) => ()
+    _ => fail("expected Ok (nested list object item)")
+  }
+}
+
+///|
+test "list: grouped @set as list item" {
+  match
+    expand_document(
+      "{\"@context\":{\"p\":\"http://a/p\"},\"p\":{\"@list\":[{\"@set\":[\"x\",\"y\"]}]}}",
+      neg_plain_options(),
+    ) {
+    Ok(_) => ()
+    _ => fail("expected Ok (grouped @set item)")
+  }
+}
+
+///|
+/// #ter24 同族经拦截器：1.0 下 list 项 {@list} → list of lists
+test "list: 1.0 interceptor list-of-lists rejection" {
+  expect_invalid_list(
+    "{\"@context\":{\"p\":\"http://a/p\"},\"p\":{\"@list\":[{\"@list\":[\"x\"]}]}}",
+    neg_options_10(),
+  )
+}
+
+///|
+/// frame_preserve_default 族（@default 词形保形——Number/Bool/数组递归臂；
+/// 通道=反向属性 @default pattern，spec §8.96）
+test "fpd: @default number raw preserve" {
+  match
+    expand_document(
+      "{\"@context\":{\"rev\":{\"@reverse\":\"http://a/p\"}},\"rev\":{\"@default\":1.5}}",
+      neg_frame_options(),
+    ) {
+    Ok(_) => ()
+    _ => fail("expected Ok (@default number)")
+  }
+}
+
+///|
+test "fpd: @default bool true preserve" {
+  match
+    expand_document(
+      "{\"@context\":{\"rev\":{\"@reverse\":\"http://a/p\"}},\"rev\":{\"@default\":true}}",
+      neg_frame_options(),
+    ) {
+    Ok(_) => ()
+    _ => fail("expected Ok (@default bool true)")
+  }
+}
+
+///|
+test "fpd: @default bool false preserve" {
+  match
+    expand_document(
+      "{\"@context\":{\"rev\":{\"@reverse\":\"http://a/p\"}},\"rev\":{\"@default\":false}}",
+      neg_frame_options(),
+    ) {
+    Ok(_) => ()
+    _ => fail("expected Ok (@default bool false)")
+  }
+}
+
+///|
+test "fpd: @default array recursion" {
+  match
+    expand_document(
+      "{\"@context\":{\"rev\":{\"@reverse\":\"http://a/p\"}},\"rev\":{\"@default\":[\"a\",\"b\"]}}",
+      neg_frame_options(),
+    ) {
+    Ok(_) => ()
+    _ => fail("expected Ok (@default array)")
+  }
+}
+
+///|
+/// graph 容器族（expand_graph_container——@id/@index map 形与 @none 直出）
+test "graph: @id container map attach" {
+  match
+    expand_document(
+      "{\"@context\":{\"g\":{\"@id\":\"@graph\",\"@container\":\"@id\"}},\"g\":{\"http://a/\":{\"@id\":\"http://a/\",\"p\":\"v\"}}}",
+      neg_plain_options(),
+    ) {
+    Ok(_) => ()
+    _ => fail("expected Ok (@id graph map)")
+  }
+}
+
+///|
+test "graph: @index container map attach" {
+  match
+    expand_document(
+      "{\"@context\":{\"g\":{\"@id\":\"@graph\",\"@container\":\"@index\"}},\"g\":{\"idx1\":{\"@id\":\"http://x/\"}}}",
+      neg_plain_options(),
+    ) {
+    Ok(_) => ()
+    _ => fail("expected Ok (@index graph map)")
+  }
+}
+
+///|
+test "graph: @none entry in @id map" {
+  match
+    expand_document(
+      "{\"@context\":{\"g\":{\"@id\":\"@graph\",\"@container\":\"@id\"}},\"g\":{\"@none\":{\"@id\":\"http://x/\"}}}",
+      neg_plain_options(),
+    ) {
+    Ok(_) => ()
+    _ => fail("expected Ok (@none graph map entry)")
+  }
+}
