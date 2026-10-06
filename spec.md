@@ -3173,7 +3173,12 @@ N-Quads 解析/发射双面 + fromRDF 节点图构建皆在同包）。**开工 
 ### 9.3 圈外裁定保持（定位拍板的边界）
 - **remote-doc 19 例维持圈外**：load_context 同步注入 = 调用方供 fetch——
   通用库不做内建网络面；此裁定在库定位下落定为**设计**（非缺口）。
-- **CLI 不做**：render_json 晋 pub 是库输出面，不附 CLI。
+- **CLI**（2026-10-06 改判）：役65 原判「不附 CLI」（render_json 晋 pub 是库输出
+  面）；发布前用户令改判——随模块附 `cmd/main` 可执行薄壳（八命令 expand /
+  compact / flatten / frame / to-rdf / from-rdf / canonicalize / json-canonical；
+  选项 --base / --mode / --hash）。**库 pub 面零变化**（薄壳 = 独立 executable
+  包，pkgtype("executable")）；remote-doc 圈外裁定不破——壳不接网络，上下文一律
+  本地文件；错误文案走 stderr、退出码恒 0（工具链无 exit API，ttl/fsm cmd 同款）。
 
 ### 9.4 覆盖率棘轮立阈（拍一）
 - `coverage-baseline.txt` 棘轮：未覆盖行数 ≤ **608**（役65 收官实测；沿革

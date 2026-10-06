@@ -148,9 +148,27 @@ let loader = url => fetch_document(url)
 
   - **远程文档抓取（remote-doc）**：不做内置网络 I/O，`load_context` 注入；
     W3C remote-doc 套件例按设计排除。
-  - **命令行工具**：不做（库定位）。
 
 定位裁定与全证据链见仓内 `spec.md` §9。
+
+## 命令行工具（cmd/main 薄壳）
+
+库随附可执行薄壳（不接网络，上下文一律本地文件）：
+
+```bash
+moon run cmd/main -- <command> [options] <inputs>
+```
+
+八命令：`expand` / `compact` / `flatten` / `frame` / `to-rdf` / `from-rdf` /
+`canonicalize` / `json-canonical`；选项 `--base <iri>`、`--mode <1.0|1.1>`、
+`--hash <sha256|sha384>`。错误文案走 stderr，数据走 stdout。
+
+```bash
+# 例：展开并直出 N-Quads
+moon run cmd/main -- to-rdf doc.jsonld
+# 例：RDFC-1.0 规范化（sha384 档）
+moon run cmd/main -- canonicalize --hash sha384 dataset.nq
+```
 
 ## 测试与验证
 

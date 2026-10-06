@@ -10,7 +10,7 @@
 
 JSON-LD 1.1 通用库首个发布版：expand / compact / flatten / frame / toRDF /
 fromRDF 六算法全链 + RDFC-1.0 数据集规范化 + JCS（RFC 8785）规范化 JSON +
-HTML `application/ld+json` 脚本抽取。
+HTML `application/ld+json` 脚本抽取 + 命令行薄壳（`cmd/main`，八命令）。
 
 ### 新增 API
 
@@ -32,6 +32,10 @@ HTML `application/ld+json` 脚本抽取。
 - **套件辅助与自省**：`canonical_for_suite` / `isomorphic_for_suite`（官方比对
   语义：数组默认无序、唯一例外 `@list` 保序）；`jsonld_iri_routes` /
   `jsonld_keyword_routes`（词表路由自省）。
+- **命令行薄壳**：`cmd/main` 可执行包（`moon run cmd/main -- <command> …`）——
+  八命令 expand / compact / flatten / frame / to-rdf / from-rdf / canonicalize /
+  json-canonical，选项 `--base` / `--mode` / `--hash`；错误文案走 stderr，不接
+  网络（上下文一律本地文件）。库 pub 面零变化。
 
 ### 语义要点
 
@@ -50,8 +54,8 @@ HTML `application/ld+json` 脚本抽取。
 
 ### 设计边界（圈外 = 设计裁定，非缺口）
 
-- 远程文档抓取（remote-doc）不做内置网络 I/O（`load_context` 注入）；
-  CLI 不做。定位裁定全证据链见 `spec.md` §9。
+- 远程文档抓取（remote-doc）不做内置网络 I/O（`load_context` 注入）。
+  定位裁定全证据链见 `spec.md` §9。
 
 ### 工程
 
