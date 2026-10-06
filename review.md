@@ -1,9 +1,9 @@
-# src/jsonld · 复核卷（review）
+# jsonld · 复核卷（review）
 
 定位：本卷是 jsonld 子项目的**复核面**落点（复核表指引 + 缺口解释表）。
 口径：`bangto/world/review-surface-template.meta.md`（六步法 + 四件 + 覆盖边界）
 与 `bangto/world/const.md` §6.5（复核面七条）；本地三件套纪律见 `const.md` §6.4。
-权威实例（先例）：`src/ttl/suite-review.txt` + `src/ttl/review.md` §1.1/§1.2。
+权威实例（先例）：`ttl/suite-review.txt` + `ttl/review.md` §1.1/§1.2。
 
 ## 1.1 复核表指引（套件面）
 
@@ -16,7 +16,7 @@
 - **复现命令**（与表头一字不差）：
 
   ```sh
-  cd src/jsonld
+  cd jsonld
   { cat suite-review.header.txt
     moon test 2>&1 \
       | grep -oE '^\[[a-zA-Z]+\] entries=[0-9]+ plain=[0-9]+ deferred=[0-9]+' | sort -u

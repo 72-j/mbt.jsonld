@@ -8,7 +8,7 @@
 #   棘轮方向 = 只降不升；未用 permille 式（分母随源码浮动，未覆盖行数是绝对量更稳）。
 #
 # 度量口径（**固定顺序保证可复现**）：
-#   cd src/jsonld
+#   cd jsonld
 #   moon coverage clean && moon test --enable-coverage > /dev/null \
 #     && moon coverage analyze -p thy1016/jsonld | tail -1
 #

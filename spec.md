@@ -34,9 +34,9 @@
 - 展开后的节点对象图（expansion）
 - RDF 四元组集合（toRDF）
 
-## 4 表结构（`jsonld_gen.toml`；字段形制承 src/fsm TOML 2.0，schema 独立）
-口径绑定器 = `src/fsm/jsonld_toml_gen.mbt`（`parse_jsonld_gen` / `validate_jsonld_gen` /
-`emit_jsonld_gen`；统一入口落 src/fsm，低耦合只依赖通用 `moonbit-community/toml` 库，不碰 FsmIR）。
+## 4 表结构（`jsonld_gen.toml`；字段形制承 fsm TOML 2.0，schema 独立）
+口径绑定器 = `fsm/jsonld_toml_gen.mbt`（`parse_jsonld_gen` / `validate_jsonld_gen` /
+`emit_jsonld_gen`；统一入口落 fsm，低耦合只依赖通用 `moonbit-community/toml` 库，不碰 FsmIR）。
 词表封闭、引用完整、步骤图无环（递归红线钉子）、规则顺序连续、handler_hook 须为
 `Trait::method` 形——均由 validate 把关（drift = 红）。
 ### [[steps]] 步骤表
@@ -559,7 +559,7 @@ expand_standard/to_rdf 手写钩子），**不是模型 vs 引擎**——J2/J3 �
   `compound-literal` ⇒ 重化 bnode（rdf:language/rdf:direction 附加三元组）。
 - **produceGeneralizedRdf**：放行广义三元组（仅 #t0118/#te075 两例）。
 
-### 8.3 与现有 trig/nquads 机器的关系（src/ttl 子仓）
+### 8.3 与现有 trig/nquads 机器的关系（ttl 子仓）
 - **方向相反**：gen_trig/gen_nquads = RDF 文本 → 四元组（FSM 生成链）；jsonld
   toRdf = JSON 树 → 四元组（手写 `ToRdfProcessor::node_to_quads`，J1 契约面 +
   `JsonLdQuad{subject,predicate,object,graph}` 串模型已立）。共享的只是**四元组
@@ -573,7 +573,7 @@ expand_standard/to_rdf 手写钩子），**不是模型 vs 引擎**——J2/J3 �
   文件含 bnode / 自同构全绿（修出两枚：自指 `_:b0 _:b0 _:b0` 的**同源同靶**
   绑定一致性 + generalized 谓词位 bnode 纳入 bucket/标签收集）。**ttl 依赖
   挂起（用户令 2026-09-28）**：主仓 moon.mod 已声明 `thy1016/moonttl@0.2.2`
-  （本地 src/ttl 为 0.3.0-dev），待 0.3.0 发版后升引——gen_nquads 可作
+  （本地 ttl 为 0.3.0-dev），待 0.3.0 发版后升引——gen_nquads 可作
   differential oracle（桥接件挂账不排期）；判定器规范形转义双端同用保证
   判定与词形解耦。**升级触发条件（任一即启，防「够用」变「永不升级」）**：
   ① moonttl 0.3.0 发版 ⇒ 升引版本行 + 差分对照探针一枚（迷你判定器 ×
@@ -635,7 +635,7 @@ expand_standard/to_rdf 手写钩子），**不是模型 vs 引擎**——J2/J3 �
 ### 8.37 J5 立案（复核面/一致性面——立案不排期，2026-09-29）
 照 §6「复核面：JSON-LD 一致性面」六步走。**复现命令钉（第三方可执行口径）**：
 - **套件版本**：W3C json-ld-api @ `ffdb326`（`.rdf-tests/SHA256SUMS` 钉版
-  2626 件；自包含于 `src/jsonld/.rdf-tests/json-ld-api/`，路径以本目录为仓根）
+  2626 件；自包含于 `jsonld/.rdf-tests/json-ld-api/`，路径以本目录为仓根）
 - **前置**：clone 本仓到任意路径（仓根 = 含 moon.mod 的目录）
 - **命令**：`moon clean && moon test --deny-warn`（仓根执行）
 - **target**：**显式 `--target native`**（不跟随 moon.mod preferred_target
@@ -693,7 +693,7 @@ expand_standard/to_rdf 手写钩子），**不是模型 vs 引擎**——J2/J3 �
 6. flatten 58 例——**已立案已收官**（2026-09-29：56/58 plain——正 55 +
    负 1；deferred 2 在册：t0044 = compact 前置随 compaction 面解、
    tin06 = @nest 深研；落成实录见 §8.40）
-7. fromRdf 54 例——**已立案不排期**（RDF → JSON-LD 反向；可借力 src/ttl
+7. fromRdf 54 例——**已立案不排期**（RDF → JSON-LD 反向；可借力 ttl
    解析面，跨仓复用见 §8.3 边界）
 8. html 50 例——**已立案不排期**（依赖 HTML 解析面，本仓无此依赖，需引
    解析依赖后再议）
@@ -734,7 +734,7 @@ expand_standard/to_rdf 手写钩子），**不是模型 vs 引擎**——J2/J3 �
     单独钉于本节头）；② **mooncakes 依赖钉**——moon.mod import 版本行
     （本实现面实际 import：moonbitlang/async@0.21.0 + core（工具链捆绑）+
     bitbang/fsm 本仓包；thy1016/moonttl@0.2.2 等其余 import 行与本实现面
-    无关——src/jsonld 未引用）；依赖 API 变 = 行为面变；③ **工具链锚**——
+    无关——jsonld 未引用）；依赖 API 变 = 行为面变；③ **工具链锚**——
     moon 0.1.20260920 (914d7da) + 捆绑 core：**JCS 数值词形/行为语义随
     core**（Double 显示即 ECMAScript 形的实证面），工具链升级须重跑复核面
     全量（§8.37 复现命令）
@@ -2180,7 +2180,7 @@ plain；六套件面（expand/toRDF/flatten/compact/对账三件套/判定器自
 有解释**（t0038 分叉待裁 §8.91 / flatten 复核项 ×2 本条）。
 
 **立案面终态（不排期，解释在案 §8.39）**：
-- 未实现立案：fromRdf 54（可借 src/ttl 解析面）、html 50（需引解析依赖）。
+- 未实现立案：fromRdf 54（可借 ttl 解析面）、html 50（需引解析依赖）。
 - 依赖外立案：remote-doc 18（HTTP 面）、framing（上游套件另立）、
   canonicalization（双路线决策树：A 引 rdf-canon 套件 / B 自建对拍
   双件先行——触发 = 用户令或 VC 需求）。
@@ -2358,7 +2358,7 @@ JsonLdError]`，本体 = `Unsupported("pending framing …")`（红而非错，
 门绿账在——expand_standard 先例同款）；文档注释记 §8.93 勘 3 十段管线
 （落码时的工序序）。`.mbti` 增量 = 该签名一行（本笔唯一可见面变化）。
 
-**门**：`moon test src/jsonld` **66/66 绿**（65 + 新 harness）；
+**门**：`moon test jsonld` **66/66 绿**（65 + 新 harness）；
 全仓 `moon test` **378/378 零回退**（377 + 1）；`moon fmt`/`moon info`
 已跑。**未 commit**（商量制——待用户令；建议提交语：`feat(jsonld J5 役46
 framing 开工第一笔)：套件 277 件入仓 + SHA256SUMS 2903 条 + harness
@@ -2394,7 +2394,7 @@ framing 开工第一笔)：套件 277 件入仓 + SHA256SUMS 2903 条 + harness
   （#t0001 = 1.0 例且无发射路径，不触）。
 
 **门**：#t0001 plain（**1/92**，deferred 91）一次过——`moon test
-src/jsonld` 66/66；全仓 378/378 零回退；`moon fmt`/`moon info` 已跑。
+jsonld` 66/66；全仓 378/378 零回退；`moon fmt`/`moon info` 已跑。
 **未 commit**。
 
 **排程勘定修正**：首役**未动 frameExpansion**——#t0001 帧全为朴素
@@ -2493,7 +2493,7 @@ src/jsonld` 66/66；全仓 378/378 零回退；`moon fmt`/`moon info` 已跑。
    `Result[ExpandedValue?,_]`——同名族两签名，嵌套 Some 模式撞 constr
    mismatch；调用前核签名（「复用前先核它到底做什么」ctx §3-8 同族）。
 
-**门**：`moon test src/jsonld` **66/66**；全仓 **378/378 零回退**；
+**门**：`moon test jsonld` **66/66**；全仓 **378/378 零回退**；
 `moon fmt`/`moon info` 已跑；`.mbti` diff = 预期两行。**未 commit**
 （役46+47+48 三役累计未提交；建议提交语拆两笔或合一笔由用户定：
 `feat(jsonld J5 役46-47 framing 开工)：套件入仓 + SHA256SUMS + harness
@@ -2552,7 +2552,7 @@ id/type 形（硬过滤已过者）；②`is` 或模式 fmt 括错形复发（�
 `Int::unsafe_to_char`（ASCII 折叠域恒合法码位）；④多行 Bool 表达式
 `let` 经 fmt 断行成裸语句（[4139] 同族）——长 Bool 条件先提中间变量。
 
-**门**：`moon test src/jsonld` **66/66**；全仓 **378/378 零回退**；
+**门**：`moon test jsonld` **66/66**；全仓 **378/378 零回退**；
 `moon fmt`/`moon info` 已跑；`.mbti` **零扰动**（本役无新 pub 面）。
 **未提交面** = 役49 四文件（engine/expand_standard/frame/suite_frame_test
 ）——套件与 frame_expansion 字段已由用户自提（`8f1cb14`，役45-46 面）。
@@ -2608,7 +2608,7 @@ SHA256SUMS 自洽）——harness 不读它，删除或转正常文件由用户�
 ### 8.100 役50 落成（2026-10-01；用户拍「开役50」——embed 状态机批）
 
 **役50 落成（§8.100 续）**：17 例全数一次过——**43/92 plain**（43+49=92
-闭合），`moon test src/jsonld` 66/66，全仓 **378/378 零回退**，`moon fmt`/
+闭合），`moon test jsonld` 66/66，全仓 **378/378 零回退**，`moon fmt`/
 `moon info` 已跑；`.mbti` 增量 = `omit_graph : Bool` 一行（embed 批随批旗
 面）。§8.99 状态机钉（四策略/三支序/栈/每顶层树重置辖域）对照 17 oracle
 **零修正兑付**——钉先于码的批次定性成立。
@@ -2634,7 +2634,7 @@ prune 随后收官。
 **役50 收官（2026-10-01，用户令）——收官三验 + 判语**：
 
 1. **门终验**（收官时点实跑）：`moon fmt`/`moon info` 净；`moon test
-   src/jsonld` **66/66**；全仓 `moon test` **378/378 零回退**；`.mbti`
+   jsonld` **66/66**；全仓 `moon test` **378/378 零回退**；`.mbti`
    终态增量 = `omit_graph : Bool` 一行（本役唯一可见面）。
 2. **账面**：§8.99 钉（四策略/三支序/栈/每顶层树辖域 + tg 同根异形勘定）
    对照 17 oracle 零修正兑付；§8.38 复核表 framing 行随役更新（43/92）；
@@ -3064,7 +3064,7 @@ te002 的 tag 长词非 term 键不受扰（compact 套件 66/66 复证负例仍
   .nq：正 52 + 负 2）。**解析面择一（首役首裁）**：a) 升级判定器迷你
   解析器 parse_nquads（tordf_judge_test.mbt 测试件 → 生产件——词面状态
   机已覆盖 IRI/bnode/literal/转义/hex/lang/datatype 全谱，需验 graph
-  标签位并移包出测试伪包）；b) 跨仓借 src/ttl/gen_nquads 生成解析器
+  标签位并移包出测试伪包）；b) 跨仓借 ttl/gen_nquads 生成解析器
   （§8.3 边界扩展——跨仓依赖首例）。**推荐 a**：单包自足、判定器与生产
   件同源互证（判定器继续为 toRDF 面服务，生产件从其复制派生）。
 - **输出** = 展开且展平形（REC fromRdf：节点对象**数组**——每唯一
@@ -3145,7 +3145,7 @@ N-Quads 解析/发射双面 + fromRDF 节点图构建皆在同包）。**开工 
 
 ## 9 库定位裁定（役65 · J10 库化整形，2026-10-03 拍板）
 
-**裁定：src/jsonld = 通用库（MoonBit JSON-LD 1.1 实现），非 harness 附属件。**
+**裁定：jsonld = 通用库（MoonBit JSON-LD 1.1 实现），非 harness 附属件。**
 定位由用户拍板（2026-10-03）；依据：仓内零依赖者、38 条 pub 面分类审计、
 对外交付判据（发版名片面）。本节是定位的**证据链与执行账**；pub 面自此 =
 **API 承诺面**——动 pub 须过定位判据（const §5 引用条）。§1「暂不做」三行

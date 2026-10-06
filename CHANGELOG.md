@@ -39,7 +39,7 @@ HTML `application/ld+json` 脚本抽取 + 命令行薄壳（`cmd/main`，八命�
 
 ### 语义要点
 
-- 词表路由 / IRI 展开由**表数据驱动**（生成器面在主仓 `src/fsm/jsonld_gen`，
+- 词表路由 / IRI 展开由**表数据驱动**（生成器面在主仓 `fsm/jsonld_gen`，
   本仓只留产物 `gen.mbt` + 手写库面）；展开/压缩语义对齐 JSON-LD 1.1 API
   （含 `@import` / `@propagate` / `@protected` / scoped context / base direction）。
 - `@context` 溢出防护：上下文链深度限 32（REC 4.1.2），超限报
