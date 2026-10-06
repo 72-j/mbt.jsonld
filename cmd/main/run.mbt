@@ -1,6 +1,6 @@
 // ===== jsonld 命令行薄壳（共享核心）=====
 // 错误契约：文案一律 eprintln（stderr；stdout 保净供管道），退出码恒 0
-// （工具链无 exit API——ttl / mbtgen cmd 同款先例）。
+// （工具链无 exit API——moonttl / mbtgen cmd 同款先例）。
 
 ///|
 async fn dispatch(invocation : CliInvocation) -> Unit {

@@ -559,7 +559,7 @@ expand_standard/to_rdf 手写钩子），**不是模型 vs 引擎**——J2/J3 �
   `compound-literal` ⇒ 重化 bnode（rdf:language/rdf:direction 附加三元组）。
 - **produceGeneralizedRdf**：放行广义三元组（仅 #t0118/#te075 两例）。
 
-### 8.3 与现有 trig/nquads 机器的关系（ttl 子仓）
+### 8.3 与现有 trig/nquads 机器的关系（moonttl 子仓）
 - **方向相反**：gen_trig/gen_nquads = RDF 文本 → 四元组（FSM 生成链）；jsonld
   toRdf = JSON 树 → 四元组（手写 `ToRdfProcessor::node_to_quads`，J1 契约面 +
   `JsonLdQuad{subject,predicate,object,graph}` 串模型已立）。共享的只是**四元组
@@ -571,9 +571,9 @@ expand_standard/to_rdf 手写钩子），**不是模型 vs 引擎**——J2/J3 �
   bnode 双射（行式状态机 12 态 + canonical 转义双端同用）。**够用性全量实测
   （2026-09-28，345/345 expected 全过）**：1502 四元组 / 单文件最多 42 / 223
   文件含 bnode / 自同构全绿（修出两枚：自指 `_:b0 _:b0 _:b0` 的**同源同靶**
-  绑定一致性 + generalized 谓词位 bnode 纳入 bucket/标签收集）。**ttl 依赖
+  绑定一致性 + generalized 谓词位 bnode 纳入 bucket/标签收集）。**moonttl 依赖
   挂起（用户令 2026-09-28）**：主仓 moon.mod 已声明 `thy1016/moonttl@0.2.2`
-  （本地 ttl 为 0.3.0-dev），待 0.3.0 发版后升引——gen_nquads 可作
+  （本地 moonttl 为 0.3.0-dev），待 0.3.0 发版后升引——gen_nquads 可作
   differential oracle（桥接件挂账不排期）；判定器规范形转义双端同用保证
   判定与词形解耦。**升级触发条件（任一即启，防「够用」变「永不升级」）**：
   ① moonttl 0.3.0 发版 ⇒ 升引版本行 + 差分对照探针一枚（迷你判定器 ×
@@ -693,7 +693,7 @@ expand_standard/to_rdf 手写钩子），**不是模型 vs 引擎**——J2/J3 �
 6. flatten 58 例——**已立案已收官**（2026-09-29：56/58 plain——正 55 +
    负 1；deferred 2 在册：t0044 = compact 前置随 compaction 面解、
    tin06 = @nest 深研；落成实录见 §8.40）
-7. fromRdf 54 例——**已立案不排期**（RDF → JSON-LD 反向；可借力 ttl
+7. fromRdf 54 例——**已立案不排期**（RDF → JSON-LD 反向；可借力 moonttl
    解析面，跨仓复用见 §8.3 边界）
 8. html 50 例——**已立案不排期**（依赖 HTML 解析面，本仓无此依赖，需引
    解析依赖后再议）
@@ -2180,7 +2180,7 @@ plain；六套件面（expand/toRDF/flatten/compact/对账三件套/判定器自
 有解释**（t0038 分叉待裁 §8.91 / flatten 复核项 ×2 本条）。
 
 **立案面终态（不排期，解释在案 §8.39）**：
-- 未实现立案：fromRdf 54（可借 ttl 解析面）、html 50（需引解析依赖）。
+- 未实现立案：fromRdf 54（可借 moonttl 解析面）、html 50（需引解析依赖）。
 - 依赖外立案：remote-doc 18（HTTP 面）、framing（上游套件另立）、
   canonicalization（双路线决策树：A 引 rdf-canon 套件 / B 自建对拍
   双件先行——触发 = 用户令或 VC 需求）。
@@ -3064,7 +3064,7 @@ te002 的 tag 长词非 term 键不受扰（compact 套件 66/66 复证负例仍
   .nq：正 52 + 负 2）。**解析面择一（首役首裁）**：a) 升级判定器迷你
   解析器 parse_nquads（tordf_judge_test.mbt 测试件 → 生产件——词面状态
   机已覆盖 IRI/bnode/literal/转义/hex/lang/datatype 全谱，需验 graph
-  标签位并移包出测试伪包）；b) 跨仓借 ttl/src/gen_nquads 生成解析器
+  标签位并移包出测试伪包）；b) 跨仓借 moonttl/src/gen_nquads 生成解析器
   （§8.3 边界扩展——跨仓依赖首例）。**推荐 a**：单包自足、判定器与生产
   件同源互证（判定器继续为 toRDF 面服务，生产件从其复制派生）。
 - **输出** = 展开且展平形（REC fromRdf：节点对象**数组**——每唯一
@@ -3178,7 +3178,7 @@ N-Quads 解析/发射双面 + fromRDF 节点图构建皆在同包）。**开工 
   compact / flatten / frame / to-rdf / from-rdf / canonicalize / json-canonical；
   选项 --base / --mode / --hash）。**库 pub 面零变化**（薄壳 = 独立 executable
   包，pkgtype("executable")）；remote-doc 圈外裁定不破——壳不接网络，上下文一律
-  本地文件；错误文案走 stderr、退出码恒 0（工具链无 exit API，ttl/mbtgen cmd 同款）。
+  本地文件；错误文案走 stderr、退出码恒 0（工具链无 exit API，moonttl/mbtgen cmd 同款）。
 
 ### 9.4 覆盖率棘轮立阈（拍一）
 - `coverage-baseline.txt` 棘轮：未覆盖行数 ≤ **608**（役65 收官实测；沿革

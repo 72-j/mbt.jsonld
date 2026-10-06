@@ -61,4 +61,4 @@ HTML `application/ld+json` 脚本抽取 + 命令行薄壳（`cmd/main`，八命�
 
 - 本版以独立模块 `thy1016/jsonld` 首发（生成器面归主仓，见 `moon.mod` 头注）。
 - **可运行示例**：`examples/quickstart`（六算法 + JCS 全链走览；依
-  `ttl/src/examples` 制——main 只留进程入口，本体进测试宿主冒烟）。
+  `moonttl/src/examples` 制——main 只留进程入口，本体进测试宿主冒烟）。
