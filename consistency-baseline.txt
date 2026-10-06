@@ -4,7 +4,7 @@
 # 快照：W3C json-ld-api @ ffdb326121ea89b7b8280e76a5caea923834bcef（tests 目录，2026-08-04 版）
 # 口径四注脚：套件版本 = ffdb326（本文件字段）；冷缓存 / target / 探针协议自 J1 实现起随读数记录
 #   （实现未起，暂不适用；manifest 驱动计数即当前探针口径）
-# 复现命令（仓根 = src/jsonld）：
+# 复现命令（仓根 = 本模块根，即含 moon.mod 的目录）：
 #   sha256sum -c .rdf-tests/SHA256SUMS
 #   grep -c '"@id": "#t' .rdf-tests/json-ld-api/expand-manifest.jsonld    # 385
 #   grep -c '"@id": "#t' .rdf-tests/json-ld-api/toRdf-manifest.jsonld     # 467
@@ -26,25 +26,26 @@ failed = 0
 not_implemented = 0
 
 # 复核（2026-10-03，J4 收官）——**J0 范围 = expand + toRdf（852 例）全绿、零残留**：
-#   expand 385/385（全 plain、零 deferred；harness `src/jsonld/suite_expand_test.mbt`）
-#   toRdf 467/467（全 plain、零 deferred；harness `src/jsonld/suite_tordf_test.mbt`）
+#   expand 385/385（全 plain、零 deferred；harness `suite_expand_test.mbt`）
+#   toRdf 467/467（全 plain、零 deferred；harness `suite_tordf_test.mbt`）
 #   两个挂账实证均已收口：① 键序损失 vs 1.1 "ordered by property" —— 官方比对语义定案
 #   （对象键序不敏感 / 数组默认无序、唯一例外 @list 保序；spec「套件比对语义」节）+
 #   canonical_for_suite 移植；② 数词形按值/按原文 —— J3 对拍收口（DataRoundTripping 族全绿，
 #   词形三钉在 to_rdf.mbt 注释与 nq 发射件内联）。
 #
 # 口径四注脚（本读数适用）：套件版本 = ffdb326（见上）；冷缓存 = 是（读数前 `moon clean`）；
-#   target = wasm-gc（默认档；native 档同绿，见 CI 双档）；探针协议 = `moon test src/jsonld`
-#   的套件 harness（manifest 驱动 + pin 闭合，非人工抽样）；复现命令 = `moon test src/jsonld`
-#   （或按面 `moon test src/jsonld --filter "expand suite*"`）。
+#   target = wasm-gc（读数时点默认档，2026-10-03 子仓化前；现行复核口径 = 显式
+#   `--target native`，spec §8.37 钉：preferred_target 变更不得静默改复核面口径）；
+#   探针协议 = `moon test`（本模块根）的套件 harness（manifest 驱动 + pin 闭合，非人工抽样）；
+#   复现命令 = `moon test`（或按面 `moon test --filter "expand suite*"`）。
 #
 # 缺口解释表：**J0 范围内零缺口**。范围外留册 1 条（不属本基线分母）：
-#   `compact #t0038`（JSON-LD 1.0 index map round-tripping）——见 `src/jsonld/review.md` §1.2
+#   `compact #t0038`（JSON-LD 1.0 index map round-tripping）——见 `review.md` §1.2
 #   （类别 [设计] **版次越界排除**：specVersion=json-ld-1.0，其 expected 为 1.0 压缩算法
 #     遗留形态（1.0 勘误改判）；1.1 处理器如实产全 IRI——权威 oracle #tp001，与 #t0038
 #     同以 processingMode 1.0 运行；参考实现 jsonld.js 对 specVersion=1.0 的 compact 例
 #     整体跳过。证据三件见 spec.md §8.91.1）。
-# 复核面（外生再证）：复核表 `src/jsonld/suite-review.txt`（同头含整段复现命令，幂等已实证）
-#   + 缺口解释表 `src/jsonld/review.md` §1.2；覆盖率基线 `src/jsonld/coverage-baseline.txt`
-#   （只统计，未设阈值）。
+# 复核面（外生再证）：复核表 `suite-review.txt`（同头含整段复现命令，幂等已实证）
+#   + 缺口解释表 `review.md` §1.2；覆盖率基线 `coverage-baseline.txt`
+#   （棘轮 ≤ 608 只降不升；2026-10-06 复测 606）。
 # 重评估条件：若另立 JSON-LD 1.0 引擎一致性口径时，按 review.md §1.2 重估（1.1 口径下不重估）。

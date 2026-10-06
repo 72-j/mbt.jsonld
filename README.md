@@ -175,6 +175,8 @@ moon test
 语料 = W3C json-ld-api / json-ld-framing / rdf-canon（`.rdf-tests/`，
 `SHA256SUMS` 完整性锁版）。
 
+版本沿革见 `CHANGELOG.md`。
+
 ## 许可证声明（W3C 语料）
 
   - 本仓代码采用 **Apache-2.0**（见 `LICENSE`）。

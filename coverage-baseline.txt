@@ -8,14 +8,15 @@
 #   棘轮方向 = 只降不升；未用 permille 式（分母随源码浮动，未覆盖行数是绝对量更稳）。
 #
 # 度量口径（**固定顺序保证可复现**）：
-#   cd /home/thy/moonttl
-#   moon coverage clean && moon coverage analyze -p thy1016/bitbang/jsonld | tail -1
+#   cd src/jsonld
+#   moon coverage clean && moon test --enable-coverage > /dev/null \
+#     && moon coverage analyze -p thy1016/jsonld | tail -1
 #
 # **两个实测坑（必读；都不是可选项）**：
 #   坑① **`moon coverage clean` 不可省**——源码改动后 `_build` 里会留**旧插桩产物**，与新产物
 #     混跑会写出对不上的 trace ⇒ 报告直接 `length mismatch` / `index out of bounds`
 #     （ttl 先例 2026-09-18 实测踩过；本包 2026-10-03 沿用同序命令）。
-#   坑② **`-p` 取包名（`thy1016/bitbang/jsonld`），不是路径**——给 `src/jsonld` 会报
+#   坑② **`-p` 取包名（`thy1016/jsonld`），不是路径**——给路径形会报
 #     "package name `src/jsonld` is incorrect / No coverage source data found"（本包实测）。
 #
 # 读数（2026-10-03，首次，J4 收官；同命令 + 同一留证 ⇒ 第三方得到同一读数）：
@@ -28,9 +29,10 @@
 #   （役65 动账：删 frame_debug 族 184 行 [死件，零调用点]；补测 12 白盒钉；
 #     expand_standard 218 / compact_standard 117 / frame 91 未覆盖带仍在——系统性
 #     负例路径批量补测留给下役"覆盖率战役"本体，本役只收官实测立阈。）
+#   2026-10-06 发布前复测（子仓化独立模块后冷口径，命令见上）：606（棘轮内 Δ−2）。
 #
 # 进步留痕纪律（承 ttl 先例）：补测试把线推上去后**同笔更新本文件**并在 todo.md 记一笔；
 #   要上调（未覆盖行数变多）必须写明理由（例如新增整块被测代码 / 统计口径变化）。
 #
-# 覆盖边界：本基线只覆盖 `src/jsonld` 包（不含 rdf-canon/sha 等已内联件的**分支级**语义面——
+# 覆盖边界：本基线只覆盖 `thy1016/jsonld` 模块根包（不含 rdf-canon/sha 等已内联件的**分支级**语义面——
 #   那些由 wbtest 各自钉，见 `suite-review.txt` 表头"覆盖边界"节）。

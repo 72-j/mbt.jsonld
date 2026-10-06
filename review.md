@@ -9,33 +9,33 @@
 
 - **被复核面**：JSON-LD 官方套件面——`expand / toRdf / flatten / compact / frame /
   fromRdf / html / canon` 八个 manifest 驱动 harness（1437 条目 + compact 1 例留册）。
-- **自报行来源**：`moon test src/jsonld` 的
+- **自报行来源**：`moon test` 的
   `[<面>] entries=N plain=N deferred=N` 行（8 个 harness 的 `println` 自报，
   **与 pin 断言同处**——改自报格式或数字即 `moon test` 红）。
-- **复核表**：`src/jsonld/suite-review.txt`（**生成物，勿手改**；同文件头含整段可复现命令）。
+- **复核表**：`suite-review.txt`（**生成物，勿手改**；同文件头含整段可复现命令）。
 - **复现命令**（与表头一字不差）：
 
   ```sh
-  cd /home/thy/moonttl
-  { cat src/jsonld/suite-review.header.txt
-    moon test src/jsonld 2>&1 \
+  cd src/jsonld
+  { cat suite-review.header.txt
+    moon test 2>&1 \
       | grep -oE '^\[[a-zA-Z]+\] entries=[0-9]+ plain=[0-9]+ deferred=[0-9]+' | sort -u
-  } > src/jsonld/suite-review.txt
+  } > suite-review.txt
   ```
 
   **两判据分开核**（`const.md` §6.4「复核表两判据」）：
 
   ```sh
   # ① 幂等（同命令连跑两次一致；防抖动）
-  { cat src/jsonld/suite-review.header.txt
-    moon test src/jsonld 2>&1 \
+  { cat suite-review.header.txt
+    moon test 2>&1 \
       | grep -oE '^\[[a-zA-Z]+\] entries=[0-9]+ plain=[0-9]+ deferred=[0-9]+' | sort -u
   } > /tmp/sr-a.txt
   # …同命令再来一次 → /tmp/sr-b.txt
   diff /tmp/sr-a.txt /tmp/sr-b.txt        # 空 = 幂等（2026-10-03 实证空）
 
   # ② 可复现（复跑 vs 入库表一致；防漂移）
-  diff /tmp/sr-a.txt src/jsonld/suite-review.txt   # 空 = 可复现（同笔入库即此表）
+  diff /tmp/sr-a.txt suite-review.txt   # 空 = 可复现（同笔入库即此表）
   ```
 - **覆盖边界**：见表头"覆盖边界"节（不覆盖 IR/产物面、覆盖率面、语义内部面、性能面）。
   覆盖率面已另立独立基线：`coverage-baseline.txt` 棘轮 ≤ 608（役65 收官实测

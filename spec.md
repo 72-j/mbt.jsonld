@@ -637,7 +637,7 @@ expand_standard/to_rdf 手写钩子），**不是模型 vs 引擎**——J2/J3 �
 - **套件版本**：W3C json-ld-api @ `ffdb326`（`.rdf-tests/SHA256SUMS` 钉版
   2626 件；自包含于 `src/jsonld/.rdf-tests/json-ld-api/`，路径以本目录为仓根）
 - **前置**：clone 本仓到任意路径（仓根 = 含 moon.mod 的目录）
-- **命令**：`moon clean && moon test src/jsonld --deny-warn`（仓根执行）
+- **命令**：`moon clean && moon test --deny-warn`（仓根执行）
 - **target**：**显式 `--target native`**（不跟随 moon.mod preferred_target
   ——preferred_target 变更不得静默改复核面口径；moon.mod 当前值 = native 仅
   为注记非依据）
