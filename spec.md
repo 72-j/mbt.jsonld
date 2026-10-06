@@ -3064,7 +3064,7 @@ te002 的 tag 长词非 term 键不受扰（compact 套件 66/66 复证负例仍
   .nq：正 52 + 负 2）。**解析面择一（首役首裁）**：a) 升级判定器迷你
   解析器 parse_nquads（tordf_judge_test.mbt 测试件 → 生产件——词面状态
   机已覆盖 IRI/bnode/literal/转义/hex/lang/datatype 全谱，需验 graph
-  标签位并移包出测试伪包）；b) 跨仓借 ttl/gen_nquads 生成解析器
+  标签位并移包出测试伪包）；b) 跨仓借 ttl/src/gen_nquads 生成解析器
   （§8.3 边界扩展——跨仓依赖首例）。**推荐 a**：单包自足、判定器与生产
   件同源互证（判定器继续为 toRDF 面服务，生产件从其复制派生）。
 - **输出** = 展开且展平形（REC fromRdf：节点对象**数组**——每唯一
