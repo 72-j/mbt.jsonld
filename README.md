@@ -153,6 +153,11 @@ let loader = url => fetch_document(url)
 
 ## 命令行工具（cmd/main 薄壳）
 
+可运行示例：`examples/quickstart`（六算法 + JCS 全链走览）——
+`moon run examples/quickstart`。
+
+库随附可执行薄壳（不接网络，上下文一律本地文件）：
+
 库随附可执行薄壳（不接网络，上下文一律本地文件）：
 
 ```bash
