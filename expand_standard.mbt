@@ -1348,6 +1348,12 @@ fn StandardExpander::expand_object(
         // {} 通配判定面）：数组（IRI 清单，可混 {} 通配）/ 对象 {} 通配 ⇒
         // properties @ 键（空数组 = match-none 保形）；串形走 types 字段
         // 原路（t0005/t0026 oracle 不扰）
+        // 可达性注记（役C1 批1 2026-10-06）：本 pattern 带仅经**别名键**携带
+        // 非串值可达——frame_value_pattern 预扫（扫原始键）会把字面 "@type"
+        // 的 Array/Object/Null 值劫往值 pattern 成分带（成分带内有 bnode 拒
+        // 孪生门）；别名 term（如 "type"→"@type"）预扫看不到原始键，携非串值
+        // 直达此处。拆带前须先统一预扫键口径（扩到别名展开后键）——那是语义
+        // 变更，非清理，勿单方面动手。
         if options.frame_expansion {
           let pattern_form = match pair.1 {
             JsonValue::Array(_) => true
