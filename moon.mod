@@ -15,6 +15,8 @@ keywords = [ "jsonld", "json-ld", "rdf", "linked-data", "canonicalization" ]
 
 description = "JSON-LD 1.1 (expand / compact / flatten / frame / toRDF / fromRDF) + RDFC-1.0 canonicalization for MoonBit."
 
+readme = "README.md"
+
 preferred_target = "native"
 
 import {
