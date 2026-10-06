@@ -1675,3 +1675,91 @@ test "lookup: td without IRI refused" {
     is Err(InvalidValue("term definition without IRI")),
   )
 }
+
+///|
+/// 批6：term_definitions_equivalent 未触臂白盒直调（批5 prot 探针皆虚入——
+/// pub 路由未带这些字段进等价检查；直调 = 精确盖臂）
+fn wb_td_full(
+  iri : String?,
+  container : ContainerType?,
+  reverse : String?,
+) -> TermDefinition {
+  {
+    iri,
+    datatype: None,
+    container,
+    reverse,
+    graph_secondary: None,
+    local_context: None,
+    context_base_url: None,
+    index_mapping: None,
+    is_protected: true,
+    is_prefix: None,
+    language_mapping: None,
+    direction_mapping: None,
+    nest: None,
+    simple_form: true,
+    graph_set: false,
+    container_set: false,
+  }
+}
+
+///|
+test "equiv: iri some-some equal" {
+  assert_true(
+    term_definitions_equivalent(
+      wb_td_full(Some("http://a/p"), None, None),
+      wb_td_full(Some("http://a/p"), None, None),
+    ),
+  )
+}
+
+///|
+test "equiv: reverse some-some equal" {
+  assert_true(
+    term_definitions_equivalent(
+      wb_td_full(Some("http://a/p"), None, Some("http://a/r")),
+      wb_td_full(Some("http://a/p"), None, Some("http://a/r")),
+    ),
+  )
+}
+
+///|
+test "equiv: iri none-none equal" {
+  assert_true(
+    term_definitions_equivalent(
+      wb_td_full(None, None, None),
+      wb_td_full(None, None, None),
+    ),
+  )
+}
+
+///|
+test "equiv: reverse mismatch is inequivalent" {
+  assert_true(
+    !term_definitions_equivalent(
+      wb_td_full(Some("http://a/p"), None, Some("http://a/r1")),
+      wb_td_full(Some("http://a/p"), None, Some("http://a/r2")),
+    ),
+  )
+}
+
+///|
+test "equiv: reverse presence mismatch" {
+  assert_true(
+    !term_definitions_equivalent(
+      wb_td_full(Some("http://a/p"), None, None),
+      wb_td_full(Some("http://a/p"), None, Some("http://a/r")),
+    ),
+  )
+}
+
+///|
+test "equiv: container index-index equal" {
+  assert_true(
+    term_definitions_equivalent(
+      wb_td_full(Some("http://a/p"), Some(ContainerType::Index), None),
+      wb_td_full(Some("http://a/p"), Some(ContainerType::Index), None),
+    ),
+  )
+}

@@ -1279,3 +1279,107 @@ fn neg_plain10_options() -> JsonLdOptions {
     use_rdf_type: false,
   }
 }
+
+///|
+test "td: non-string @direction rejected" {
+  match
+    expand_document(
+      "{\"@context\":{\"t\":{\"@id\":\"http://a/t\",\"@direction\":123}}}",
+      neg_plain_options(),
+    ) {
+    Err(InvalidContext(msg)) => assert_eq(msg, "invalid base direction")
+    _ => fail("expected InvalidContext (invalid base direction)")
+  }
+}
+
+///|
+test "td: @nest alias to non-nest term rejected" {
+  match
+    expand_document(
+      "{\"@context\":{\"x\":\"http://a/x\",\"t\":{\"@id\":\"http://a/t\",\"@nest\":\"x\"}}}",
+      neg_plain_options(),
+    ) {
+    Err(InvalidContext(msg)) => assert_eq(msg, "invalid @nest value")
+    _ => fail("expected InvalidContext (alias not @nest)")
+  }
+}
+
+///|
+test "td: non-string @nest rejected" {
+  match
+    expand_document(
+      "{\"@context\":{\"t\":{\"@id\":\"http://a/t\",\"@nest\":123}}}",
+      neg_plain_options(),
+    ) {
+    Err(InvalidContext(msg)) => assert_eq(msg, "invalid @nest value")
+    _ => fail("expected InvalidContext (numeric @nest)")
+  }
+}
+
+///|
+test "td: non-bool @protected rejected" {
+  match
+    expand_document(
+      "{\"@context\":{\"t\":{\"@id\":\"http://a/t\",\"@protected\":123}}}",
+      neg_plain_options(),
+    ) {
+    Err(InvalidContext(msg)) => assert_eq(msg, "invalid @protected value")
+    _ => fail("expected InvalidContext (numeric @protected)")
+  }
+}
+
+///|
+test "td: @protected in 1.0 mode rejected" {
+  match
+    expand_document(
+      "{\"@context\":{\"t\":{\"@id\":\"http://a/t\",\"@protected\":true}},\"p\":\"v\"}",
+      neg_plain10_options(),
+    ) {
+    Err(InvalidContext(msg)) => assert_eq(msg, "invalid term definition")
+    _ => fail("expected InvalidContext (1.0 @protected)")
+  }
+}
+
+///|
+test "kw: keyword with extra entry is redefinition" {
+  match
+    expand_document(
+      "{\"@context\":{\"@id\":{\"@id\":\"http://x/\"}}}",
+      neg_plain_options(),
+    ) {
+    Err(InvalidContext(msg)) => assert_eq(msg, "keyword redefinition")
+    _ => fail("expected InvalidContext (keyword redefinition)")
+  }
+}
+
+///|
+test "kw: empty keyword definition is redefinition" {
+  match expand_document("{\"@context\":{\"@type\":{}}}", neg_plain_options()) {
+    Err(InvalidContext(msg)) => assert_eq(msg, "keyword redefinition")
+    _ => fail("expected InvalidContext (empty keyword def)")
+  }
+}
+
+///|
+test "kw: keyword with non-set container is redefinition" {
+  match
+    expand_document(
+      "{\"@context\":{\"@id\":{\"@container\":\"@list\"}}}",
+      neg_plain_options(),
+    ) {
+    Err(InvalidContext(msg)) => assert_eq(msg, "keyword redefinition")
+    _ => fail("expected InvalidContext (keyword container)")
+  }
+}
+
+///|
+test "kw: keyword-shaped non-keyword term is redefinition" {
+  match
+    expand_document(
+      "{\"@context\":{\"@ignoreMe\":{\"@id\":\"http://x/\"}}}",
+      neg_plain_options(),
+    ) {
+    Err(InvalidContext(msg)) => assert_eq(msg, "keyword redefinition")
+    _ => fail("expected InvalidContext (keyword-shaped term)")
+  }
+}
