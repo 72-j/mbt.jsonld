@@ -2184,3 +2184,412 @@ test "DIAGah: td-reverse pattern nested frame error" {
     Err(_) => fail("unexpected error")
   }
 }
+
+// ===== 役C1 批9：值对象成员/@nest/@included/list item/容器组合/两阶段保护 扫尾钉 =====
+// 勘定卷见 todo.md 批9：活账 23 行（本节 + postprocess 直调）；死账 = expand_iri
+// 全 Ok 族续账（19 行）+ 分派证明结构性死（5 行）+ 5036 守卫镜像 + 5149 安装门；
+// 挂账 2828/2882/1808/2572（两阶段同参，无独立触发径）；批5「2160 不可达」翻案
+// （expand_object 两处 return Ok(None)——1979/2004，顶层 language-only 即达）。
+
+///|
+/// 值对象 @language null 臂（1620）：null 清语言（字面量已在 @value 臂立起）。
+/// 值对象须挂属性位——顶层值对象自由浮动丢弃，探针走映射 term
+test "C9 vo: @language null clears language" {
+  match
+    expand_document(
+      "{\"@context\":{\"p\":\"http://a/p\"},\"p\":{\"@value\":\"x\",\"@language\":null}}",
+      neg_plain_options(),
+    ) {
+    Ok(value) =>
+      assert_eq(render_json(value), "[{\"http://a/p\":[{\"@value\":\"x\"}]}]")
+    Err(_) => fail("unexpected error")
+  }
+}
+
+///|
+/// 值对象 @direction 先至（1642）：direction 在 @value 前的 placeholder 立起
+test "C9 vo: @direction before @value placeholder" {
+  match
+    expand_document(
+      "{\"@context\":{\"p\":\"http://a/p\"},\"p\":{\"@direction\":\"ltr\",\"@value\":\"x\"}}",
+      neg_plain_options(),
+    ) {
+    Ok(value) =>
+      assert_eq(
+        render_json(value),
+        "[{\"http://a/p\":[{\"@value\":\"x\",\"@direction\":\"ltr\"}]}]",
+      )
+    Err(_) => fail("unexpected error")
+  }
+}
+
+///|
+/// 值对象 @direction null 臂（1654）：null 清方向
+test "C9 vo: @direction null clears direction" {
+  match
+    expand_document(
+      "{\"@context\":{\"p\":\"http://a/p\"},\"p\":{\"@value\":\"x\",\"@direction\":null}}",
+      neg_plain_options(),
+    ) {
+    Ok(value) =>
+      assert_eq(render_json(value), "[{\"http://a/p\":[{\"@value\":\"x\"}]}]")
+    Err(_) => fail("unexpected error")
+  }
+}
+
+///|
+/// 值对象 @type 二现（1446）：core 解析器重复键 last-wins 去重（json_parser
+/// 卷注），字面双 @type 不可达——别名双键（两个原键同展开为 @type）即达
+test "C9 vo: alias-duplicated @type entries invalid typed value" {
+  match
+    expand_document(
+      "{\"@context\":{\"p\":\"http://a/p\",\"typ\":\"@type\"},\"p\":{\"@value\":\"x\",\"@type\":\"http://a/1\",\"typ\":\"http://a/2\"}}",
+      neg_plain_options(),
+    ) {
+    Err(InvalidValue(msg)) => assert_eq(msg, "invalid typed value")
+    _ => fail("expected InvalidValue(invalid typed value)")
+  }
+}
+
+///|
+/// 顶层 language-only 值对象丢弃（1979 return Ok(None) + expand_element
+/// 2160 Ok(None) 臂——批5「无 Ok(None) 返回点」裁定翻案实证）
+test "C9 vo: top-level language-only object dropped" {
+  match expand_document("{\"@language\":\"en\"}", neg_plain_options()) {
+    Ok(value) => assert_eq(render_json(value), "[]")
+    Err(_) => fail("unexpected error")
+  }
+}
+
+///|
+/// @included 条目 language-only → 递归 Ok(None) 空产物丢弃（1965）
+test "C9 incl: included language-only entry dropped" {
+  match
+    expand_document(
+      "{\"@id\":\"http://x/\",\"@included\":[{\"@language\":\"en\"},{\"@id\":\"http://n/\"}]}",
+      neg_plain_options(),
+    ) {
+    Ok(value) =>
+      assert_eq(
+        render_json(value),
+        "[{\"@id\":\"http://x/\",\"@included\":[{\"@id\":\"http://n/\"}]}]",
+      )
+    Err(_) => fail("unexpected error")
+  }
+}
+
+///|
+/// 值对象位 Included Blocks 保形（1995，#tin05）
+test "C9 incl: value object carries included" {
+  match
+    expand_document(
+      "{\"@context\":{\"p\":\"http://a/p\"},\"p\":{\"@value\":\"x\",\"@included\":[{\"@id\":\"http://n/\"}]}}",
+      neg_plain_options(),
+    ) {
+    Ok(value) =>
+      assert_eq(
+        render_json(value),
+        "[{\"http://a/p\":[{\"@value\":\"x\",\"@included\":[{\"@id\":\"http://n/\"}]}]}]",
+      )
+    Err(_) => fail("unexpected error")
+  }
+}
+
+///|
+/// 帧旗非串非布尔值静默忽略（1861 `_` 臂——@embed:5 既非词表串也非布尔）
+test "C9 frame: framing flag number value ignored" {
+  match expand_document("{\"@embed\":5}", neg_frame_options()) {
+    // 帧模式空节点豁免（t0032 帧根判定面）——旗值忽略后保 {} pattern
+    Ok(value) => assert_eq(render_json(value), "[{}]")
+    Err(_) => fail("unexpected error")
+  }
+}
+
+///|
+/// 帧模式 reverse 值展开落空 → 空 pattern 保形（1712——@reverse map 位 null 值）
+test "C9 frame: reverse null value empty pattern" {
+  match
+    expand_document("{\"@reverse\":{\"http://a/p\":null}}", neg_frame_options()) {
+    Ok(value) =>
+      assert_eq(render_json(value), "[{\"@reverse\":{\"http://a/p\":[{}]}}]")
+    Err(_) => fail("unexpected error")
+  }
+}
+
+///|
+/// 帧模式 reverse-term 值位值对象 pattern（1015 Ok(_) 臂——expand_element
+/// 产 Value 落 frame_empty_pattern；t0029 reverse-term 判定面）
+test "C9 frame: reverse term value-object pattern empty" {
+  match
+    expand_document(
+      "{\"@context\":{\"p\":{\"@reverse\":\"http://a/rev\"}},\"p\":{\"@value\":\"v\"}}",
+      neg_frame_options(),
+    ) {
+    Ok(value) =>
+      assert_eq(render_json(value), "[{\"@reverse\":{\"http://a/rev\":[{}]}}]")
+    Err(_) => fail("unexpected error")
+  }
+}
+
+///|
+/// 帧模式 reverse-term @default 数组内嵌坏对象（5346 Err 传播——
+/// frame_preserve_default 数组臂对象项 expand_element 校验错不吞；
+/// 坏对象取 @index 非串——@value/@language 非串会触发值 pattern 预扫改道）
+test "C9 frame: reverse term @default array invalid object" {
+  match
+    expand_document(
+      "{\"@context\":{\"p\":{\"@reverse\":\"http://a/rev\"}},\"p\":{\"@default\":[[{\"@index\":123}]]}}",
+      neg_frame_options(),
+    ) {
+    Err(InvalidValue(msg)) => assert_eq(msg, "invalid @index value")
+    _ => fail("expected InvalidValue(invalid @index value)")
+  }
+}
+
+///|
+/// @nest 嵌套节点反向属性并入（1918——嵌套 @reverse 随递归自展后并 reverse_props）
+test "C9 nest: reverse props merged from nested node" {
+  match
+    expand_document(
+      "{\"@nest\":{\"@reverse\":{\"http://a/p\":{\"@id\":\"http://s/\"}}}}",
+      neg_plain_options(),
+    ) {
+    Ok(value) =>
+      assert_eq(
+        render_json(value),
+        "[{\"@reverse\":{\"http://a/p\":[{\"@id\":\"http://s/\"}]}}]",
+      )
+    Err(_) => fail("unexpected error")
+  }
+}
+
+///|
+/// @nest 图并集双有（1922 (Some,Some) 臂——外层 @graph 数组 + 嵌套携带 @graph）
+test "C9 nest: graph merge both present" {
+  match
+    expand_document(
+      /// 图项须带属性——@id-only 图项自由浮动丢弃（#t0001 门），探针节点带 IRI 键属性
+      "{\"@id\":\"http://r/\",\"@graph\":[{\"@id\":\"http://g/\",\"http://a/p\":\"v\"}],\"@nest\":{\"@graph\":{\"@id\":\"http://h/\",\"http://a/q\":\"w\"}}}",
+      neg_plain_options(),
+    ) {
+    Ok(value) =>
+      assert_eq(
+        render_json(value),
+        "[{\"@id\":\"http://r/\",\"@graph\":[{\"@id\":\"http://g/\",\"http://a/p\":[{\"@value\":\"v\"}]},{\"@id\":\"http://h/\",\"http://a/q\":[{\"@value\":\"w\"}]}]}]",
+      )
+    Err(_) => fail("unexpected error")
+  }
+}
+
+///|
+/// @nest 嵌套携带 graph、外层无（1925 (None,Some) 臂）
+test "C9 nest: nest-carried graph" {
+  match
+    expand_document(
+      "{\"@id\":\"http://r/\",\"@nest\":{\"@graph\":{\"@id\":\"http://h/\",\"http://a/q\":\"w\"}}}",
+      neg_plain_options(),
+    ) {
+    Ok(value) =>
+      assert_eq(
+        render_json(value),
+        "[{\"@id\":\"http://r/\",\"@graph\":[{\"@id\":\"http://h/\",\"http://a/q\":[{\"@value\":\"w\"}]}]}]",
+      )
+    Err(_) => fail("unexpected error")
+  }
+}
+
+///|
+/// @nest 嵌套 language-only 产物 Ok(None) 丢弃（1929 Ok(_) 臂——@value 嗅探
+/// 只拒 @value 键，@language 键放行后递归产 None）
+test "C9 nest: nested language-only product discarded" {
+  match
+    expand_document("{\"@nest\":{\"@language\":\"en\"}}", neg_plain_options()) {
+    Ok(value) => assert_eq(render_json(value), "[]")
+    Err(_) => fail("unexpected error")
+  }
+}
+
+///|
+/// list 项值对象 @value:null → 空产物 first=None 丢弃（5078——null 项直弃臂
+/// 之外的非 null 形空产物径）
+test "C9 list: value-null item yields empty list" {
+  match
+    expand_document(
+      "{\"@context\":{\"l\":{\"@id\":\"http://a/l\",\"@container\":\"@list\"}},\"l\":{\"@list\":[{\"@value\":null}]}}",
+      neg_plain_options(),
+    ) {
+    Ok(value) =>
+      assert_eq(render_json(value), "[{\"http://a/l\":[{\"@list\":[]}]}]")
+    Err(_) => fail("unexpected error")
+  }
+}
+
+///|
+/// list 项值对象校验错上抛（5082 Err 传播——invalid language-tagged value）
+test "C9 list: item value-object error propagates" {
+  match
+    expand_document(
+      "{\"@context\":{\"l\":{\"@id\":\"http://a/l\",\"@container\":\"@list\"}},\"l\":{\"@list\":[{\"@value\":5,\"@language\":\"en\"}]}}",
+      neg_plain_options(),
+    ) {
+    Err(InvalidValue(msg)) => assert_eq(msg, "invalid language-tagged value")
+    _ => fail("expected InvalidValue(invalid language-tagged value)")
+  }
+}
+
+///|
+/// 数组容器组合 [@index,@set]（4189 首键 combo 臂——@index 占主键 + @set 保形位）
+test "C9 container: combo index and set" {
+  match
+    expand_document(
+      "{\"@context\":{\"s\":{\"@id\":\"http://a/s\",\"@container\":[\"@index\",\"@set\"]}},\"s\":{\"idx\":\"v\"}}",
+      neg_plain_options(),
+    ) {
+    Ok(value) =>
+      assert_eq(
+        render_json(value),
+        "[{\"http://a/s\":[{\"@value\":\"v\",\"@index\":\"idx\"}]}]",
+      )
+    Err(_) => fail("unexpected error")
+  }
+}
+
+///|
+/// 单元素数组容器 ["@id"]（4193 裸形等价臂——id map 语义随裸形等价生效）
+test "C9 container: single-array id container" {
+  match
+    expand_document(
+      "{\"@context\":{\"i\":{\"@id\":\"http://a/i\",\"@container\":[\"@id\"]}},\"i\":{\"http://x/\":{\"@id\":\"http://n/\"}}}",
+      neg_plain_options(),
+    ) {
+    Ok(value) =>
+      assert_eq(
+        render_json(value),
+        "[{\"http://a/i\":[{\"@id\":\"http://n/\"}]}]",
+      )
+    Err(_) => fail("unexpected error")
+  }
+}
+
+///|
+/// 两阶段 property-scoped 差异实证（2490）：type map 索引项 local context
+/// 清空受保护 term——定义期校验 override=true 放行、展开期 element 旗
+/// override=false 即炸（REC 4.2.2 注记的两阶段语义，3446/4714 保护门）
+test "C9 map: type-map protected nullification at expansion" {
+  match
+    expand_document(
+      "{\"@context\":[{\"p\":{\"@id\":\"http://a/p\",\"@protected\":true}},{\"tm\":{\"@id\":\"http://a/tm\",\"@container\":\"@type\"},\"idx\":{\"@id\":\"http://a/idx\",\"@context\":{\"p\":null}}}],\"tm\":{\"idx\":\"v\"}}",
+      neg_plain_options(),
+    ) {
+    Err(InvalidContext(msg)) => assert_eq(msg, "protected term redefinition")
+    _ => fail("expected InvalidContext(protected term redefinition)")
+  }
+}
+
+// ===== 役C1 批9 补针（首测后勘定修正）：1622/1656 子臂 + 1930 nest 递归 Err
+// + 2160（批5 裁定二次修正——expand_element 对 Ok(None) 是 Err(Unsupported)
+// 硬错面（2160），顶层驱动不经 expand_element；frame_preserve_default 对象臂
+// 才是把值空对象送进 2160 的活径） =====
+
+///|
+/// @language null 先至（1622 None 子臂——字面量未立起时静默）
+test "C9 vo2: @language null before value" {
+  match
+    expand_document(
+      "{\"@context\":{\"p\":\"http://a/p\"},\"p\":{\"@language\":null,\"@value\":\"x\"}}",
+      neg_plain_options(),
+    ) {
+    Ok(value) =>
+      assert_eq(render_json(value), "[{\"http://a/p\":[{\"@value\":\"x\"}]}]")
+    Err(_) => fail("unexpected error")
+  }
+}
+
+///|
+/// @direction null 先至（1656 None 子臂）
+test "C9 vo2: @direction null before value" {
+  match
+    expand_document(
+      "{\"@context\":{\"p\":\"http://a/p\"},\"p\":{\"@direction\":null,\"@value\":\"x\"}}",
+      neg_plain_options(),
+    ) {
+    Ok(value) =>
+      assert_eq(render_json(value), "[{\"http://a/p\":[{\"@value\":\"x\"}]}]")
+    Err(_) => fail("unexpected error")
+  }
+}
+
+///|
+/// @nest 嵌套对象展开 Err 上抛（1930——嵌套 @index 非串即错，嗅探只拒 @value）
+test "C9 nest2: nested object error propagates" {
+  match
+    expand_document(
+      "{\"@id\":\"http://r/\",\"@nest\":{\"@index\":123}}",
+      neg_plain_options(),
+    ) {
+    Err(InvalidValue(msg)) => assert_eq(msg, "invalid @index value")
+    _ => fail("expected InvalidValue(invalid @index value)")
+  }
+}
+
+///|
+/// frame_preserve_default 值空对象（2160——expand_element 对 Ok(None) 的
+/// Unsupported 硬错面；内嵌 language-only 对象即达——{@value:null} 会被值
+/// pattern 预扫改道成空 pattern，@value 非串即触发，串值 language-only 不触发）
+test "C9 frame2: default language-only object empty node pending" {
+  match
+    expand_document(
+      "{\"@context\":{\"p\":{\"@reverse\":\"http://a/rev\"}},\"p\":{\"@default\":[{\"@language\":\"en\"}]}}",
+      neg_frame_options(),
+    ) {
+    Err(Unsupported(msg)) => assert_eq(msg, "empty node pending later cases")
+    _ => fail("expected Unsupported(empty node pending later cases)")
+  }
+}
+
+// ===== 役C1 批9 补针二：@included 残余三钉（1940/1950/1967） =====
+
+///|
+/// @included 条目非对象（1940——收集臂只拒串（#tin07），数/布尔项到展开臂才拒）
+test "C9 incl2: non-object included entry invalid" {
+  match
+    expand_document(
+      "{\"@id\":\"http://x/\",\"@included\":[123]}",
+      neg_plain_options(),
+    ) {
+    Err(InvalidValue(msg)) => assert_eq(msg, "invalid @included value")
+    _ => fail("expected InvalidValue(invalid @included value)")
+  }
+}
+
+///|
+/// @included 回退门（1950——previous 存在且条目非值/@id 形 ⇒ 回退后展开；
+/// property-scoped @propagate:false 造 previous）
+test "C9 incl2: included revert gate with previous" {
+  match
+    expand_document(
+      "{\"@context\":{\"p\":{\"@id\":\"http://a/p\",\"@context\":{\"@propagate\":false}}},\"p\":{\"@included\":[{\"@id\":\"http://n/\",\"http://a/k\":\"z\"}]}}",
+      neg_plain_options(),
+    ) {
+    Ok(value) =>
+      assert_eq(
+        render_json(value),
+        "[{\"http://a/p\":[{\"@included\":[{\"@id\":\"http://n/\",\"http://a/k\":[{\"@value\":\"z\"}]}]}]}]",
+      )
+    Err(_) => fail("unexpected error")
+  }
+}
+
+///|
+/// @included 别名 @value 条目（1967——嗅探只查字面键，别名 term 过嗅探后
+/// 展开产值对象 ⇒ invalid @included value）
+test "C9 incl2: alias value entry invalid" {
+  match
+    expand_document(
+      "{\"@context\":{\"v\":\"@value\"},\"@id\":\"http://x/\",\"@included\":[{\"v\":\"y\"}]}",
+      neg_plain_options(),
+    ) {
+    Err(InvalidValue(msg)) => assert_eq(msg, "invalid @included value")
+    _ => fail("expected InvalidValue(invalid @included value)")
+  }
+}

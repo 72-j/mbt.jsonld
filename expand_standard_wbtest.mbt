@@ -146,6 +146,28 @@ test "contract smoke: pending hooks refuse politely (red-not-wrong)" {
   assert_true(
     Expander::set_language(e, active, JsonValue::Null) is Err(Unsupported(_)),
   )
+  // 批9 直调（3141/3144）：语言非空走 `_` 保留臂；空方向走守卫臂清除——
+  // pub 面值对象方向恒 None，白盒直调钉归一契约
+  match
+    Expander::postprocess_value(
+      e,
+      active,
+      ExpandedValue::Value(ExpandedLiteral::{
+        value: "x",
+        datatype: None,
+        language: Some("en"),
+        direction: Some(""),
+        raw: None,
+        index: None,
+        included: None,
+      }),
+    ) {
+    Ok(ExpandedValue::Value(lit)) => {
+      assert_eq(lit.language, Some("en"))
+      assert_eq(lit.direction, None)
+    }
+    _ => fail("postprocess: expected language kept, direction cleared")
+  }
   assert_true(
     Expander::set_direction(e, active, JsonValue::Null) is Err(Unsupported(_)),
   )
