@@ -35,8 +35,8 @@
 - RDF 四元组集合（toRDF）
 
 ## 4 表结构（`jsonld_gen.toml`；字段形制承 fsm TOML 2.0，schema 独立）
-口径绑定器 = `mbtgen/jsonld_toml_gen.mbt`（`parse_jsonld_gen` / `validate_jsonld_gen` /
-`emit_jsonld_gen`；统一入口落 mbtgen，低耦合只依赖通用 `moonbit-community/toml` 库，不碰 FsmIR）。
+口径绑定器 = `skelgen/jsonld_toml_gen.mbt`（`parse_jsonld_gen` / `validate_jsonld_gen` /
+`emit_jsonld_gen`；统一入口落 skelgen，低耦合只依赖通用 `moonbit-community/toml` 库，不碰 FsmIR）。
 词表封闭、引用完整、步骤图无环（递归红线钉子）、规则顺序连续、handler_hook 须为
 `Trait::method` 形——均由 validate 把关（drift = 红）。
 ### [[steps]] 步骤表
@@ -733,7 +733,7 @@ expand_standard/to_rdf 手写钩子），**不是模型 vs 引擎**——J2/J3 �
     ① **套件语料锚**——ffdb326 + SHA256SUMS 2626 件（语料变 = 判定语料变，
     单独钉于本节头）；② **mooncakes 依赖钉**——moon.mod import 版本行
     （本实现面实际 import：moonbitlang/async@0.21.0 + core（工具链捆绑）+
-    bitbang/mbtgen 本仓包；thy1016/moonttl@0.2.2 等其余 import 行与本实现面
+    bitbang/skelgen 本仓包；thy1016/moonttl@0.2.2 等其余 import 行与本实现面
     无关——jsonld 未引用）；依赖 API 变 = 行为面变；③ **工具链锚**——
     moon 0.1.20260920 (914d7da) + 捆绑 core：**JCS 数值词形/行为语义随
     core**（Double 显示即 ECMAScript 形的实证面），工具链升级须重跑复核面
@@ -3178,7 +3178,7 @@ N-Quads 解析/发射双面 + fromRDF 节点图构建皆在同包）。**开工 
   compact / flatten / frame / to-rdf / from-rdf / canonicalize / json-canonical；
   选项 --base / --mode / --hash）。**库 pub 面零变化**（薄壳 = 独立 executable
   包，pkgtype("executable")）；remote-doc 圈外裁定不破——壳不接网络，上下文一律
-  本地文件；错误文案走 stderr、退出码恒 0（工具链无 exit API，moonttl/mbtgen cmd 同款）。
+  本地文件；错误文案走 stderr、退出码恒 0（工具链无 exit API，moonttl/skelgen cmd 同款）。
 
 ### 9.4 覆盖率棘轮立阈（拍一）
 - `coverage-baseline.txt` 棘轮：未覆盖行数 ≤ **608**（役65 收官实测；沿革
