@@ -214,3 +214,178 @@ test "f3_10 nested graph union both sides" {
     Err(e) => fail("expected OK, got: " + f3_err_msg(Err(e)))
   }
 }
+
+// ===== 役C3 批2：值位过滤族 + 探针设施直调族 + 小件 =====
+
+///|
+/// 字面量构造（直调族用）
+fn f3_lit(value : String) -> ExpandedLiteral {
+  {
+    value,
+    datatype: None,
+    language: None,
+    direction: None,
+    raw: None,
+    index: None,
+    included: None,
+  }
+}
+
+///|
+/// 节点构造（直调族用）
+fn f3_node(
+  id : String?,
+  properties : Array[(String, Array[ExpandedValue])],
+) -> ExpandedNode {
+  {
+    id,
+    types: [],
+    properties,
+    reverse_props: [],
+    graph: None,
+    included: None,
+    index: None,
+  }
+}
+
+///|
+/// FrameState 构造（十字段；`probe` 可置以驱动设施臂——`frame_document` 入口恒 None）
+fn f3_state(probe : String?) -> FrameState {
+  {
+    graph_name: "@merged",
+    graph_map: Map([]),
+    bnode_counter: 0,
+    embedded: false,
+    embed_stack: [],
+    embedded_map: Map([]),
+    last_locations: Map([]),
+    compaction_terms: Map([]),
+    probe,
+  }
+}
+
+///|
+/// F3-11（frame.mbt 874）：值位过滤的非字面项恒收臂——帧侧为值 pattern、
+/// 输入侧 `http:p` 是**节点** ⇒ item 非 Value ⇒ 874 `_ => return true`。
+/// 匹配位须**陪跑属性**（http:q）先成立——值 pattern 单独在位会把主体滤掉
+test "f3_11 value_kept non-value item kept" {
+  let result = frame_document(
+    "{\"@id\":\"http:s\",\"http:q\":\"y\",\"http:p\":{\"@id\":\"http:o\",\"http:q\":\"v\"}}",
+    "{\"http:q\":\"y\",\"http:p\":{\"@value\":\"x\"}}",
+    f3_options(),
+  )
+  match result {
+    Ok(jv) => assert_true(render_json(jv).contains("http:o"))
+    Err(e) => fail("expected OK, got: " + f3_err_msg(Err(e)))
+  }
+}
+
+///|
+/// F3-12（880 证伪尝试）：帧属性位**空值组** `[]` —— 代码面
+/// `frame_property_matches` 634-636 明写「空 pattern 清单 ⇒ 配当且仅当值缺位」，
+/// 故「空组 + 值在场」的主体**在匹配位即被硬过滤**，到不了 frame_invoke 的值收位
+/// ⇒ 880（`patterns.get(0)=None`）构造性不可达。实测产物 = 空图（非保留值）
+test "f3_12 empty frame value group filters subject (880 证伪尝试)" {
+  let result = frame_document(
+    "{\"@id\":\"http:s\",\"http:q\":\"y\",\"http:p\":\"v\"}",
+    "{\"http:q\":\"y\",\"http:p\":[]}",
+    f3_options(),
+  )
+  match result {
+    Ok(jv) => assert_true(render_json(jv) == "{\"@graph\":[]}")
+    Err(e) => fail("expected OK, got: " + f3_err_msg(Err(e)))
+  }
+}
+
+///|
+/// F3-13（889）：帧属性位值组首项为 **@list 形** ⇒ 889 `Some(_) => true` 恒收
+test "f3_13 list-shaped pattern keeps value" {
+  let result = frame_document(
+    "{\"@id\":\"http:s\",\"http:q\":\"y\",\"http:p\":\"v\"}",
+    "{\"http:q\":\"y\",\"http:p\":{\"@list\":[\"x\"]}}",
+    f3_options(),
+  )
+  match result {
+    Ok(jv) => assert_true(render_json(jv).contains("http:p"))
+    Err(e) => fail("expected OK, got: " + f3_err_msg(Err(e)))
+  }
+}
+
+///|
+/// F3-14（1029）：@type 位的 bnode 标签重铸——relabel 的 types 循环铸号臂
+test "f3_14 bnode type relabel mints" {
+  let result = frame_document(
+    "{\"@id\":\"http:s\",\"@type\":\"_:t1\",\"http:p\":\"v\"}",
+    "{}",
+    f3_options(),
+  )
+  match result {
+    Ok(jv) => assert_true(render_json(jv).contains("http:p"))
+    Err(e) => fail("expected OK, got: " + f3_err_msg(Err(e)))
+  }
+}
+
+///|
+/// F3-15（418）：`@never` × 具名图子帧合成——帧含顶层 @graph ⇒
+/// graph_name="@default" ≠ "@merged" ⇒ 1180 合成帧走 `Never => "@never"`
+test "f3_15 never embed named-graph subframe synthesis" {
+  let result = frame_document(
+    "{\"@id\":\"http:g\",\"@graph\":[{\"@id\":\"http:a\",\"http:p\":\"v\"}]}",
+    "{\"@graph\":{\"@embed\":\"@never\"}}",
+    f3_options(),
+  )
+  match result {
+    Ok(_) => ()
+    Err(e) => fail("expected OK, got: " + f3_err_msg(Err(e)))
+  }
+}
+
+///|
+/// F3-16（44/53）：探针设施两行（`state.probe = Some` 臂）——白盒直调
+/// （`frame_document` 入口恒 probe=None，设施面只能直调驱动）
+test "f3_16 probe facility mint and trace" {
+  let state = f3_state(Some(""))
+  let _ = frame_fresh_bnode(state)
+  frame_trace(state, "X")
+  match state.probe {
+    Some(t) => {
+      assert_true(t.contains("MINT _:b0"))
+      assert_true(t.contains("X"))
+    }
+    None => fail("probe not recorded")
+  }
+}
+
+///|
+/// F3-17（986/988）：@last 前嵌位替换的两条跳过臂——值组项为**字面量**（988
+/// `_ => ()`）与**无 id 节点**（986 `None => ()`）
+test "f3_17 replace embed skip arms" {
+  let parent = f3_node(Some("http:p1"), [
+    (
+      "http:mixed",
+      [
+        ExpandedValue::Value(f3_lit("v")),
+        ExpandedValue::Node(f3_node(None, [])),
+      ],
+    ),
+  ])
+  frame_replace_embed_with_ref(parent, "http:mixed", "http:target")
+  // 无命中 id ⇒ 无替换；断言值组原样（两跳过臂已执行）
+  match parent.properties.get(0) {
+    Some(p) => assert_eq(p.1.length(), 2)
+    None => fail("properties lost")
+  }
+}
+
+///|
+/// F3-18（466）：frame_matching 的 subject 缺席臂——传入未注册 id ⇒ 跳过
+test "f3_18 frame_matching missing subject" {
+  let state = f3_state(None)
+  let matched = frame_matching(
+    state,
+    ["http:absent"],
+    frame_empty_pattern(),
+    false,
+  )
+  assert_eq(matched.length(), 0)
+}

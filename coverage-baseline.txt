@@ -102,6 +102,29 @@
 #     留痕纪律：本批以 `println` 打点定位（frame.mbt 三处），定位后**同笔还原**，
 #     产品码零残留（`git diff frame.mbt` 为空）；即写即删探针 `probe_tmp_wbtest.mbt`
 #     亦同笔删除。
+#   2026-10-07 役C3批2（frame 冷行清剿·8 探针；400/400 绿）：**355**
+#     （棘轮内 Δ−12；frame.mbt 段 74→**62**，零新开）。关行 12（实证）：44/53
+#     （探针设施 mint/trace——白盒直调驱动 `state.probe`）、418（`@never` × 具名图
+#     子帧合成——帧含顶层 @graph ⇒ graph_name≠@merged ⇒ 1180 合成帧走 Never 臂）、
+#     466（frame_matching 缺席 subject 臂）、986/988（@last 前嵌替换两跳过臂：
+#     无 id 节点 / 非节点项）、1029（@type 位 bnode 重铸）、889（@list 形 pattern
+#     恒收臂）；连带 663/674（frame_property_matches）+ 1262/1329（frame_invoke）。
+#     **构造性死四件入册（探针已跑·未构造出触发径；代码面另握硬门）**：
+#     ① **874**（frame_value_kept `_ => return true`）——唯一调用点 1287 位于
+#     `ExpandedValue::Value(_) =>` 臂内 ⇒ `item` 恒 Value；Node 值走 1240-1283
+#     独立支不经此函数（探针实测：节点值照常保留而 874 仍冷）⇒ 不可达。
+#     ② **880**（`patterns.get(0) = None`）——frame_property_matches 634-636 明写
+#     「空 pattern 清单 ⇒ 配当且仅当值**缺位**」⇒ 空组 + 值在场的主体在**匹配位即
+#     被硬过滤**（探针实测产物 `{"@graph":[]}`），到不了值收位 ⇒ 不可达。
+#     ③ **76**（frame_subject_map merged `None => ()`）——`graph_names` 出自
+#     `state.graph_map.keys().collect()`，同一 map 且中间无变更 ⇒ `get` 恒 Some。
+#     ④ **267**（frame_register `None => node`）——臂前提 = `nodes.contains(self_id)`
+#     为真 ⇒ 同 map `get` 恒 Some。
+#     **探针设施族分账（留证·不进棘轮目标）**：frame_invoke 内 `state.probe`
+#     诊断块 9 行（1118/1122/1124/1140/1144 + 1423/1426/1432/1437）+ `probe_id_text`
+#     2021（唯一调用点在诊断块内）= **10 行属诊断设施面**（`frame_document` 入口恒
+#     `probe=None`，仅白盒可驱动），非产品语义；收口时统一裁定（留证 or 拆设施）。
+#     扣除此 10 行后，frame.mbt **产品语义面**冷行实为 52。
 #
 # 进步留痕纪律（承 moonttl 先例）：补测试把线推上去后**同笔更新本文件**并在 todo.md 记一笔；
 #   要上调（未覆盖行数变多）必须写明理由（例如新增整块被测代码 / 统计口径变化）。
