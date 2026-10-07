@@ -1090,43 +1090,17 @@ fn compact_value_item(
 }
 
 ///|
-/// 值数组压缩（容器旗 + 去重 + 塌缩）：@list 容器吸收（单 List 值 → 裸数组，
-/// 1.0 嵌套 list = compaction to list of lists 错）；@set 保形；非容器单值
-/// 塌缩（compactArrays 门）；同形值去重
+/// 值数组压缩（容器旗 + 去重 + 塌缩）：@set 保形；非容器单值塌缩（compactArrays
+/// 门）；同形值去重。**@list 容器吸收不在此**——单 List 值 → 裸数组与 1.0 嵌套
+/// list 报错由 `compact_value_item` 的 List 容器臂（本函数逐值调用它）承担；
+/// 本节原有一段同义吸收块，役C2批1 收口定谳为**死带**（反向容器白名单不含 @list）
+/// 并拆除（拆前 1102-1129；行为零变更——该块与 compact_value_item 逐字同源）
 fn compact_property_values(
   vals : Array[ExpandedValue],
   td_opt : TermDefinition?,
   active : ActiveContext,
   options : JsonLdOptions,
 ) -> Result[JsonValue, JsonLdError] {
-  // @list 容器吸收（#te001[1.0] oracle：嵌套 list = compaction to list of lists）
-  match td_opt {
-    Some(td) =>
-      if td.container is Some(List) {
-        if vals.length() == 1 {
-          match vals[0] {
-            ExpandedValue::List(items, ..) => {
-              let arr : Array[JsonValue] = []
-              for it in items {
-                if it is ExpandedValue::List(_) &&
-                  options.processing_mode is JsonLd10 {
-                  return Err(
-                    JsonLdError::InvalidList("compaction to list of lists"),
-                  )
-                }
-                match compact_value_item(it, td_opt, active, active, options) {
-                  Ok(jv) => arr.push(jv)
-                  Err(e) => return Err(e)
-                }
-              }
-              return Ok(JsonValue::Array(arr))
-            }
-            _ => ()
-          }
-        }
-      }
-    None => ()
-  }
   let mut keep_array = match td_opt {
     Some(td) => td.container is Some(Set)
     None => false
