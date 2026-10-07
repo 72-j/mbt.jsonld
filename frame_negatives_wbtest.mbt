@@ -389,3 +389,73 @@ test "f3_18 frame_matching missing subject" {
   )
   assert_eq(matched.length(), 0)
 }
+
+// ===== 役C3 批3：merged_union 反转并集族 + node_matches/flag_word 证伪尝试 =====
+
+///|
+/// F3-19（132/135/140/146）：merged 并集的 **reverse_props** 块——同 id 跨图，
+/// g1 带 http:r、g2 带 http:r（同键并值）+ http:r2（新键）
+test "f3_19 merged union reverse props" {
+  let input = "{\"@graph\":[" +
+    "{\"@id\":\"http:g1\",\"@graph\":[{\"@id\":\"http:x\",\"@reverse\":{\"http:r\":{\"@id\":\"http:a\",\"http:p\":\"1\"}}}]}," +
+    "{\"@id\":\"http:g2\",\"@graph\":[{\"@id\":\"http:x\",\"@reverse\":{\"http:r\":{\"@id\":\"http:b\",\"http:p\":\"2\"},\"http:r2\":{\"@id\":\"http:c\",\"http:p\":\"3\"}}}]}" +
+    "]}"
+  let result = frame_document(input, "{}", f3_options())
+  match result {
+    Ok(_) => ()
+    Err(e) => fail("expected OK, got: " + f3_err_msg(Err(e)))
+  }
+}
+
+///|
+/// F3-20（178 证伪尝试）：merged 并集 `extra.id` 臂——须 base.id = None 且
+/// 同注册键跨图；两枚匿名节点各铸各号 ⇒ 键不同不可并（实测看 178 是否闭）
+test "f3_20 merged union extra id arm (178 证伪尝试)" {
+  let input = "{\"@graph\":[" +
+    "{\"@id\":\"http:g1\",\"@graph\":[{\"http:p\":\"1\"}]}," +
+    "{\"@id\":\"http:g2\",\"@graph\":[{\"http:p\":\"2\"}]}" +
+    "]}"
+  let result = frame_document(input, "{}", f3_options())
+  match result {
+    Ok(_) => ()
+    Err(e) => fail("expected OK, got: " + f3_err_msg(Err(e)))
+  }
+}
+
+///|
+/// F3-21（514/549 证伪尝试）：@id/@type 位值组出现 **List 形** pattern ⇒
+/// `_ => ()` 跳过臂。实测：值对象形进 @type 是否被展开期拒
+test "f3_21 id/type list-shaped pattern (514/549 证伪尝试)" {
+  let result = frame_document(
+    "{\"@id\":\"http:s\",\"http:p\":\"v\"}",
+    "{\"@type\":{\"@list\":[\"http:T\"]}}",
+    f3_options(),
+  )
+  match result {
+    Ok(_) => ()
+    Err(_) => ()
+  }
+}
+
+///|
+/// F3-22（442 证伪尝试）：frame_flag_word 的 `_ => None`——帧旗位值组首项非
+/// Value（节点形 / 空组）。实测各形是否被展开期拒
+test "f3_22 flag word non-value pattern (442 证伪尝试)" {
+  let forms : Array[String] = [
+    "{\"@embed\":{\"@id\":\"http:e\"}}",
+    "{\"@embed\":[]}",
+    "{\"@explicit\":{\"@id\":\"http:e\"}}",
+    "{\"@requireAll\":{\"@id\":\"http:e\"}}",
+  ]
+  for frame_text in forms {
+    let result = frame_document(
+      "{\"@id\":\"http:s\",\"http:p\":\"v\"}",
+      frame_text,
+      f3_options(),
+    )
+    match result {
+      Ok(_) => ()
+      Err(_) => ()
+    }
+  }
+}
