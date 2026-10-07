@@ -806,3 +806,452 @@ test "C2-B2-21 分键路 None 臂 datatype 版 term 值内嵌撞名（899）" {
     Err(_) => fail("got other err")
   }
 }
+
+// ===== 役C2 批3：node_jv 尾段 + compact_map_entry 全带 =====
+
+///|
+/// **两遍选中值环 Err 臂**（行 1663）：值非 id-only ⇒ bare_fit 败、object_fit
+/// 胜（plain td 节点对象形恒安全）⇒ chosen ⇒ value_item 子节点递归 ⇒ 内嵌
+/// "tag:2010" fallback 键位撞名 Err（1201）⇒ 1663。
+test "C2-B3-01 两遍选中值环内嵌撞名（1663）" {
+  let ctx = "{\"@context\":{\"p\":\"http://a/p\",\"tag\":\"http://ns/tag/\"}}"
+  let doc = "{\"http://a/p\":[{\"@id\":\"http://ex/o\",\"tag:2010\":\"v\"}]}"
+  match compact_document(doc, ctx, c2_options()) {
+    Err(InvalidContext(msg)) => assert_eq(msg, "scheme collides with term name")
+    Ok(jv) => fail("got OK: " + render_json(jv))
+    Err(_) => fail("got other err")
+  }
+}
+
+///|
+/// **@included 内容撞名**（行 1958）：@included 内节点属性 fallback 键位
+/// 撞名 ⇒ compact_node_jv(inc) Err ⇒ 1958。
+test "C2-B3-02 included 内容撞名（1958）" {
+  let ctx = "{\"@context\":{\"tag\":\"http://ns/tag/\"}}"
+  let doc = "{\"@id\":\"http://ex/s\",\"@included\":[{\"@id\":\"http://ex/o\",\"tag:2010\":\"v\"}]}"
+  match compact_document(doc, ctx, c2_options()) {
+    Err(InvalidContext(msg)) => assert_eq(msg, "scheme collides with term name")
+    Ok(jv) => fail("got OK: " + render_json(jv))
+    Err(_) => fail("got other err")
+  }
+}
+
+///|
+/// **图载体同组二值 Some 臂**（行 1432）：@graph 容器 × 双 @id 载体 ⇒
+/// 首载体建组、次载体 1432 push。出形 = g 组数组两元素。
+test "C2-B3-03 图载体双值同组（1432）" {
+  let ctx = "{\"@context\":{\"g\":{\"@id\":\"http://a/g\",\"@container\":\"@graph\"}}}"
+  let doc = "{\"http://a/g\":[{\"@id\":\"http://ex/c1\",\"@graph\":[{\"@id\":\"http://ex/x1\"}]},{\"@id\":\"http://ex/c2\",\"@graph\":[{\"@id\":\"http://ex/x2\"}]}]}"
+  match compact_document(doc, ctx, c2_options()) {
+    Ok(jv) => {
+      let out = render_json(jv)
+      // 双载体走 None 次级 graph_bares 路（1457）；成员 id-only 节点在
+      // **扩形侧**即被丢（PROBE 实证：expand_document 出 "@graph":[]——
+      // 空图成员不入扩形，非压缩侧剥点），故断言只钉载体 @id。
+      // （1432 判点在 Some(Index) 次级组路——见 B3-16。）
+      assert_true(out.find("\"g\"") is Some(_))
+      assert_true(out.find("http://ex/c1") is Some(_))
+      assert_true(out.find("http://ex/c2") is Some(_))
+    }
+    Err(_) => fail("unexpected err")
+  }
+}
+
+///|
+/// **映射在场 bare-fit 前置扫描同组二值**（行 1497）：同 IRI 双 term
+/// （@index 映射版 + 纯版）× 双无语言串值 ⇒ 首值建组、次值 1497 push。
+test "C2-B3-04 前置扫描双值同组（1497）" {
+  let ctx = "{\"@context\":{\"m\":{\"@id\":\"http://a/p\",\"@container\":\"@index\"},\"p\":\"http://a/p\"}}"
+  let doc = "{\"http://a/p\":[\"v1\",\"v2\"]}"
+  match compact_document(doc, ctx, c2_options()) {
+    Ok(jv) => {
+      let out = render_json(jv)
+      assert_true(out.find("\"p\"") is Some(_))
+      assert_true(out.find("v1") is Some(_))
+      assert_true(out.find("v2") is Some(_))
+    }
+    Err(_) => fail("unexpected err")
+  }
+}
+
+///|
+/// **map×nest 共享组 Some 臂**（行 1853）：双 @index 映射 term 同 @nest ⇒
+/// 首 map 建组、次 map 1853 push（term 名中间键级联）。
+test "C2-B3-05 双 map 同 nest 共享组（1853）" {
+  let ctx = "{\"@context\":{\"n\":\"@nest\",\"m1\":{\"@id\":\"http://a/m1\",\"@container\":\"@index\",\"@nest\":\"n\"},\"m2\":{\"@id\":\"http://a/m2\",\"@container\":\"@index\",\"@nest\":\"n\"}}}"
+  let doc = "{\"http://a/m1\":[{\"@value\":\"v1\",\"@index\":\"k1\"}],\"http://a/m2\":[{\"@value\":\"v2\",\"@index\":\"k2\"}]}"
+  match compact_document(doc, ctx, c2_options()) {
+    Ok(jv) => {
+      let out = render_json(jv)
+      assert_true(out.find("k1") is Some(_))
+      assert_true(out.find("k2") is Some(_))
+    }
+    Err(_) => fail("unexpected err")
+  }
+}
+
+///|
+/// **反转映射组同子键二值**（行 2100+2113）：@reverse×@index 双值同 @index
+/// 子键 ⇒ 次 entry 2100 push、arr 双值 ⇒ 2113 数组出形。
+test "C2-B3-06 反转映射同子键双值（2100+2113）" {
+  let ctx = "{\"@context\":{\"r\":{\"@reverse\":\"http://a/r\",\"@container\":\"@index\"}}}"
+  let doc = "{\"@id\":\"http://ex/s\",\"@reverse\":{\"http://a/r\":[{\"@id\":\"http://ex/o1\",\"@index\":\"k\"},{\"@id\":\"http://ex/o2\",\"@index\":\"k\"}]}}"
+  match compact_document(doc, ctx, c2_options()) {
+    Ok(jv) => {
+      let out = render_json(jv)
+      assert_true(out.find("http://ex/o1") is Some(_))
+      assert_true(out.find("http://ex/o2") is Some(_))
+    }
+    Err(_) => fail("unexpected err")
+  }
+}
+
+///|
+/// **类型映射族四线一探**（行 2231/2237/2246/2250）：类型映射 term 下
+/// ① 纯类型节点（剥型后空体 id None ⇒ 2231）② 带型字面量 ⇒ 型映射渲染
+/// Value 臂 2237 + @type 剥离 Object 臂 2246 + 剥离循环 2250。
+test "C2-B3-07 类型映射纯型节点+带型字面量（2231+2237/2246/2250）" {
+  let ctx = "{\"@context\":{\"p\":{\"@id\":\"http://a/p\",\"@container\":\"@type\"}}}"
+  let doc = "{\"http://a/p\":[{\"@value\":\"x\",\"@type\":\"http://a/T1\"},{\"@type\":\"http://a/T2\"}]}"
+  match compact_document(doc, ctx, c2_options()) {
+    Ok(jv) => {
+      let out = render_json(jv)
+      assert_true(out.find("http://a/T1") is Some(_))
+      assert_true(out.find("http://a/T2") is Some(_))
+      assert_true(out.find("\"x\"") is Some(_))
+    }
+    Err(_) => fail("unexpected err")
+  }
+}
+
+///|
+/// **类型映射下列表值**（行 2259）：List 值进类型映射 ⇒ 渲染 `_` 臂
+/// Ok(Null) ⇒ none_key 组出形。
+test "C2-B3-08 类型映射下列表值（2259）" {
+  let ctx = "{\"@context\":{\"p\":{\"@id\":\"http://a/p\",\"@container\":\"@type\"}}}"
+  let doc = "{\"http://a/p\":[{\"@list\":[{\"@value\":\"x\"}]}]}"
+  match compact_document(doc, ctx, c2_options()) {
+    Ok(jv) => {
+      let out = render_json(jv)
+      assert_true(out.find("@none") is Some(_))
+    }
+    Err(_) => fail("unexpected err")
+  }
+}
+
+///|
+/// **类型映射渲染 Err**（行 2269）：带型节点带内嵌撞名属性 ⇒ variant 渲染
+/// 递归 fallback 撞名 Err ⇒ 2269。
+test "C2-B3-09 类型映射渲染内嵌撞名（2269）" {
+  let ctx = "{\"@context\":{\"p\":{\"@id\":\"http://a/p\",\"@container\":\"@type\"},\"tag\":\"http://ns/tag/\"}}"
+  let doc = "{\"http://a/p\":[{\"@id\":\"http://ex/o\",\"@type\":\"http://a/T1\",\"tag:2010\":\"v\"}]}"
+  match compact_document(doc, ctx, c2_options()) {
+    Err(InvalidContext(msg)) => assert_eq(msg, "scheme collides with term name")
+    Ok(jv) => fail("got OK: " + render_json(jv))
+    Err(_) => fail("got other err")
+  }
+}
+
+///|
+/// **类型限定上下文保护重定义 Err**（行 2212）：受保护 term 在 keyed 型的
+/// 类型限定 @context 里被重定义 ⇒ compact_apply_type_scoped Err（#tpr03
+/// 通道，2544）⇒ map_entry Type 臂 2212 return None ⇒ 兜底渲染处再 Err
+/// 上抛。
+test "C2-B3-10 类型限定保护重定义（2212）" {
+  let ctx = "{\"@context\":{\"prot\":{\"@id\":\"http://x/p1\",\"@protected\":true},\"T\":{\"@id\":\"http://a/T\",\"@context\":{\"prot\":\"http://x/p2\"}},\"p\":{\"@id\":\"http://a/p\",\"@container\":\"@type\"}}}"
+  let doc = "{\"http://a/p\":[{\"@id\":\"http://ex/o\",\"@type\":\"http://a/T\"}]}"
+  match compact_document(doc, ctx, c2_options()) {
+    Err(InvalidContext(msg)) => assert_eq(msg, "protected term redefinition")
+    Ok(jv) => fail("got OK: " + render_json(jv))
+    Err(_) => fail("got other err")
+  }
+}
+
+///|
+/// **@index 映射属性族**（行 2335+2340）：映射 term 下节点值——
+/// ① idx 属性 term 非 @id/@vocab 型 ⇒ subkey None（2335）② 无 id 引用节点
+/// ⇒ 2340 ⇒ 子键 None 全形出形路径。
+test "C2-B3-11 索引映射属性 subkey None 族（2335+2340）" {
+  let ctx = "{\"@context\":{\"ix\":{\"@id\":\"http://a/n\",\"@container\":\"@index\",\"@index\":\"prop\"},\"prop\":\"http://a/prop\"}}"
+  let doc = "{\"http://a/n\":[{\"@id\":\"http://ex/n1\",\"http://a/prop\":[{\"@id\":\"http://ex/ref\"}]},{\"http://a/prop\":[{\"@value\":\"v\"}]}]}"
+  match compact_document(doc, ctx, c2_options()) {
+    Ok(jv) => {
+      let out = render_json(jv)
+      assert_true(out.find("http://ex/n1") is Some(_))
+    }
+    Err(_) => fail("unexpected err")
+  }
+}
+
+///|
+/// **@index 映射非节点值**（行 2423）：映射 term 本位直收字面量值 ⇒
+/// index_mapping Some 分支 match `_ => return None`（2423）⇒ 落常规选中。
+test "C2-B3-12 索引映射 term 直收字面量（2423）" {
+  let ctx = "{\"@context\":{\"ix\":{\"@id\":\"http://a/n\",\"@container\":\"@index\",\"@index\":\"prop\"},\"prop\":\"http://a/prop\"}}"
+  let doc = "{\"http://a/n\":[\"plain\"]}"
+  match compact_document(doc, ctx, c2_options()) {
+    Ok(jv) => {
+      let out = render_json(jv)
+      assert_true(out.find("plain") is Some(_))
+    }
+    Err(_) => fail("unexpected err")
+  }
+}
+
+///|
+/// **@index 容器字面量子键+列表值**（行 2431+2461）：① 带子键字面量 ⇒
+/// lit.index 子键（2431）② List 值 ⇒ `_ => Ok(Null)`（2461）。
+test "C2-B3-13 索引容器字面量子键+列表（2431+2461）" {
+  let ctx = "{\"@context\":{\"m\":{\"@id\":\"http://a/m\",\"@container\":\"@index\"}}}"
+  let doc = "{\"http://a/m\":[{\"@value\":\"x\",\"@index\":\"k\"},{\"@list\":[{\"@value\":\"y\"}]}]}"
+  match compact_document(doc, ctx, c2_options()) {
+    Ok(jv) => {
+      let out = render_json(jv)
+      assert_true(out.find("\"k\"") is Some(_))
+    }
+    Err(_) => fail("unexpected err")
+  }
+}
+
+///|
+/// **语言映射方向过滤+非字面量值**（行 2484+2500）：① term 无 @direction
+/// × 值带 @direction ⇒ dir_ok 判定（2484）不过 ⇒ return None 落兜底；
+/// ② 节点值进语言映射 ⇒ `_ => None`（2500）。
+test "C2-B3-14 语言映射方向过滤+节点值（2484+2500）" {
+  let ctx = "{\"@context\":{\"lm\":{\"@id\":\"http://a/lm\",\"@container\":\"@language\"}}}"
+  let doc = "{\"http://a/lm\":[{\"@value\":\"x\",\"@language\":\"en\",\"@direction\":\"rtl\"},{\"@id\":\"http://ex/o\"}]}"
+  match compact_document(doc, ctx, c2_options()) {
+    Ok(jv) => {
+      let out = render_json(jv)
+      assert_true(out.find("http://a/lm") is Some(_))
+    }
+    Err(_) => fail("unexpected err")
+  }
+}
+
+///|
+/// **@index 映射子键 None 全形 Err**（行 2365）：映射 term 值节点 idx 属性
+/// 值为无 id 节点 ⇒ 子键 None ⇒ 全形 value_item 渲染 ⇒ 内嵌撞名 Err ⇒ 2365。
+test "C2-B3-15 索引映射全形渲染撞名（2365+2419）" {
+  let ctx = "{\"@context\":{\"ix\":{\"@id\":\"http://a/n\",\"@container\":\"@index\",\"@index\":\"prop\"},\"prop\":\"http://a/prop\",\"tag\":\"http://ns/tag/\"}}"
+  let doc = "{\"http://a/n\":[{\"@id\":\"http://ex/n1\",\"tag:2010\":\"v\"}]}"
+  match compact_document(doc, ctx, c2_options()) {
+    Err(InvalidContext(msg)) => assert_eq(msg, "scheme collides with term name")
+    Ok(jv) => fail("got OK: " + render_json(jv))
+    Err(_) => fail("got other err")
+  }
+}
+
+///|
+/// **@index 次级图组双载体**（行 1432）：@container [@graph,@index] ×
+/// 带 @id 载体 = 组路（1429 载体渲染 → group_vals）；首建组次 push（1432）。
+/// 出形 = g 组数组双载体对象。
+test "C2-B3-16 index 次级图组双载体（1432）" {
+  let ctx = "{\"@context\":{\"g\":{\"@id\":\"http://a/g\",\"@container\":[\"@graph\",\"@index\"]}}}"
+  let doc = "{\"http://a/g\":[{\"@id\":\"http://ex/c1\",\"@index\":\"k1\",\"@graph\":[]},{\"@id\":\"http://ex/c2\",\"@index\":\"k2\",\"@graph\":[]}]}"
+  match compact_document(doc, ctx, c2_options()) {
+    Ok(jv) => {
+      let out = render_json(jv)
+      assert_true(out.find("http://ex/c1") is Some(_))
+      assert_true(out.find("http://ex/c2") is Some(_))
+    }
+    Err(_) => fail("unexpected err")
+  }
+}
+
+///|
+/// **graph_set bares 单件 Object 塌平**（行 1776）：@container [@graph,@set]
+/// × 无 id 载体双成员图 ⇒ shaped = @included 包裹 Object（非数组）⇒ gset
+/// 塌平 `other` 臂（1776）直推。成员须带属性（id-only 扩形即丢——B3-03 实证）。
+test "C2-B3-17 graph_set bares 非数组塌平（1776）" {
+  let ctx = "{\"@context\":{\"g\":{\"@id\":\"http://a/g\",\"@container\":[\"@graph\",\"@set\"]}}}"
+  let doc = "{\"http://a/g\":[{\"@graph\":[{\"http://a/x\":[{\"@value\":\"v1\"}]},{\"http://a/x\":[{\"@value\":\"v2\"}]}]}]}"
+  match compact_document(doc, ctx, c2_options()) {
+    Ok(jv) => {
+      let out = render_json(jv)
+      assert_true(out.find("v1") is Some(_))
+      assert_true(out.find("v2") is Some(_))
+    }
+    Err(_) => fail("unexpected err")
+  }
+}
+
+///|
+/// **@id 容器非节点值**（行 2171）：@id 映射 term 直收字面量 ⇒ match
+/// value `_ => None`（2171）⇒ 落常规选中渲染。
+test "C2-B3-18 id 容器直收字面量（2171）" {
+  let ctx = "{\"@context\":{\"pi\":{\"@id\":\"http://a/p\",\"@container\":\"@id\"}}}"
+  let doc = "{\"http://a/p\":[{\"@value\":\"x\"}]}"
+  match compact_document(doc, ctx, c2_options()) {
+    Ok(jv) => {
+      let out = render_json(jv)
+      assert_true(out.find("\"x\"") is Some(_))
+    }
+    Err(_) => fail("unexpected err")
+  }
+}
+
+///|
+/// **@index 映射属性值空节点实证**（行 2340 探路）：prop 值 `{}` 的扩形
+/// 形——扩形器是否派 bnode id 定 2340 生死（id Some ⇒ 构造性死）。
+test "C2-B3-19 index 映射空节点属性实证（2340 探路）" {
+  let ctx = "{\"@context\":{\"prop\":{\"@id\":\"http://a/prop\",\"@type\":\"@id\"},\"ix\":{\"@id\":\"http://a/n\",\"@container\":\"@index\",\"@index\":\"prop\"}}}"
+  let doc = "{\"http://a/n\":[{\"@id\":\"http://ex/n1\",\"http://a/prop\":[{}]}]}"
+  match compact_document(doc, ctx, c2_options()) {
+    Ok(jv) => {
+      let out = render_json(jv)
+      debug("B3-19 OUT: \{out}")
+      assert_true(out.find("http://ex/n1") is Some(_))
+    }
+    Err(_) => fail("unexpected err")
+  }
+}
+
+///|
+/// **@index 映射子键 None 全形 Err**（行 2365）：idx 属性在场但 prop td
+/// 非 @id/@vocab 型 ⇒ subkey None（2335）⇒ 全形 value_item 渲染 ⇒ 内嵌
+/// 撞名 Err ⇒ 2365。
+test "C2-B3-20 index 映射全形渲染撞名（2365）" {
+  let ctx = "{\"@context\":{\"ix\":{\"@id\":\"http://a/n\",\"@container\":\"@index\",\"@index\":\"prop\"},\"prop\":\"http://a/prop\",\"tag\":\"http://ns/tag/\"}}"
+  let doc = "{\"http://a/n\":[{\"@id\":\"http://ex/n1\",\"http://a/prop\":[{\"@id\":\"http://ex/ref\"}],\"tag:2010\":\"v\"}]}"
+  match compact_document(doc, ctx, c2_options()) {
+    Err(InvalidContext(msg)) => assert_eq(msg, "scheme collides with term name")
+    Ok(jv) => fail("got OK: " + render_json(jv))
+    Err(_) => fail("got other err")
+  }
+}
+
+///|
+/// **键化支渲染 Err**（行 2400）：prop td @id 型 ⇒ subkey Some ⇒ 键化支
+///（2392 variant2 重挂残余）⇒ 残余撞名渲染 Err ⇒ 2400。
+test "C2-B3-21 键化支残余撞名（2400）" {
+  let ctx = "{\"@context\":{\"prop\":{\"@id\":\"http://a/prop\",\"@type\":\"@id\"},\"ix\":{\"@id\":\"http://a/n\",\"@container\":\"@index\",\"@index\":\"prop\"},\"tag\":\"http://ns/tag/\"}}"
+  let doc = "{\"http://a/n\":[{\"@id\":\"http://ex/n1\",\"http://a/prop\":[{\"@id\":\"http://ex/ref\"}],\"tag:2010\":\"v\"}]}"
+  match compact_document(doc, ctx, c2_options()) {
+    Err(InvalidContext(msg)) => assert_eq(msg, "scheme collides with term name")
+    Ok(jv) => fail("got OK: " + render_json(jv))
+    Err(_) => fail("got other err")
+  }
+}
+
+///|
+/// **property-scoped 上下文保护重定义 = 放行**（947/966 防御臂定谳钉）：
+/// property-scoped @context 重定义受保护 term **不 Err**（对照 type-scoped
+/// 判例 B3-10 = Err；T4 expand 侧同形亦放行）⇒ compact_value_item 头部
+/// apply 不经 Err 臂（947/966）——出形照常 "p":"v"。
+test "C2-B3-22 property-scoped 保护重定义放行（947/966 定谳钉）" {
+  let ctx = "{\"@context\":{\"prot\":{\"@id\":\"http://x/p1\",\"@protected\":true},\"p\":{\"@id\":\"http://a/p\",\"@context\":{\"prot\":\"http://x/p2\"}}}}"
+  let doc = "{\"http://a/p\":\"v\"}"
+  match compact_document(doc, ctx, c2_options()) {
+    Ok(jv) =>
+      assert_eq(
+        render_json(jv),
+        "{\"@context\":{\"prot\":{\"@id\":\"http://x/p1\",\"@protected\":true},\"p\":{\"@id\":\"http://a/p\",\"@context\":{\"prot\":\"http://x/p2\"}}},\"p\":\"v\"}",
+      )
+    Err(_) => fail("unexpected err")
+  }
+}
+
+///|
+/// **index 次级组路载体渲染 Err**（行 1440+1987）：[@graph,@index] 组路
+/// 载体（带 @id）⇒ compact_node_graph_value_jv ⇒ 节点 @graph 关键词条
+/// 成员环（1987 Err 臂——成员撞名属性）⇒ 上抛 1440 return Err。
+test "C2-B3-23 index 次级组路成员撞名（1440+1987）" {
+  let ctx = "{\"@context\":{\"g\":{\"@id\":\"http://a/g\",\"@container\":[\"@graph\",\"@index\"]},\"tag\":\"http://ns/tag/\"}}"
+  let doc = "{\"http://a/g\":[{\"@id\":\"http://ex/c1\",\"@index\":\"k\",\"@graph\":[{\"tag:2010\":\"v\"}]}]}"
+  match compact_document(doc, ctx, c2_options()) {
+    Err(InvalidContext(msg)) => assert_eq(msg, "scheme collides with term name")
+    Ok(jv) => fail("got OK: " + render_json(jv))
+    Err(_) => fail("got other err")
+  }
+}
+
+///|
+/// **语言标签不等长不吸收**（行为钉；385 已另证构造性死——374 长度门
+/// 在先，"en" vs "en-US" 于长度位即拒，界内 get_char 恒 Some）：
+test "C2-B3-24 语言区域位不对称（385）" {
+  let ctx = "{\"@context\":{\"lt\":{\"@id\":\"http://a/t\",\"@language\":\"en\"}}}"
+  let doc = "{\"http://a/t\":[{\"@value\":\"x\",\"@language\":\"en-US\"}]}"
+  match compact_document(doc, ctx, c2_options()) {
+    Ok(jv) => {
+      let out = render_json(jv)
+      assert_true(out.find("en-US") is Some(_))
+    }
+    Err(_) => fail("unexpected err")
+  }
+}
+
+///|
+/// **无 id 带属性节点对象形渲染**（行为钉；803 已另证死账——child.id None
+/// 在 762 早退、td_opt 两调用点恒 Some）：
+test "C2-B3-25 object_fit 无 id 节点权重（803）" {
+  let ctx = "{\"@context\":{\"p\":\"http://a/p\"}}"
+  let doc = "{\"http://a/p\":[{\"http://a/q\":[{\"@value\":\"v\"}]}]}"
+  match compact_document(doc, ctx, c2_options()) {
+    Ok(jv) => {
+      let out = render_json(jv)
+      assert_true(out.find("\"v\"") is Some(_))
+    }
+    Err(_) => fail("unexpected err")
+  }
+}
+
+///|
+/// **反转属性无反转 term 兜底**（行为钉——cands 空支路；2040 真路见
+/// B3-29 反转映射逐值兜底）：
+test "C2-B3-26 反转属性无反转 term 兜底（2040）" {
+  let doc = "{\"@id\":\"http://ex/s\",\"@reverse\":{\"http://ns/x\":[{\"@id\":\"http://ex/o\"}]}}"
+  match compact_document(doc, "{}", c2_options()) {
+    Ok(jv) => {
+      let out = render_json(jv)
+      assert_true(out.find("http://ns/x") is Some(_))
+      assert_true(out.find("http://ex/o") is Some(_))
+    }
+    Err(_) => fail("unexpected err")
+  }
+}
+
+///|
+/// **index 组路载体自身撞名**（行 1440）：[@graph,@index] 载体带 @id、
+/// 成员干净、**载体自有属性**撞名 ⇒ 内容环 Ok 过 ⇒ 1429 载体整渲染 ⇒
+/// compact_node_graph_value_jv 内 compact_node_jv Err ⇒ 1440 return Err。
+test "C2-B3-27 index 组路载体自身撞名（1440）" {
+  let ctx = "{\"@context\":{\"g\":{\"@id\":\"http://a/g\",\"@container\":[\"@graph\",\"@index\"]},\"tag\":\"http://ns/tag/\"}}"
+  let doc = "{\"http://a/g\":[{\"@id\":\"http://ex/c1\",\"@index\":\"k\",\"tag:2010\":\"v\",\"@graph\":[{\"http://a/x\":[{\"@value\":\"w\"}]}]}]}"
+  match compact_document(doc, ctx, c2_options()) {
+    Err(InvalidContext(msg)) => assert_eq(msg, "scheme collides with term name")
+    Ok(jv) => fail("got OK: " + render_json(jv))
+    Err(_) => fail("got other err")
+  }
+}
+
+///|
+/// **节点 @graph 关键词条成员撞名**（行 1987）：无 @graph 容器 term ⇒
+/// 顶层节点 @graph 关键词条（1979-1995）成员环渲染 ⇒ 成员撞名 Err ⇒
+/// 1987 return Err（内容环不先行——不走容器路由）。
+test "C2-B3-28 关键词条成员撞名（1987）" {
+  let ctx = "{\"@context\":{\"tag\":\"http://ns/tag/\"}}"
+  let doc = "{\"@id\":\"http://ex/s\",\"@graph\":[{\"tag:2010\":\"v\"}]}"
+  match compact_document(doc, ctx, c2_options()) {
+    Err(InvalidContext(msg)) => assert_eq(msg, "scheme collides with term name")
+    Ok(jv) => fail("got OK: " + render_json(jv))
+    Err(_) => fail("got other err")
+  }
+}
+
+///|
+/// **反转映射逐值兜底不可构造定谳钉**（2040 构造性死）：@reverse 位值恒
+/// 节点对象（扩形 1223 门——值对象/@list 形态即「invalid reverse property
+/// value」拒）+ reverse 容器白名单 Set/Index/None（4437）⇒ map_entry 唯一
+/// None 出口（2423 非节点值）在反转位不可达 ⇒ 2037 兜底死。双负实证：
+/// @language 版定义期拒（invalid reverse property）、@index 版字面量值
+/// 展开期拒（本钉）。
+test "C2-B3-29 反转映射兜底不可构造（2040 定谳钉）" {
+  let ctx = "{\"@context\":{\"r\":{\"@reverse\":\"http://a/r\",\"@container\":\"@index\"}}}"
+  let doc = "{\"@id\":\"http://ex/s\",\"@reverse\":{\"http://a/r\":[{\"@value\":\"x\"}]}}"
+  match compact_document(doc, ctx, c2_options()) {
+    Err(InvalidValue(msg)) => assert_eq(msg, "invalid reverse property value")
+    Ok(jv) => fail("got OK: " + render_json(jv))
+    Err(_) => fail("got other err")
+  }
+}
