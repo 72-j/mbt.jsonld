@@ -824,3 +824,277 @@ fn render_nq(quads : Array[@jsonld.JsonLdQuad]) -> String {
   }
   out.to_string()
 }
+
+// ===== 役C3 移防⑤（to_rdf 33 行）：同 id 并集族 + colliding indexes 传播
+// 六位 + 数值典范词形 + xsd:string/1.0 curie datatype + langtag 拒收 +
+// JCS \b\f + 反向位忽略哨兵。死账十件定谳见 todo 批账（勿删）。 =====
+
+///|
+/// plain 档 options（默认 1.1，无方向面）
+fn trdf5_options() -> @jsonld.JsonLdOptions {
+  {
+    base: None,
+    expand_context: None,
+    processing_mode: JsonLd11,
+    load_context: None,
+    rdf_direction: None,
+    produce_generalized_rdf: false,
+    compact_arrays: true,
+    compact_to_relative: true,
+    frame_expansion: false,
+    omit_graph: false,
+    use_native_types: false,
+    use_rdf_type: false,
+  }
+}
+
+///|
+test "trdf5: same-id union merge arms (252/261/267/272/269)" {
+  // 并集位 reverse_props（252）
+  match
+    @jsonld.to_rdf_document(
+      "[{\"@id\":\"http://x/\",\"http://a/\":\"v\"},{\"@id\":\"http://x/\",\"@reverse\":{\"http://r/\":{\"@id\":\"http://w/\"}}}]",
+      trdf5_options(),
+    ) {
+    Ok(quads) => {
+      let text = render_nq(quads)
+      assert_true(text.contains("<http://w/> <http://r/> <http://x/>"))
+    }
+    Err(_) => fail("expected same-id reverse merge to succeed")
+  }
+  // 并集位 graph（261 None 臂——首见无图次见有图）
+  match
+    @jsonld.to_rdf_document(
+      "[{\"@id\":\"http://x/\",\"http://a/\":\"v\"},{\"@id\":\"http://x/\",\"@graph\":{\"@id\":\"http://kid/\",\"http://k/\":\"v\"}}]",
+      trdf5_options(),
+    ) {
+    Ok(quads) => {
+      let text = render_nq(quads)
+      assert_true(text.contains("<http://kid/> <http://k/> \"v\" <http://x/>"))
+    }
+    Err(_) => fail("expected same-id graph merge to succeed")
+  }
+  // 并集位 included（267 match + 272 None 臂）
+  match
+    @jsonld.to_rdf_document(
+      "[{\"@id\":\"http://x/\",\"http://a/\":\"v\"},{\"@id\":\"http://x/\",\"@included\":{\"@id\":\"http://y/\",\"http://i/\":\"v\"}}]",
+      trdf5_options(),
+    ) {
+    Ok(quads) => {
+      let text = render_nq(quads)
+      assert_true(text.contains("<http://y/> <http://i/> \"v\""))
+    }
+    Err(_) => fail("expected same-id included merge to succeed")
+  }
+  // 并集位 included 双有（269 追加臂）
+  match
+    @jsonld.to_rdf_document(
+      "[{\"@id\":\"http://x/\",\"@included\":{\"@id\":\"http://y1/\",\"http://i/\":\"v\"}},{\"@id\":\"http://x/\",\"@included\":{\"@id\":\"http://y2/\",\"http://i/\":\"v\"}}]",
+      trdf5_options(),
+    ) {
+    Ok(quads) => {
+      let text = render_nq(quads)
+      assert_true(text.contains("<http://y1/> <http://i/> \"v\""))
+      assert_true(text.contains("<http://y2/> <http://i/> \"v\""))
+    }
+    Err(_) => fail("expected double included merge to succeed")
+  }
+}
+
+///|
+test "trdf5: colliding indexes at top level (970 + 239)" {
+  match
+    @jsonld.to_rdf_document(
+      "[{\"@id\":\"http://y/\",\"@index\":\"i1\",\"http://a/\":\"v\"},{\"@id\":\"http://y/\",\"@index\":\"i2\",\"http://a/\":\"w\"}]",
+      trdf5_options(),
+    ) {
+    Err(InvalidValue(msg)) => assert_eq(msg, "colliding indexes")
+    _ => fail("expected colliding indexes error")
+  }
+}
+
+///|
+test "trdf5: colliding indexes propagation arms (285/293/309/320/331)" {
+  // 属性子树嵌套碰撞（285）
+  match
+    @jsonld.to_rdf_document(
+      "[{\"@id\":\"http://x/\",\"http://a/\":{\"@id\":\"http://y/\",\"@index\":\"i1\"}},{\"@id\":\"http://x/\",\"http://a/\":{\"@id\":\"http://y/\",\"@index\":\"i2\"}}]",
+      trdf5_options(),
+    ) {
+    Err(InvalidValue(msg)) => assert_eq(msg, "colliding indexes")
+    _ => fail("285: expected colliding indexes")
+  }
+  // 反向属性子树嵌套碰撞（293）
+  match
+    @jsonld.to_rdf_document(
+      "[{\"@id\":\"http://x/\",\"@reverse\":{\"http://r/\":{\"@id\":\"http://y/\",\"@index\":\"i1\"}}},{\"@id\":\"http://x/\",\"@reverse\":{\"http://r/\":{\"@id\":\"http://y/\",\"@index\":\"i2\"}}}]",
+      trdf5_options(),
+    ) {
+    Err(InvalidValue(msg)) => assert_eq(msg, "colliding indexes")
+    _ => fail("293: expected colliding indexes")
+  }
+  // 图内容子树嵌套碰撞（309）
+  match
+    @jsonld.to_rdf_document(
+      "[{\"@id\":\"http://x/\",\"@graph\":{\"@id\":\"http://y/\",\"@index\":\"i1\"}},{\"@id\":\"http://x/\",\"@graph\":{\"@id\":\"http://y/\",\"@index\":\"i2\"}}]",
+      trdf5_options(),
+    ) {
+    Err(InvalidValue(msg)) => assert_eq(msg, "colliding indexes")
+    _ => fail("309: expected colliding indexes")
+  }
+  // included 子树嵌套碰撞（320）
+  match
+    @jsonld.to_rdf_document(
+      "[{\"@id\":\"http://x/\",\"@included\":{\"@id\":\"http://y/\",\"@index\":\"i1\"}},{\"@id\":\"http://x/\",\"@included\":{\"@id\":\"http://y/\",\"@index\":\"i2\"}}]",
+      trdf5_options(),
+    ) {
+    Err(InvalidValue(msg)) => assert_eq(msg, "colliding indexes")
+    _ => fail("320: expected colliding indexes")
+  }
+  // @list 值位嵌套碰撞（331）
+  match
+    @jsonld.to_rdf_document(
+      "[{\"@id\":\"http://x/\",\"http://a/\":{\"@list\":[{\"@id\":\"http://y/\",\"@index\":\"i1\"}]}},{\"@id\":\"http://x/\",\"http://a/\":{\"@list\":[{\"@id\":\"http://y/\",\"@index\":\"i2\"}]}}]",
+      trdf5_options(),
+    ) {
+    Err(InvalidValue(msg)) => assert_eq(msg, "colliding indexes")
+    _ => fail("331: expected colliding indexes")
+  }
+}
+
+///|
+test "trdf5: canonical number forms (520/542/547/563)" {
+  // 0e20 强制 double：零值整形（542 前导零跳 + 520 零添）
+  match
+    @jsonld.to_rdf_document(
+      "{\"@context\":{\"v\":{\"@id\":\"http://a/v\",\"@type\":\"http://www.w3.org/2001/XMLSchema#double\"}},\"v\":1e10000}",
+      trdf5_options(),
+    ) {
+    Ok(quads) => {
+      let text = render_nq(quads)
+      // 超域词形 repr 原样存活（core 归一逃逸）——指数位零添臂（520）
+      assert_true(text.contains("XMLSchema#double"))
+    }
+    Err(_) => fail("expected 1e10000 double to canonicalize")
+  }
+  // 负整数（547 符号臂）
+  match
+    @jsonld.to_rdf_document(
+      "{\"@context\":{\"v\":{\"@id\":\"http://a/v\",\"@type\":\"http://www.w3.org/2001/XMLSchema#integer\"}},\"v\":-5}",
+      trdf5_options(),
+    ) {
+    Ok(quads) => {
+      let text = render_nq(quads)
+      assert_true(
+        text.contains("\"-5\"^^<http://www.w3.org/2001/XMLSchema#integer>"),
+      )
+    }
+    Err(_) => fail("expected -5 integer to canonicalize")
+  }
+  // 小数尾零削减（563）
+  match
+    @jsonld.to_rdf_document(
+      "{\"@context\":{\"v\":{\"@id\":\"http://a/v\",\"@type\":\"http://www.w3.org/2001/XMLSchema#decimal\"}},\"v\":1.50}",
+      trdf5_options(),
+    ) {
+    Ok(quads) => {
+      let text = render_nq(quads)
+      // 小数典范形走 E 记法（mant 削尾零——563）
+      assert_true(
+        text.contains("\"1.5E0\"^^<http://www.w3.org/2001/XMLSchema#decimal>"),
+      )
+    }
+    Err(_) => fail("expected 1.50 decimal to canonicalize")
+  }
+}
+
+///|
+test "trdf5: xsd:string bare form + curie datatype dropped (409/413)" {
+  // 显式 xsd:string 无语言 = 简单字面量（409——RDF 1.1 同一性）
+  match
+    @jsonld.to_rdf_document(
+      "{\"@context\":{\"v\":{\"@id\":\"http://a/v\",\"@type\":\"http://www.w3.org/2001/XMLSchema#string\"}},\"v\":\"x\"}",
+      trdf5_options(),
+    ) {
+    Ok(quads) => {
+      let text = render_nq(quads)
+      assert_true(text.contains("<http://a/v> \"x\""))
+      assert_true(!text.contains("^^"))
+    }
+    Err(_) => fail("expected xsd:string coercion to succeed")
+  }
+  // 1.0 无 vocab curie datatype（安装门三支放行）→ 非绝对 → 词面弃（413）
+  match
+    @jsonld.to_rdf_document(
+      "{\"@context\":{\"v\":{\"@id\":\"http://a/v\",\"@type\":\"ex:Number\"}},\"v\":{\"@value\":\"5\"}}",
+      trdf5_options(),
+    ) {
+    Ok(quads) => {
+      let text = render_nq(quads)
+      assert_true(!text.contains("ex:Number"))
+    }
+    Err(_) => fail("expected curie datatype quad to be dropped, not errored")
+  }
+}
+
+///|
+test "trdf5: langtag rejections (582/595)" {
+  // 段长超 8 后遇 '-'（582）
+  match
+    @jsonld.to_rdf_document(
+      "{\"@context\":{\"v\":\"http://a/v\"},\"v\":{\"@value\":\"x\",\"@language\":\"toolongtag-x\"}}",
+      trdf5_options(),
+    ) {
+    Ok(quads) => {
+      let text = render_nq(quads)
+      assert_true(!text.contains("toolongtag"))
+    }
+    Err(_) => fail("expected bad langtag quad to be dropped, not errored")
+  }
+  // 段长超 8 无 '-'（595）
+  match
+    @jsonld.to_rdf_document(
+      "{\"@context\":{\"v\":\"http://a/v\"},\"v\":{\"@value\":\"x\",\"@language\":\"toolongtag\"}}",
+      trdf5_options(),
+    ) {
+    Ok(quads) => {
+      let text = render_nq(quads)
+      assert_true(!text.contains("toolongtag"))
+    }
+    Err(_) => fail("expected bad langtag quad to be dropped, not errored")
+  }
+}
+
+///|
+test "trdf5: jcs escape backspace/formfeed (640/643)" {
+  match
+    @jsonld.to_rdf_document(
+      "{\"@context\":{\"j\":\"http://a/j\"},\"j\":{\"@value\":{\"s\":\"a\\u0008b\\tcc\\u000cc\"},\"@type\":\"@json\"}}",
+      trdf5_options(),
+    ) {
+    Ok(quads) => {
+      let text = render_nq(quads)
+      // JCS \b/\t/\f 过 N-Quads 发射层再转义成双反斜杠（nq_emit_escape）——
+      // 针取双反斜杠形（fmt 折单层转义坑：字面量一律 Edit 直写）
+      assert_true(text.contains("a\\\\bb\\\\tcc\\\\fc"))
+    }
+    Err(_) => fail("expected @json literal to canonicalize")
+  }
+}
+
+///|
+test "trdf5: reverse-position ignored-id subject none (912)" {
+  // 反向值节点 @id 被忽略哨兵（t0122 同款）→ 主体 None 三元组不发射（912）
+  match
+    @jsonld.to_rdf_document(
+      "{\"@context\":{\"pr\":{\"@reverse\":\"http://r/\"}},\"pr\":{\"@id\":\"relative-id\",\"http://a/\":\"v\"}}",
+      trdf5_options(),
+    ) {
+    Ok(quads) => {
+      let text = render_nq(quads)
+      assert_true(!text.contains("<http://a/>"))
+    }
+    Err(_) => fail("DBG912 other variant")
+    Err(_) => fail("DBG912 other variant")
+  }
+}
