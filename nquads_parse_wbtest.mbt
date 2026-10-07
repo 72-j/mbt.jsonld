@@ -167,3 +167,18 @@ test "nq2wb: nq2_parse propagates statement errors" {
     }
   }
 }
+
+///|
+/// 役C3 移防①（nquads_parse 83）：字面量后缀兜底臂——Nq2DtIri 对 ^^ 后
+/// 首字符不设白名单（除 '>' 与转义全写入），文法外容错形（^^x / ^^ 空格）
+/// 落兜底臂：后缀原样存 datatype 位（wbtest 渲染再现原文形）
+test "nq2: literal suffix fallback — non-IRI datatype forms (83)" {
+  assert_eq(
+    nq2wb_quad_text("<http://s/> <http://p/> \"x\"^^y<z> ."),
+    "<http://s/> <http://p/> \"x\"^^<^^y<z>>",
+  )
+  assert_eq(
+    nq2wb_quad_text("<http://s/> <http://p/> \"x\"^^ <http://a> ."),
+    "<http://s/> <http://p/> \"x\"^^<^^ <http://a>>",
+  )
+}

@@ -351,3 +351,27 @@ async test "interface gate smoke: mock surface is callable" {
     _ => fail("expected Unsupported")
   }
 }
+
+///|
+/// 役C3 移防②（gen.mbt 35/55/57）：生成面步进表直调钉——next_step 全变体
+/// 邻接契约 + dispatch 形状白名单外 / 非入口步两兜底臂。next_step 生产面
+/// 零调用（调度走 dispatch），生成物契约面直调保活
+test "gen surface: next_step table + dispatch fallback arms (35/55/57)" {
+  let expect_next : Array[String] = [
+    "", "expansion.postprocess", "expansion.postprocess", "expansion.postprocess",
+    "", "torf.emit", "",
+  ]
+  let steps = all_jsonld_steps()
+  for i in 0..<steps.length() {
+    match steps[i].next_step() {
+      Some(next) => assert_eq(next.id(), expect_next[i])
+      None => assert_eq(expect_next[i], "")
+    }
+  }
+  // dispatch 形状白名单 {scalar,array,object} 外 → None（55）
+  assert_true(@jsonld.JsonLdStep::ExpansionEntry.dispatch("weird") is None)
+  // 非入口步（分派仅 ExpansionEntry 声明）→ None（57）
+  assert_true(
+    @jsonld.JsonLdStep::ExpansionPostprocess.dispatch("scalar") is None,
+  )
+}
