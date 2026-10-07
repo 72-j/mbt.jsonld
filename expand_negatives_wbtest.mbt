@@ -712,7 +712,7 @@ test "imp: @import without base unresolvable" {
 ///|
 /// loader 失败注入（(String) -> Result[String, String] 契约面）
 test "imp: @import loader failure propagates" {
-  let fail_loader : (String) -> Result[String, String] = s => Err("boom")
+  let fail_loader : (String) -> Result[String, String] = _ => Err("boom")
   let options : JsonLdOptions = {
     base: Some("http://a/"),
     expand_context: None,
