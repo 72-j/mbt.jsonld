@@ -128,3 +128,70 @@ test "html_percent_decode: mid-string broken hex and raw non-ascii" {
   assert_eq(html_percent_decode("月"), "月")
   assert_eq(html_percent_decode("a+b"), "a+b")
 }
+
+// ===== 役C3 移防③（html_extract 8 行）：扫描器属性态四臂 + 前缀假门 +
+// 小写 hex + 别名查找跳过 + 非 JSON 内容错 =====
+
+///|
+test "html mf3: empty-valued attr, bare-valued attr, unknown attr, typeless script (219/241/310/324)" {
+  // '=' 后直接 '>' = 空值属性（type= → 空媒体类型不捕获）
+  assert_true(html_scripts_of("<script type=>{\"a\":1}</script>").length() == 0)
+  // 裸值被 '>' 终结（'/' 属值内字符——application/ld+json 裸形照捕获，
+  // 役65 断裂 bug 回归钉）
+  let bare = html_scripts_of(
+    "<script type=application/ld+json>{\"a\":1}</script>",
+  )
+  assert_true(bare.length() == 1)
+  assert_eq(bare[0].content, "{\"a\":1}")
+  // 未知属性忽略臂（非 type/id/base-href）
+  let extra = html_scripts_of(
+    "<script lang=en charset=x type=\"application/ld+json\">{\"a\":1}</script>",
+  )
+  assert_true(extra.length() == 1)
+  // '=' 后空白 = 空值属性回 tag body（219）——lang= 空值照忽略，type 照捕获
+  let eqsp = html_scripts_of(
+    "<script lang= type=\"application/ld+json\">{\"a\":1}</script>",
+  )
+  assert_true(eqsp.length() == 1)
+  // 无 type 的 script 不捕获
+  assert_true(html_scripts_of("<script>{\"a\":1}</script>").length() == 0)
+}
+
+///|
+test "html mf3: ci prefix text longer than target is false (63)" {
+  assert_true(!html_ci_prefix_of("</script", "</SCRIPTX"))
+}
+
+///|
+test "html mf3: percent decode lowercase hex nibble (423)" {
+  assert_eq(html_percent_decode("%3a"), ":")
+}
+
+///|
+test "html mf3: fragment lookup skips id-less script (498)" {
+  match
+    html_script_source(
+      "<script type=\"application/ld+json\">{\"noid\":1}</script><script id=\"t1\" type=\"application/ld+json\">{\"a\":1}</script>",
+      None,
+      Some("t1"),
+      false,
+    ) {
+    Ok(src) => assert_eq(src.source, "{\"a\":1}")
+    Err(_) => fail("expected fragment lookup to find t1")
+  }
+}
+
+///|
+test "html mf3: extract-all rejects invalid JSON content (522)" {
+  match
+    html_script_source(
+      "<script type=\"application/ld+json\">{bad}</script>",
+      None,
+      None,
+      true,
+    ) {
+    Err(InvalidScriptElement(msg)) =>
+      assert_eq(msg, "script content is not valid JSON")
+    _ => fail("expected InvalidScriptElement")
+  }
+}

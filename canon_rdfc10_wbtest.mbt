@@ -133,3 +133,44 @@ test "rdfc10 poison clique signals error" {
     Err(_) => fail("wrong error family (expected Unsupported)")
   }
 }
+
+// ===== 役C3 移防④（canon_rdfc10 8 行）：串比较长短臂 + IRI 禁字符转义 +
+// 谓词位容错 + 解析错上抛；384/493/567 定谳死账不探（见 todo 批账）=====
+
+///|
+test "c14n mf4: compare prefix-length arms (192/194)" {
+  assert_eq(c14n_compare("abc", "abcd"), -1)
+  assert_eq(c14n_compare("abcd", "abc"), 1)
+  assert_eq(c14n_compare("ab", "ab"), 0)
+}
+
+///|
+test "c14n mf4: iri forbidden char escape + parse error + literal predicate (285/411/679)" {
+  // IRI 内 '^'（0x5E，禁字符表）→ UCHAR 大写转义
+  match
+    rdfc10_canonicalize_with_hash("<http://s/> <http://p^x/> \"v\" .", Sha256) {
+    Ok((canonical, _)) => {
+      // 反斜杠字面量过 heredoc/python 层易被吃（移防①② 坑族续）——
+      // 断转义词形 "u005E" 在场 + 全串无裸 '^'，组合钉死 UCHAR 转义
+      assert_true(canonical.contains("u005E"))
+      assert_true(!canonical.contains("^"))
+    }
+    Err(_) => fail("expected canonicalization to succeed")
+  }
+  // 文法外容错形：谓词位字面量——411 `_` 臂在 hash_related_blank_node，
+  // 须「首度哈希同形的碰撞组 + 组内 quad 携 bnode 分量」才进 n-degree 径
+  //（_:a/_:b 同形互相碰撞，_:c 为共同关联 bnode；单 bnode 走简单径不达）
+  match
+    rdfc10_canonicalize_with_hash(
+      "_:a \"lit\" _:c .\n_:b \"lit\" _:c .",
+      Sha256,
+    ) {
+    Ok((canonical, _)) => assert_true(canonical.length() > 0)
+    Err(_) => fail("expected literal-predicate quad to canonicalize")
+  }
+  // 非 N-Quads 输入 → Syntax 上抛（679）
+  match rdfc10_canonicalize_with_hash("not nquads at all", Sha256) {
+    Err(Syntax(_)) => ()
+    _ => fail("expected Syntax error for garbage input")
+  }
+}
