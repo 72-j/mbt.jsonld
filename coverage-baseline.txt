@@ -173,6 +173,31 @@
 #     reverse_props 双构造面 t0028@1711/t0029@1021 恒产 Node 单例/Node 清单 ⇒
 #     不可达；④ **1578**（反扫 ref id None）——register 回写不变式（718 同族）；
 #     ⑤ **1590**（反扫 subject_map.get None）——键源同 map（76 同族）。
+#   2026-10-07 役C3批6（embed/图递归/输出面待勘 16 全数勘定 · 7 探针
+#     F3-40..46；428/428 绿〔探针残留复测校正：初测 429 含未删探针 x1187，
+#     删后复测 336/42 行/428 全同，无 coverage delta〕）：**336**（棘轮内
+#     Δ−4 净——闭 5 开 1 后又闭；frame.mbt 段 47→**42，余行全数归类：
+#     死账 30 + 设施休眠 12**）。关行 5：
+#     **1187**（F3-45 数组包裹帧——顶位 @graph 对象被展开成图内容数组、root
+#     无 graph 字段，须数组包裹让 Some([]) 落 pattern 节点）、**1821**（F3-41
+#     @id:null 显式 null 映射 term 保留而 iri None，final_iri@4539）、**1972**
+#     （F3-43 scheme 撞名上传——@prefix:false 保帧侧键不成 curie，
+#     check_key_scheme_collision@1160 报错上传 compact_node_jv Err 臂；1062
+#     嵌套 list 形附识：1.0 展开面已拒 4918/4994/5020 ⇒ CompactList 1.0 嵌套
+#     不可达）、**2009**（F3-44 @context null）、**2010**（F3-46 @context 数组
+#     形——2009 闭后揭开的 `_` 臂）。
+#     **死账定谳 11（双证）**：① **1189**（1173/1182 同源双判：else 臂内
+#     graph 恒 Some）；② **1203**（1172 contains 与 1197 get 同 map 无变异
+#     间隔——76/1590 族）；③ **1227**（included 装配面空→None，
+#     expand_standard@2015-2019 ⇒ get(0) 恒 Some）；④ **1281/1416**（register
+#     铸号回写不变式——性质值位/list 项 ref 恒 Some，718/923 族）；⑤ **1606**
+#     （matched ⊆ subjects@452-471 过滤面 ⊆ subject_map 同源键——get 恒
+#     Some）；⑥ **1814**（帧 @context 双 process 同 flags：展开面 1801 先炸
+#     ——三候选探针全落 1803，1814 无首见错形）；⑦ **1920**（prune/计数扫描
+#     在 1855-63 原位摊平之后——wrapper 唯一 id None 形已摊平，输出 id 恒
+#     Some@1107）；⑧ **1928**（results 顶位恒 Node）；⑨ **1974**（unwrap
+#     顶位非 wrapper Node 原样返回）；⑩ **1992/1996**（compact_node_jv 单尾
+#     Ok(Object)@2127 无早退 ⇒ 返回面恒 Object）。
 #     **行为钉新增**：F3-26/27/28（通配-{} 成分语义）、F3-29（Node 引用值照收）、
 #     F3-30（match-none 整节点出局）、F3-31（List 形首值收值门）、F3-34/36（匿名/
 #     Node listitem）。新坑：list pattern 交叉**即配即 break**（Node 项须居首才

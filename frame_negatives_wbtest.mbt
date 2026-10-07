@@ -806,3 +806,138 @@ test "f3_39 literal under reverse iri not counted" {
     Err(e) => fail("expected OK, got: " + f3_err_msg(Err(e)))
   }
 }
+
+///|
+/// F3-40：顶位 @graph 对象帧（frameExpansion 展开成图内容数组 ⇒
+/// frame_root 无 graph 字段）+ 命名图节点 → 图递归走合成子帧面
+/// （1180；1187 的 Some([]) 形另见 F3-45 数组包裹帧）
+test "f3_40 empty graph pattern array" {
+  let result = frame_document(
+    "{\"@id\":\"http:g\",\"@graph\":[{\"@id\":\"http:s1\",\"http:p\":\"v\"}]}",
+    "{\"@graph\":[]}",
+    f3_options(),
+  )
+  match result {
+    Ok(jv) => {
+      let text = render_json(jv)
+      assert_true(text.contains("http:g"))
+      assert_true(text.contains("http:s1"))
+    }
+    Err(e) => fail("expected OK, got: " + f3_err_msg(Err(e)))
+  }
+}
+
+///|
+/// F3-41（1821）：帧 context 显式 null 映射 term（{"p":{"@id":null}}）——
+/// term 保留而 iri None（final_iri@4539）⇒ 压缩词表收集 None 臂跳过
+test "f3_41 null id term skipped in compaction terms" {
+  let result = frame_document(
+    "{\"@id\":\"http:s1\",\"http:q\":\"v\"}",
+    "{\"@context\":{\"p\":{\"@id\":null}},\"http:q\":{}}",
+    f3_options(),
+  )
+  match result {
+    Ok(jv) => {
+      let text = render_json(jv)
+      assert_true(text.contains("http:s1"))
+    }
+    Err(e) => fail("expected OK, got: " + f3_err_msg(Err(e)))
+  }
+}
+
+///|
+/// F3-42：缺位性质 @preserve 包装节点发射→摊平→值直达产物
+/// （1540 发射 + 1625 摊平 + 压缩值成形）。另性质先配（t0009 形：
+/// 纯 @default 帧拒——@default 触发值 pattern 预扫，缺位值位不配）。
+/// 1920 计数扫描面：摊平在扫描前原位完成 ⇒ id-None 节点不达扫描（死账）
+test "f3_42 preserve wrapper id none in count scan" {
+  let result = frame_document(
+    "{\"@id\":\"http:s1\",\"http:p\":\"x\"}",
+    "{\"http:p\":{},\"http:q\":{\"@default\":\"D\"}}",
+    f3_options(),
+  )
+  match result {
+    Ok(jv) => {
+      let text = render_json(jv)
+      assert_true(text.contains("http:s1"))
+      assert_true(text.contains("D"))
+    }
+    Err(e) => fail("expected OK, got: " + f3_err_msg(Err(e)))
+  }
+}
+
+///|
+/// F3-43（1972）：压缩面错误传播——scheme 撞名（#te002 家族：键 tag:foo
+/// 的 scheme 恰为在册 term 名且重展开异指，@prefix:false 保帧侧键不成
+/// curie ⇒ 发射位 check_key_scheme_collision 报 InvalidContext，逐层
+/// 上传至 compact_node_jv Err 臂）
+test "f3_43 scheme collision error through compaction" {
+  let result = frame_document(
+    "{\"@id\":\"http:s1\",\"tag:foo\":\"v\"}",
+    "{\"@context\":{\"tag\":{\"@id\":\"http://other/\",\"@prefix\":false}},\"tag:foo\":{}}",
+    f3_options(),
+  )
+  match result {
+    Ok(jv) => fail("expected error, got: " + render_json(jv))
+    Err(InvalidContext(msg)) => assert_eq(msg, "scheme collides with term name")
+    Err(e) => fail("expected InvalidContext, got: " + f3_err_msg(Err(e)))
+  }
+}
+
+///|
+/// F3-44（2009）：帧 **@context null**——frame_inner = Null 字面
+/// （1771-1782 提取），context_empty 判定 Null 臂 → 无 @context 回填
+test "f3_44 null context value in frame" {
+  let result = frame_document(
+    "{\"@id\":\"http:s1\",\"http:q\":\"v\"}",
+    "{\"@context\":null,\"http:q\":{}}",
+    f3_options(),
+  )
+  match result {
+    Ok(jv) => {
+      let text = render_json(jv)
+      assert_true(text.contains("http:s1"))
+      assert_false(text.contains("@context"))
+    }
+    Err(e) => fail("expected OK, got: " + f3_err_msg(Err(e)))
+  }
+}
+
+///|
+/// F3-45（1187）：**数组包裹帧** [{...}]——@graph 空数组经节点位展开
+/// 存进 pattern 节点 graph 字段（Some([])，1768 装配面）⇒ 图递归子帧
+/// 合成 get(0) None 臂落合成 pattern，图内主体照帧
+test "f3_45 array wrapped frame graph empty pattern" {
+  let result = frame_document(
+    "{\"@id\":\"http:g\",\"@graph\":[{\"@id\":\"http:s1\",\"http:p\":\"v\"}]}",
+    "[{\"@graph\":[]}]",
+    f3_options(),
+  )
+  match result {
+    Ok(jv) => {
+      let text = render_json(jv)
+      assert_true(text.contains("http:g"))
+      assert_true(text.contains("http:s1"))
+    }
+    Err(e) => fail("expected OK, got: " + f3_err_msg(Err(e)))
+  }
+}
+
+///|
+/// F3-46（2010）：帧 @context **数组形**——frame_inner 非 Object/Null
+/// ⇒ context_empty `_` 臂 false → @context 原文数组回填
+test "f3_46 array context value in frame" {
+  let result = frame_document(
+    "{\"@id\":\"http:s1\",\"http:q\":\"v\"}",
+    "{\"@context\":[],\"http:q\":{}}",
+    f3_options(),
+  )
+  match result {
+    Ok(jv) => {
+      let text = render_json(jv)
+      assert_true(text.contains("http:s1"))
+      assert_true(text.contains("@context"))
+    }
+    Err(e) => fail("expected OK, got: " + f3_err_msg(Err(e)))
+  }
+}
