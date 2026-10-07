@@ -679,9 +679,10 @@ test "f3_33 wildcard item in list pattern" {
 }
 
 ///|
-/// F3-34（923）：list pattern 项 = node pattern，数据项 = 匿名节点——
-/// id None ⇒ false（注册回写保 id 的不变式在 list 数据项同样成立？
-/// 不——list 项不经 register 值位回写，匿形保持）；配中经兄弟通配
+/// F3-34（923 死账定谳）：list pattern 项 = node pattern，数据项 =
+/// 匿名节点——**list 数据项同样经 register 铸号回写**（items[i] = 铸号
+/// 引用替入）⇒ 配时 ref id 恒 Some，923 的 None 臂不可达；递归经 _:bN
+/// 配中（判别探针：list pattern 作唯一语义性质，s1 入产物 = 配中实证）
 test "f3_34 anonymous node in list vs node pattern" {
   let input = "{\"@id\":\"http:s1\",\"http:l\":{\"@list\":[{\"http:q\":\"w\"}]},\"http:r\":\"R34\"}"
   let result = frame_document(
@@ -735,6 +736,72 @@ test "f3_36 node listitem under value pattern item" {
       let text = render_json(jv)
       assert_true(text.contains("R36"))
       assert_true(text.contains("V"))
+    }
+    Err(e) => fail("expected OK, got: " + f3_err_msg(Err(e)))
+  }
+}
+
+///|
+/// F3-37（1485）：@type 成分混形——@default 对象（无条件配 + 注入）
+/// 与 {} 空 pattern（无 @default 键 ⇒ 注入扫描 None 臂）；纯 {} 形
+/// 无型节点被 @type 硬过滤拒（通配须有型，实测）
+test "f3_37 type default object without default key" {
+  let input = "{\"@id\":\"http:s1\",\"http:p\":\"v\"}"
+  let result = frame_document(
+    input,
+    "{\"@type\":[{\"@default\":\"http:T\"},{}],\"http:p\":{}}",
+    f3_options(),
+  )
+  match result {
+    Ok(jv) => {
+      let text = render_json(jv)
+      assert_true(text.contains("http:s1"))
+      assert_true(text.contains("http:T"))
+    }
+    Err(e) => fail("expected OK, got: " + f3_err_msg(Err(e)))
+  }
+}
+
+///|
+/// F3-38（1487）：@type 成分混形（@default 对象 + 串 IRI）——注入扫描
+/// 对非 Node 项走 `_` 臂（串成分不注入）；@default 对象照注 http:T
+test "f3_38 mixed type components skip string item" {
+  let input = "{\"@id\":\"http:s1\",\"http:p\":\"v\"}"
+  let result = frame_document(
+    input,
+    "{\"@type\":[{\"@default\":\"http:T\"},\"http:U\"],\"http:p\":{}}",
+    f3_options(),
+  )
+  match result {
+    Ok(jv) => {
+      let text = render_json(jv)
+      assert_true(text.contains("http:s1"))
+      assert_true(text.contains("http:T"))
+      assert_false(text.contains("http:U"))
+    }
+    Err(e) => fail("expected OK, got: " + f3_err_msg(Err(e)))
+  }
+}
+
+///|
+/// F3-39（1580）：@reverse 反扫的值组 `_` 臂——其他主体在 rev IRI 位
+/// 持**字面量**（数据侧 rev 为普通 term + 串值），非 Node ⇒ 跳过不计
+/// points（字面量不构成反向指）
+test "f3_39 literal under reverse iri not counted" {
+  let input = "{\"@context\":{\"rev\":\"http:rev\"},\"@graph\":[" +
+    "{\"@id\":\"http:s1\",\"http:p\":\"x\"}," +
+    "{\"@id\":\"http:s2\",\"rev\":\"LIT\"}" +
+    "]}"
+  let result = frame_document(
+    input,
+    "{\"@context\":{\"rev\":{\"@reverse\":\"http:rev\"}},\"rev\":{}}",
+    f3_options(),
+  )
+  match result {
+    Ok(jv) => {
+      let text = render_json(jv)
+      assert_true(text.contains("http:s1"))
+      assert_true(text.contains("http:s2"))
     }
     Err(e) => fail("expected OK, got: " + f3_err_msg(Err(e)))
   }

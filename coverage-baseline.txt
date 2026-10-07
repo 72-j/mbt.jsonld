@@ -156,7 +156,23 @@
 #     Node/Value/None 永无 List ⇒ 不可达（F3-26/27/28 实际中 800/823/851 通配
 #     臂，行注已正）；④ **880**（frame_value_kept Some([]) 臂）——唯一调用点走
 #     node.properties item 循环；match-none 节点级预检（489-495）带值节点整颗
-#     出局（t0023）、空值数组不走 item ⇒ 不可达（F3-30 转行为钉）。
+#     出局（t0023）、空值数组不走 item ⇒ 不可达（F3-30 转行为钉）；
+#     ⑤ **923**（list 项 node pattern ref id None 臂）——register 对 List
+#     items 同铸号回写（items[i] = 引用替入）⇒ 配时 ref 恒 Some（判别探针：
+#     list pattern 作唯一语义性质，s1 入产物 = 配中实证；F3-34 转行为钉）。
+#   2026-10-07 役C3批5（@type 注入/反扫族 · 3 探针 F3-37..39；421/421 绿）：**340**
+#     （棘轮内 Δ−3；frame.mbt 段 50→**47**）。关行 3（实证）：1485（F3-37 @type
+#     混形成分的无 @default 空 pattern 注入扫描 None 臂——纯 {} 形无型节点被
+#     @type 硬过滤拒「通配须有型」，混形 @default 对象先行才可达）、1487（F3-38
+#     串成分不注入 `_` 臂）、1580（F3-39 反扫字面量不计 points）。
+#     **死账定谳 6（双证）**：① **1310/1326**（lowering 内层 match `_` 臂）——
+#     外层 walkthrough 已在 Value 臂内调（1287 唯一调用点），item 静态 Value ⇒
+#     内层 `_` 不可达；② **1483**（@type 注入 get(0) None/非 Value）——@type
+#     pattern 的 @default 属性仅由 expand_type_default_object 构造（在场即单例
+#     Value）⇒ 不可达；③ **1563**（rev pattern 非 Node 回落）——帧侧
+#     reverse_props 双构造面 t0028@1711/t0029@1021 恒产 Node 单例/Node 清单 ⇒
+#     不可达；④ **1578**（反扫 ref id None）——register 回写不变式（718 同族）；
+#     ⑤ **1590**（反扫 subject_map.get None）——键源同 map（76 同族）。
 #     **行为钉新增**：F3-26/27/28（通配-{} 成分语义）、F3-29（Node 引用值照收）、
 #     F3-30（match-none 整节点出局）、F3-31（List 形首值收值门）、F3-34/36（匿名/
 #     Node listitem）。新坑：list pattern 交叉**即配即 break**（Node 项须居首才
