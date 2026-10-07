@@ -442,9 +442,7 @@ test "f3_21 id/type list-shaped pattern (514/549 证伪尝试)" {
 /// Value（节点形 / 空组）。实测各形是否被展开期拒
 test "f3_22 flag word non-value pattern (442 证伪尝试)" {
   let forms : Array[String] = [
-    "{\"@embed\":{\"@id\":\"http:e\"}}",
-    "{\"@embed\":[]}",
-    "{\"@explicit\":{\"@id\":\"http:e\"}}",
+    "{\"@embed\":{\"@id\":\"http:e\"}}", "{\"@embed\":[]}", "{\"@explicit\":{\"@id\":\"http:e\"}}",
     "{\"@requireAll\":{\"@id\":\"http:e\"}}",
   ]
   for frame_text in forms {
@@ -457,5 +455,287 @@ test "f3_22 flag word non-value pattern (442 证伪尝试)" {
       Ok(_) => ()
       Err(_) => ()
     }
+  }
+}
+
+///|
+/// F3-23（686）：list pattern vs 非 List 数据项——s2 纯串值在 list
+/// pattern 臂被 `_` 跳过（不配），s1 list-vs-list 通配项配
+test "f3_23 list pattern skips non-list values" {
+  let input = "{\"@graph\":[" +
+    "{\"@id\":\"http:s1\",\"http:l\":{\"@list\":[\"L1\"]}}," +
+    "{\"@id\":\"http:s2\",\"http:l\":\"PLAIN686\"}" +
+    "]}"
+  let result = frame_document(
+    input,
+    "{\"http:l\":[{\"@list\":[{}]}]}",
+    f3_options(),
+  )
+  match result {
+    Ok(jv) => {
+      let text = render_json(jv)
+      assert_true(text.contains("http:s1"))
+      assert_true(text.contains("L1"))
+      assert_false(text.contains("PLAIN686"))
+    }
+    Err(e) => fail("expected OK, got: " + f3_err_msg(Err(e)))
+  }
+}
+
+///|
+/// F3-24（720 中靶；718 证伪定谳）：node pattern 递归位的值组扫描——纯串值
+/// 非 Node → 720 跳；匿名节点**在匹配时已非匿名**：frame_register 对
+/// id-less 值铸号并回写引用（id=Some("_:b0")）⇒ 718 的 ref_node.id None
+/// 臂在 subject map 值位不可达（构造性死账，注册回写不变式），递归经
+/// _:b0 配中 ⇒ s1 合法入产物（正 oracle）
+test "f3_24 node pattern recursion matches via minted bnode" {
+  let input = "{\"@id\":\"http:s1\",\"http:p\":[\"P720\",{\"http:q\":\"w\"}]}"
+  let result = frame_document(
+    input,
+    "{\"http:p\":{\"http:q\":\"w\"}}",
+    f3_options(),
+  )
+  match result {
+    Ok(jv) => {
+      let text = render_json(jv)
+      assert_true(text.contains("http:s1"))
+      assert_true(text.contains("P720"))
+    }
+    Err(e) => fail("expected OK, got: " + f3_err_msg(Err(e)))
+  }
+}
+
+///|
+/// F3-25（788）：@type-only 值 pattern（数组形触发保形预扫）——v 位
+/// @value 缺席 ⇒ None => false，性质不配；@type 是唯一语义性质 ⇒
+/// 整节点出局（s1 不入产物；TVAL 不入）
+test "f3_25 type-only value pattern drops node" {
+  let input = "{\"@id\":\"http:s1\",\"http:p\":{\"@value\":\"TVAL\",\"@type\":\"http:T\"}}"
+  let result = frame_document(
+    input,
+    "{\"http:p\":[{\"@type\":[\"http:T\"]}]}",
+    f3_options(),
+  )
+  match result {
+    Ok(jv) => {
+      let text = render_json(jv)
+      assert_false(text.contains("http:s1"))
+      assert_false(text.contains("TVAL"))
+    }
+    Err(e) => fail("expected OK, got: " + f3_err_msg(Err(e)))
+  }
+}
+
+///|
+/// F3-26（800 中靶；802 死账）：@value 位 {} 通配成分——v 位 wildcard
+/// 臂开（800），纯串值全收（正 oracle：VWILD 进产物）。802 = 成分非
+/// Value/Node 的 `_` 臂——成分构造器（expand_standard 5363 返回面
+/// Node/Value/None）永不产 List 形 ⇒ 构造性死账
+test "f3_26 value wildcard component keeps any value" {
+  let input = "{\"@id\":\"http:s1\",\"http:p\":\"VWILD\"}"
+  let result = frame_document(
+    input,
+    "{\"http:p\":[{\"@value\":[{}]}]}",
+    f3_options(),
+  )
+  match result {
+    Ok(jv) => assert_true(render_json(jv).contains("VWILD"))
+    Err(e) => fail("expected OK, got: " + f3_err_msg(Err(e)))
+  }
+}
+
+///|
+/// F3-27（823 中靶；825 死账）：@type 位 {} 通配成分（@value 同帧
+/// listed 精确配）——t 位 wildcard 臂开（823，经 expand_type_default_object
+/// 空 @default = 空 pattern），带 datatype 值收。825 死账同 802（返回面）
+test "f3_27 type wildcard component keeps typed value" {
+  let input = "{\"@id\":\"http:s1\",\"http:p\":{\"@value\":\"TV27\",\"@type\":\"http:T\"}}"
+  let result = frame_document(
+    input,
+    "{\"http:p\":[{\"@value\":[\"TV27\"],\"@type\":[{}]}]}",
+    f3_options(),
+  )
+  match result {
+    Ok(jv) => assert_true(render_json(jv).contains("TV27"))
+    Err(e) => fail("expected OK, got: " + f3_err_msg(Err(e)))
+  }
+}
+
+///|
+/// F3-28（851 中靶；853 死账）：@language 位 {} 通配成分（@value 同帧
+/// listed）——l 位 wildcard 臂开（851），带语言值收。853 死账同 802
+test "f3_28 language wildcard component keeps lang value" {
+  let input = "{\"@id\":\"http:s1\",\"http:p\":{\"@value\":\"LV28\",\"@language\":\"en\"}}"
+  let result = frame_document(
+    input,
+    "{\"http:p\":[{\"@value\":[\"LV28\"],\"@language\":[{}]}]}",
+    f3_options(),
+  )
+  match result {
+    Ok(jv) => assert_true(render_json(jv).contains("LV28"))
+    Err(e) => fail("expected OK, got: " + f3_err_msg(Err(e)))
+  }
+}
+
+///|
+/// F3-29（874）：值 pattern 性质位的 **Node 引用值**——item 非 Value
+/// ⇒ 照收（词面判定面："通配/node pattern 位值照收"）；兄弟通配性质
+/// 保节点配中（无兄弟时 @value pattern 不配 Node 项、整节点出局）
+test "f3_29 node reference value kept under value pattern" {
+  let input = "{\"@id\":\"http:s1\",\"http:p\":{\"@id\":\"http:z\"},\"http:r\":\"R29\"}"
+  let result = frame_document(
+    input,
+    "{\"http:p\":[{\"@value\":[\"X\"]}],\"http:r\":{}}",
+    f3_options(),
+  )
+  match result {
+    Ok(jv) => {
+      let text = render_json(jv)
+      assert_true(text.contains("R29"))
+      assert_true(text.contains("http:z"))
+    }
+    Err(e) => fail("expected OK, got: " + f3_err_msg(Err(e)))
+  }
+}
+
+///|
+/// F3-30（880 定谳死账 + 预检行为钉）：frame_node_matches 节点级预检
+/// （489-495）对空 pattern 清单性质**带值节点整颗出局**（t0023 oracle）
+/// ⇒ frame_value_kept 的 Some([]) 形不可达：唯一调用点 1287 走
+/// node.properties item 循环——带值节点进不来（预检拒），空值数组不走
+/// item（零循环）。行为钉 = s1 整颗不在产物（实测 @graph 空）
+test "f3_30 match-none prescan drops node entirely" {
+  let input = "{\"@id\":\"http:s1\",\"http:p\":\"EMPTY880\",\"http:r\":\"RVAL\"}"
+  let result = frame_document(
+    input,
+    "{\"http:p\":[],\"http:r\":{}}",
+    f3_options(),
+  )
+  match result {
+    Ok(jv) => {
+      let text = render_json(jv)
+      assert_false(text.contains("http:s1"))
+      assert_false(text.contains("RVAL"))
+      assert_false(text.contains("EMPTY880"))
+    }
+    Err(e) => fail("expected OK, got: " + f3_err_msg(Err(e)))
+  }
+}
+
+///|
+/// F3-31（889）：性质 pattern 首值 = **List 形**（@list pattern 位）——
+/// 值位收值门 Some(_) 臂放行（节点经兄弟通配配中）
+test "f3_31 list-shaped pattern first value kept" {
+  let input = "{\"@id\":\"http:s1\",\"http:p\":\"LVAL889\",\"http:r\":\"R31\"}"
+  let result = frame_document(
+    input,
+    "{\"http:p\":[{\"@list\":{}}],\"http:r\":{}}",
+    f3_options(),
+  )
+  match result {
+    Ok(jv) => {
+      let text = render_json(jv)
+      assert_true(text.contains("R31"))
+      assert_true(text.contains("LVAL889"))
+    }
+    Err(e) => fail("expected OK, got: " + f3_err_msg(Err(e)))
+  }
+}
+
+///|
+/// F3-32（910/912）：list pattern 项 = 值 pattern（@value 数组形）vs
+/// 数据 list 值项——list_item 值 pattern 臂实跑；整表输出不滤（LX/LY
+/// 双在）
+test "f3_32 list pattern with value pattern items" {
+  let input = "{\"@id\":\"http:s1\",\"http:l\":{\"@list\":[\"LX\",\"LY\"]}}"
+  let result = frame_document(
+    input,
+    "{\"http:l\":[{\"@list\":[{\"@value\":[\"LX\"]}]}]}",
+    f3_options(),
+  )
+  match result {
+    Ok(jv) => {
+      let text = render_json(jv)
+      assert_true(text.contains("LX"))
+      assert_true(text.contains("LY"))
+    }
+    Err(e) => fail("expected OK, got: " + f3_err_msg(Err(e)))
+  }
+}
+
+///|
+/// F3-33（916）：list pattern 项 = 通配 {} 节点——wildcard 臂恒真
+test "f3_33 wildcard item in list pattern" {
+  let input = "{\"@id\":\"http:s1\",\"http:l\":{\"@list\":[\"W16\"]}}"
+  let result = frame_document(
+    input,
+    "{\"http:l\":[{\"@list\":[{}]}]}",
+    f3_options(),
+  )
+  match result {
+    Ok(jv) => assert_true(render_json(jv).contains("W16"))
+    Err(e) => fail("expected OK, got: " + f3_err_msg(Err(e)))
+  }
+}
+
+///|
+/// F3-34（923）：list pattern 项 = node pattern，数据项 = 匿名节点——
+/// id None ⇒ false（注册回写保 id 的不变式在 list 数据项同样成立？
+/// 不——list 项不经 register 值位回写，匿形保持）；配中经兄弟通配
+test "f3_34 anonymous node in list vs node pattern" {
+  let input = "{\"@id\":\"http:s1\",\"http:l\":{\"@list\":[{\"http:q\":\"w\"}]},\"http:r\":\"R34\"}"
+  let result = frame_document(
+    input,
+    "{\"http:l\":[{\"@list\":[{\"http:q\":\"w\"}]}],\"http:r\":{}}",
+    f3_options(),
+  )
+  match result {
+    Ok(jv) => {
+      let text = render_json(jv)
+      assert_true(text.contains("R34"))
+      assert_true(text.contains("http:q"))
+    }
+    Err(e) => fail("expected OK, got: " + f3_err_msg(Err(e)))
+  }
+}
+
+///|
+/// F3-35（928）：pattern 本身 = **List 形**（嵌套 @list pattern）——
+/// list_item List 臂恒假；节点经兄弟通配配中，嵌套 list 原样出
+test "f3_35 nested list pattern arm" {
+  let input = "{\"@id\":\"http:s1\",\"http:l\":{\"@list\":[{\"@list\":[\"NX\"]}]},\"http:r\":\"R35\"}"
+  let result = frame_document(
+    input,
+    "{\"http:l\":[{\"@list\":[{\"@list\":[\"NX\"]}]}],\"http:r\":{}}",
+    f3_options(),
+  )
+  match result {
+    Ok(jv) => {
+      let text = render_json(jv)
+      assert_true(text.contains("R35"))
+      assert_true(text.contains("NX"))
+    }
+    Err(e) => fail("expected OK, got: " + f3_err_msg(Err(e)))
+  }
+}
+
+///|
+/// F3-36（913）：list 项 = 值 pattern，数据 listitem **Node 形在首**——
+/// 非 Value ⇒ false（值 pattern 不配节点项；若值项在先即配即 break
+/// 轮不到，故 Node 须居首）；V 值项随后配中
+test "f3_36 node listitem under value pattern item" {
+  let input = "{\"@id\":\"http:s1\",\"http:l\":{\"@list\":[{\"@id\":\"http:n\"},\"V\"]},\"http:r\":\"R36\"}"
+  let result = frame_document(
+    input,
+    "{\"http:l\":[{\"@list\":[{\"@value\":[\"V\"]}]}],\"http:r\":{}}",
+    f3_options(),
+  )
+  match result {
+    Ok(jv) => {
+      let text = render_json(jv)
+      assert_true(text.contains("R36"))
+      assert_true(text.contains("V"))
+    }
+    Err(e) => fail("expected OK, got: " + f3_err_msg(Err(e)))
   }
 }

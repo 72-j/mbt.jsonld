@@ -140,6 +140,28 @@
 #     ③ **442**（frame_flag_word 的 `_ => None`）——前提 = 帧旗位值组首项非 Value
 #     （节点形 / 空组）；@embed 节点 / @embed 空组 / @explicit 节点 / @requireAll 节点
 #     四形探针（F3-22）均未闭合，指向展开期对帧旗位的改道或剔除。
+#   2026-10-07 役C3批4（frame 值 pattern/list-item 族 · 14 探针 F3-23..36；418/418 绿）：**343**
+#     （棘轮内 Δ−8；frame.mbt 段 58→**50**。中段 913 账面波动一次 = 陈旧插桩产物
+#     （坑①同族；同具同段重测定谳，不入账）。关行 8（实证）：686（F3-23 list
+#     pattern vs 非 List 数据项跳过）、720（F3-24 递归位纯串值跳）、788（F3-25
+#     @type-only 值 pattern v 位 None ⇒ 性质不配整节点出局）、910/912（F3-32
+#     list 项值 pattern vs 值 listitem）、916（F3-33 list 项通配 {} 恒真）、928
+#     （F3-35 嵌套 List pattern 恒假臂）、1419（F3-34/35 整表输出非 Value/Node
+#     项 push）。
+#     **死账定谳 6（双证）**：① **718**（递归位 ref id None 跳）——frame_register
+#     对 id-less 值铸号并回写引用（F3-24 正实证：匹配经 _:b0）⇒ subject map
+#     值位引用恒带 id，臂不可达；② **874**（frame_value_kept 非 Value return-true）
+#     ——唯一调用点 1287 在 Value 臂内，恒收 Value ⇒ `_` 不可达；③ **802/825/853**
+#     （v/t/l 位成分 `_` 跳）——成分构造器（expand_standard 5363）返回面
+#     Node/Value/None 永无 List ⇒ 不可达（F3-26/27/28 实际中 800/823/851 通配
+#     臂，行注已正）；④ **880**（frame_value_kept Some([]) 臂）——唯一调用点走
+#     node.properties item 循环；match-none 节点级预检（489-495）带值节点整颗
+#     出局（t0023）、空值数组不走 item ⇒ 不可达（F3-30 转行为钉）。
+#     **行为钉新增**：F3-26/27/28（通配-{} 成分语义）、F3-29（Node 引用值照收）、
+#     F3-30（match-none 整节点出局）、F3-31（List 形首值收值门）、F3-34/36（匿名/
+#     Node listitem）。新坑：list pattern 交叉**即配即 break**（Node 项须居首才
+#     轮得到 913 臂）；值 pattern 成分**非串形**才触发保形预扫（expand_standard
+#     884 门）。
 #
 # 进步留痕纪律（承 moonttl 先例）：补测试把线推上去后**同笔更新本文件**并在 todo.md 记一笔；
 #   要上调（未覆盖行数变多）必须写明理由（例如新增整块被测代码 / 统计口径变化）。
