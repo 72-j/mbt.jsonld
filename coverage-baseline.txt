@@ -85,6 +85,23 @@
 #     短路先手**判据 = base 为**裸 authority**（无路径段）⇒ `boundary` = 最后一个 '/'
 #     之后（即 "//" 的第二斜杠）⇒ "http://" 是任何同 scheme iri 的真前缀且更短 ⇒ 于
 #     compact_iri_word 204-206 行即 return，上跳块（226 起）整体不进。
+#   2026-10-07 役C3批1（frame.mbt 冷行清剿·10 探针；392/392 绿）：**367**
+#     （棘轮内 Δ−18；frame.mbt 段 91→**74**）。关行 17（实证、零新开）：
+#     83/150/153/158/163/166/170/186/217/355（subject map 空图臂 / merged 并集
+#     (Some,Some) 累计体 push / register 裸 bnode 铸号 / graph_map 建字典族）、
+#     1053/1241（frame_invoke 输出槽与多值 push 族）、1747/1752/1760/1783/1851
+#     （frame_document 入口 Err 直穿：expand@1747、merge@1752、frame parse@1760 +
+#     空 pattern 回落：1783 非 map 帧臂 / 1851 展开首值非 Node 臂）。
+#     **fixture 纪律入册（本批主课·勘误）**：前一轮 3 红曾被判「产品疑似丢
+#     嵌套具名图内容」——**误判**。实测 `frame_register` 读到的嵌套 @graph 展开后
+#     `items=0`（图字典 http:x 不建、subject 不到），根因 = **自由浮动弃置**：
+#     `{"@id":…}` 裸形图项在展开期即弃（仓卷批9 坑③「@id-only 图项集合位亦弃」已
+#     载明，REC 同款）。补一条属性后 `items=1`、`graph_map[http:x]` 正常建立、
+#     三 subject 到齐 ⇒ **非产品缺陷，是 fixture 错**。常备判据：**写 frame 探针
+#     时嵌套图/图项必须带属性或类型**（裸 @id 形会被自由浮动规则吃掉）。
+#     留痕纪律：本批以 `println` 打点定位（frame.mbt 三处），定位后**同笔还原**，
+#     产品码零残留（`git diff frame.mbt` 为空）；即写即删探针 `probe_tmp_wbtest.mbt`
+#     亦同笔删除。
 #
 # 进步留痕纪律（承 moonttl 先例）：补测试把线推上去后**同笔更新本文件**并在 todo.md 记一笔；
 #   要上调（未覆盖行数变多）必须写明理由（例如新增整块被测代码 / 统计口径变化）。
