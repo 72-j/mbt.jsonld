@@ -355,3 +355,129 @@ expand 72 / nquads 1 待勘；compact 51 + frame 43 + from_rdf 36 已归类。
 canon_rdfc10 收兵（余 0 待勘）；nquads_parse 收兵（余 0 待勘）。
 余账：to_rdf 15 / expand_standard 72 待勘；compact 51 + frame 43 +
 from_rdf 36 + engine 30 已归类。
+役C3移防⑤二轮（2026-10-08，to_rdf_wbtest.mbt 白盒直调面新立，251→246 Δ−5）：
+- 397 翻案+实测闭：⑤ 原判死账（@json 哨兵 raw None 臂）被探针证伪——值对象
+  @type:"@json" 配普通串值即触（raw None 弃词面，quad=0 行为钉）；原判作废。
+- 413 实测闭+双门定谳：展开门 is_valid_absolute_iri（expand 1433）只拒空白
+  （"|" 存活到 to_rdf）；to_rdf 门 nq_iri_chars_legal（91-132）拒文法外字符
+  ⇒ None 臂弃。空格形展开期即拒——两道门非同 gate 实证。
+- 520/563 实测闭：nq_canonical_number 直调（"1.5e3"→"1500" 整形零添；
+  "1.0e-1"→"1.0E-1" double 形削尾零）。
+- 582 实测闭：nq_valid_langtag 直调（段长>8 与空段两形）。
+- 492/494/542/898/901 死账维持：while i<len 守卫 get_char 恒不越界；
+  505-508 前剥先手；expand 1695 反向键须绝对 IRI、bnode 谓词不可装机
+  （generalized 两档行为钉）。to_rdf 收兵：余 10 行全数死账归类。
+
+役C3移防⑧一轮（2026-10-08，expand_standard 72 行勘定轮，246 持平——24 探针
+全绿零关行；本役产出=构造论证+陷阱勘定）：
+- **根定谳（expand_iri 恒总）**：IriExpander::expand_iri 主链（416-495）零
+  Err 表达式（grep 实证：唯一命中=返回类型签名行）——七段全 Ok 落底 ⇒ 一切
+  expand_iri 调用点 Err 臂构造性死。30 行死账：613 696 915 1292 1319 1385
+  1454 1462 1478 1691 2502 2555 2627 2682 2773 2793 2800 2971 2989 3006
+  3812 4082 4363 4411 4570 5119 5131 5162 5392 5421。
+- 构造面死账 12 行（行级实证）：652（revert_previous None 臂——四调用点
+  1949/2108/2283/2456 全带 previous is Some 守卫）；737（is_value_or_id_shaped
+  非对象臂——三调用点 1950/2110/2283 皆对象形先守）；824（expand_object 非
+  对象门——五调用点全 Object 守卫）；2352/2869（拦截器 Ok(None) 臂——唯一
+  None 源 4877 早退要求无键命中 @list/@set，而调用点 raw 首键门先拦，raw
+  关键字键恒命中）；4968（expand_list_set_object 尾 None——4877 先返后双
+  None 不可达）；5036（list 位同族）；4189/4193（容器存储 `_ => ()`——
+  validate_container_value 4105 先手门）；3760（主循环 @import 空臂——
+  merge_import_entries 3523 前手剥键/先 Err）；5149/5167（index 映射
+  Some/None——候选环：同 map 二次 get）。
+- **探针批 24 件全绿全钉、零冷行移动**（suite 484→507）。三陷阱入册：
+  ①消息等价——同文错误多点共存（"invalid @included value"≥3 处、"invalid
+  typed value" 1468 vs 列位臂、"list of lists" 两拦截器皆有），探针钉对
+  行为不钉对行；②帧预扫路由——帧 pattern 值经 frame_value_pattern_component
+  先手截停，expand_element 帧路（1136）只收特定形；③拦截器 raw 首键门——
+  @list/@set 拦截按 raw 首键判定，非首键 @list 走节点环（2099 活账候选）。
+  死账宣判须行级构造论证，探针绿≠线覆盖。
+- 待勘 30 行（二轮，行级调用图设计）：945 1019 1146 1407 1532 1552 1808
+  1940 1968 2099 2131 2164 2199 2201 2205 2334 2467 2570 2572 2633 2669
+  2828 2854 2882 4328 4329 4918 5002 5078 5082。已探未中者（4329/4918/
+  5002/5078/5082）= 产同文错误行未动，源点待行级定位；1532/1552 先验
+  parse_json 重复键保序否；2828/2854/2882 定义期门已实证（探针钉
+  "invalid scoped context"），validate_scoped:false 嵌套深形候选。
+- suite 507 全绿；覆盖率 246 持平（Δ0）。
+
+余账：to_rdf 10 已归类（收兵）；expand_standard 72 中 42 已归类 + 30 待勘；
+canon 0 / nquads 0 / engine 30 / compact 51 + frame 43 + from_rdf 36 已归类。
+全库待勘余额 = expand_standard 30 行。
+役C3移防⑧二轮（2026-10-08，行级调用图 15 探针批，246→243 Δ−3）：
+- **实测闭 3 行**：1968（@included 递归展开 Err 传播——嵌套值对象非法
+  datatype 探针）、4328（scoped 试处理 Unsupported 透传——base 在位+无
+  loader 形）、4329（试处理 Err 臂——嵌套 scoped {"@vocab":5} 定义期即触，
+  validate_scoped:false 不豁免嵌套词表校验）。
+- **新增死账 5 行（行级实证）**：1940（@included 条目非对象臂——收集臂
+  1827/1835 先手拒非对象，循环内恒对象）；1532/1552（值对象双 @value
+  覆写臂——@json.parse Map 背衬（`for k, v in fields` 双绑定迭代）解析期
+  去重，重复键不可达展开面；实证：dup 探针产出 last-wins 而行冷）；
+  4918（拦截器 1.0 list-of-lists 门——上游 expand_list_item Array 臂 4990
+  先手拒嵌套数组，out 恒无 List）；5082（expand_list_item 标量臂 Err——
+  标量展开唯一 Err 源=expand_iri 臂=恒总，@json raw None 形走 Ok([])）。
+- **探针未中注记**（消息等价第 4/5 形）：4047——protected 自展开失配探针
+  产 "invalid IRI mapping" 但行冷，错误源点=check_term_name_consistency
+  别处调用点（探针钉行为保，4047 留待勘）；2099——@list 键整弃两探针
+  （@graph 项/非首键）皆产 [] 行冷（弃置点在他处）；1808——元素级 @context
+  非法 @vocab 产 "@vocab must be string or null" 行冷（传播点在他处）；
+  2334——graph 容器实测产 @graph 包裹但行冷（真入口非 2336 wrapper）；
+  1019——@reverse pattern 标量被帧文法预扫先手拒（"invalid reverse
+  property value"）；5078——@json coercion 劫持整个值（@list 保形入 raw），
+  标量臂未见普通串。
+- 待勘 22 行：945 1019 1146 1407 1808 2099 2131 2164 2199 2201 2205 2334
+  2467 2570 2572 2633 2669 2828 2854 2882 4047 5078。其中 2828/2854/2882
+  （使用期 scoped Err）adjacency 注记：定义期试处理已实证拦截非法嵌套
+  （4329 闭），使用期触达须 protected 冲突等非确定性形。
+- suite 522 全绿（含 15 新钉）；覆盖率 243（Δ−3）。
+
+余账（终）：to_rdf 10 已归类；expand_standard 69 行冷 = 47 死账已归类 +
+22 待勘；canon 0 / nquads 0 / engine 30 / compact 51 + frame 43 + from_rdf
+36 已归类。全库待勘余额 = expand_standard 22 行。
+
+役C3移防⑧三轮（2026-10-08，22 待勘全判讫 + 新入 2206 即闭，243→237 Δ−6）：
+- **实测闭 7 行**：945（成分带 @type bnode 拒 5384——@value 数组形点燃预扫
+  887，@type 串形成分同带入成分循环）；2164/2199/2201/2205（帧 @list
+  pattern 嵌套数组项——**旧探针翻案：帧无 @context ⇒ "p" 于 1043 门即弃，
+  @list 分支从未触达，行覆盖误判根因**；帧自携 @context 后真跑）；1019
+  （963 pair.1 非对象通配臂——轮内行图勘误：原注 Ok(_) 实为 1015 已覆盖，
+  反向 term 值位标量直达）；2206（expand_array 元素 Err 传播——帧 @list
+  pattern 数组项元素 @id **数组**携 bnode，t0052 拒门在 @id 数组臂
+  1303-1311 内，单串 @id 无门；值 pattern 预扫不嗅 @id 位）。
+- **死账 16 行（六族构造论证 + 实证复合）**：
+  ① 同 map 同键再取（2325 分派前提 container=Some ⇒ 再取恒 Some）：
+    2334（2331 Graph 守卫下 2332）、2467（2465）、2669（2662）。
+  ② 同参先手截返：2854（2825/2851 同 fn 同参，Err 被 2828 先接——2828
+    本身亦死见③）。
+  ③ 定义期 trial 超集：1808/2828/2882——trial（4309-4331）override_
+    protected=true 为超集验证，展开期 apply_property_scoped_context 同
+    内容同 fn 确定性 ⇒ 过 trial 者展开期恒 Ok；两 diverge 候选实证排除
+    （protected 重定义 u2 探针展开期不拒；内容性 vocab 失配 wave-2 4329
+    已闭定义期）；2882 另证 previous 恒 None（`previous: Some` 全仓 grep
+    零命中——type-scoped 应用 749-807 累积进 current 不落 previous）⇒
+    property_value_context 回退门 no-op，③ 臂与 2851 同参同旗。
+  ④ 恒总推论：2570（内层实参恒 String(index_key) ⇒ 标量臂 2912 恒产恰
+    一 literal 或 Err，[] 不可达）；2572（内层 Err 链底 = expand_iri 恒总
+    ⑧一轮根证 + coercion 2958 无 vocab 无 base 原词返回实证 w1——Err 不
+    可达）；4047（30 行族在册）。
+  ⑤ 臂值域/发射点：5078（4992 Array / 5008 Object / 5060 Null 三臂先截，
+    `_` 臂值域仅 Number|Bool|String，标量展开恒一值或 Err）；2131
+    （expand_object 全文件无 Ok(Some(List)) 发射点——18 处 Ok(Some( 逐
+    一核为 Node/Value）。
+  ⑥ 守卫/调用点空集：2099（2070 or-pattern 守卫排除第三形）；2633
+    （expand_container_map 三调用点 2382/2395/2408 只传 Type/Index/Id
+    字面）；1407（1358-1363 pattern_form 仅 Array|Object ⇒ 通配臂空集）；
+    1146（块结构勘误：1134-1162 保形段整体位于 1065 !has_value_key 块内
+    （1163 闭块）⇒ 1136 可达时值域 = {Node→1143 截, Value 须 @value 键
+    被块排除, List 无发射点⑤} ⇒ Ok(_) 臂空集）。
+- **行图勘误三处入册**：1019 位（963 通配 vs 1015 Ok(_)）；1146 块结构
+  （1163 闭 !has_value_key）；@id bnode 拒门位置（数组臂内，单串无门）。
+- **新知**：@index glyph 引擎实收 = 定义期 4398/4400 须 IRI 展开绝对形
+  （"gp" 无 vocab 即拒 "invalid term definition"；绝对 IRI 直形可过，且
+  index_mapping 存原始值 ⇒ 用期 term 名 = glyph 全字）；coercion 2958
+  vocab 位真查表（@vocab 反噬展开期）；expand_iri 无 base 相对词原词返回
+  （恒总推论的 w1 实证）。
+- suite 533 全绿（含 11 新钉：R8c 十钉 + 2206 钉）；覆盖率 237（Δ−6）。
+
+余账（终）：expand_standard 63 行冷 = 死账 63（③⑧三轮 16 行并入在册
+死账族，4047 归 ⑧一轮恒总 30 行族不重复计）；活线待勘余额 = **0**——
+expand 全文件勘定收口。

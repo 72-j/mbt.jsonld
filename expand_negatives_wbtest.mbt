@@ -2593,3 +2593,799 @@ test "C9 incl2: alias value entry invalid" {
     _ => fail("expected InvalidValue(invalid @included value)")
   }
 }
+
+// ===== 役C3 移防⑧（expand_standard 72 勘定轮）：expand_iri 恒总函数定谳
+// 之外的活账族。**根定谳（本轮最重要产出）**：IriExpander::expand_iri 主链
+//（expand_standard.mbt 416-495）零 Err 表达式（keyword/term/bnode/compact/
+// absolute/vocab/base 七段全 Ok 落底）⇒ 一切 expand_iri 调用点的
+// `Err(e) => …` 臂为构造性死（30 行清单入 coverage-baseline 移防⑧）。
+// 本节探针收非 expand_iri 族的活账。=====
+
+///|
+/// 1532：值对象双 @value 键（JSON 重复键保留）第二键 Number 覆写既有字面量
+test "R8 dup value number overwrites" {
+  match
+    expand_document(
+      "{\"@context\":{\"p\":\"http://p/\"},\"p\":{\"@value\":\"a\",\"@value\":5}}",
+      neg_plain_options(),
+    ) {
+    Ok(value) =>
+      assert_eq(render_json(value), "[{\"http://p/\":[{\"@value\":5}]}]")
+    Err(_) => fail("expected OK with overwritten number value")
+  }
+}
+
+///|
+/// 1552：双 @value 第二键 Bool 覆写
+test "R8 dup value bool overwrites" {
+  match
+    expand_document(
+      "{\"@context\":{\"p\":\"http://p/\"},\"p\":{\"@value\":\"a\",\"@value\":true}}",
+      neg_plain_options(),
+    ) {
+    Ok(value) =>
+      assert_eq(render_json(value), "[{\"http://p/\":[{\"@value\":true}]}]")
+    Err(_) => fail("expected OK with overwritten bool value")
+  }
+}
+
+///|
+/// 1940：@included 数组项非对象（数字项——串在收集臂 #tin07 已拒，
+/// 数字穿到条目臂）
+test "R8 included number entry invalid" {
+  match
+    expand_document(
+      "{\"@id\":\"http://x/\",\"@included\":[5]}",
+      neg_plain_options(),
+    ) {
+    Err(InvalidValue(msg)) => assert_eq(msg, "invalid @included value")
+    _ => fail("expected InvalidValue(invalid @included value)")
+  }
+}
+
+///|
+/// 2164+2205：顶层数组文档——expand_element Array 臂 → expand_array 逐项
+test "R8 top level array document" {
+  match expand_document("[\"a\",\"b\"]", neg_plain_options()) {
+    // 顶层值对象即弃（#t0045——engine push_top_value）：标量成员经
+    // expand_value 成字面量后入顶层弃槽 ⇒ []
+    Ok(value) => assert_eq(render_json(value), "[]")
+    Err(_) => fail("expected OK for top-level array")
+  }
+}
+
+///|
+/// 2167：顶层标量文档——expand_element 标量臂 → expand_value
+test "R8 top level scalar document" {
+  match expand_document("42", neg_plain_options()) {
+    Ok(value) => assert_eq(render_json(value), "[]")
+    Err(_) => fail("expected OK for top-level number")
+  }
+}
+
+///|
+/// 3760：context @import 键 = 落码空臂（import 语义不在范围，键静默忽略）
+test "R8 context import key ignored" {
+  match
+    expand_document(
+      "{\"@context\":{\"@import\":\"http://x/c\",\"p\":\"http://p/\"},\"p\":\"v\"}",
+      neg_plain_options(),
+    ) {
+    // @import 主循环前被 merge_import_entries 截停（3523-3531）。实测：
+    // 无 base 时 resolve_context_reference 先手拒（"no base URL to
+    // resolve"）；loader 缺失 Unsupported 形须 base 在位才达（另一探针）
+    Err(InvalidContext(msg)) =>
+      assert_eq(
+        msg, "loading remote context failed: no base URL to resolve http://x/c",
+      )
+    _ => fail("expected InvalidContext(no base URL to resolve)")
+  }
+}
+
+///|
+/// 4189：@container 数组含未知串——已知五串之外 `_ => ()` 忽略
+test "R8 container array unknown member ignored" {
+  match
+    expand_document(
+      "{\"@context\":{\"p\":{\"@id\":\"http://p/\",\"@container\":[\"@set\",\"bogus\"]}},\"p\":[\"v\"]}",
+      neg_plain_options(),
+    ) {
+    // validate_container_value（4105 先手门）拒未知成员——4187-4188 组合
+    // 循环 `_ => ()` 死账（门先行，未知串到不了存储匹配）
+    Err(InvalidContext(msg)) => assert_eq(msg, "invalid container mapping")
+    _ => fail("expected InvalidContext(invalid container mapping)")
+  }
+}
+
+///|
+/// 4193：@container 值非串非数组（数字）——`_ => ()` 忽略
+test "R8 container number value ignored" {
+  match
+    expand_document(
+      "{\"@context\":{\"q\":{\"@id\":\"http://q/\",\"@container\":5}},\"q\":\"v\"}",
+      neg_plain_options(),
+    ) {
+    Err(InvalidContext(msg)) => assert_eq(msg, "invalid container mapping")
+    _ => fail("expected InvalidContext(invalid container mapping)")
+  }
+}
+
+///|
+/// 4918：1.0 list 内嵌 list（#ter32 oracle 形）——嵌套 List 产物检出
+test "R8 10 mode list of lists invalid" {
+  match
+    expand_document(
+      "{\"@context\":{\"p\":\"http://p/\"},\"p\":{\"@list\":[{\"@list\":[\"x\"]}]}}",
+      neg_plain10_options(),
+    ) {
+    Err(InvalidList(msg)) => assert_eq(msg, "list of lists")
+    _ => fail("expected InvalidList(list of lists)")
+  }
+}
+
+///|
+/// 学习件（即写即改——结果从失败输出读取后改钉）
+test "R8 frame nested array pattern" {
+  // 2163-2166/2205 候选路（expand_element Array 臂→expand_array——非帧
+  // 路不可达：expand_array 唯一调用点 2164，expand_element 非帧调用点
+  // 皆对象形守卫）：帧 pattern 嵌套数组经 1136 逐项入
+  match
+    frame_document(
+      "{\"@context\":{\"p\":\"http://p/\"},\"p\":[\"v\"]}",
+      "{\"p\":[[\"x\"]]}",
+      neg_frame_options(),
+    ) {
+    Ok(value) => assert_eq(render_json(value), "{\"http://p/\":\"v\"}")
+    Err(_) => fail("frame nested array pattern: expected OK")
+  }
+}
+
+///|
+test "R8 frame scalar pattern" {
+  // 2167 候选路（expand_element 标量臂——帧 pattern 标量值经 1136 入，
+  // Ok(_) 落空 pattern 臂吞）
+  match
+    frame_document(
+      "{\"@context\":{\"p\":\"http://p/\"},\"p\":[\"v\"]}",
+      "{\"p\":\"x\"}",
+      neg_frame_options(),
+    ) {
+    Ok(value) => assert_eq(render_json(value), "{\"http://p/\":\"v\"}")
+    Err(_) => fail("frame scalar pattern: expected OK")
+  }
+}
+
+///|
+test "R8 frame empty object wildcard" {
+  // 2160 证伪注记：{} 通配在帧面被 frame_value_pattern_component 先手
+  // 截停（空 pattern 标桩），2160 `Ok(None) => Err(Unsupported)` 未触
+  match
+    frame_document(
+      "{\"@context\":{\"p\":\"http://p/\"},\"p\":[\"v\"]}",
+      "{\"p\":{}}",
+      neg_frame_options(),
+    ) {
+    Ok(value) => assert_eq(render_json(value), "{\"http://p/\":\"v\"}")
+    Err(_) => fail("frame empty object wildcard: expected OK")
+  }
+}
+
+///|
+test "R8 scoped invalid local context definition gate" {
+  // 定义期门实证（4310-4331 试处理）：property-scoped 局部 context 非法
+  // ⇒ 定义期即拒 "invalid scoped context"——使用期 scoped Err 臂
+  //（2828/2854/2882 族）只余 validate_scoped:false 放过的嵌套深形
+  match
+    expand_document(
+      "{\"@context\":{\"p\":{\"@id\":\"http://p/\",\"@context\":{\"@vocab\":5}}},\"p\":\"v\"}",
+      neg_plain_options(),
+    ) {
+    Err(InvalidContext(msg)) => assert_eq(msg, "invalid scoped context")
+    _ => fail("expected InvalidContext(invalid scoped context)")
+  }
+}
+
+///|
+test "R8 scoped remote context no loader" {
+  // 实测 = InvalidContext（非 Unsupported 透传臂 4328——resolve/装载在
+  // 试处理内以 InvalidContext 收尾）；4328 透传臂活账另探
+  match
+    expand_document(
+      "{\"@context\":{\"p\":{\"@id\":\"http://p/\",\"@context\":\"http://remote/c\"}},\"p\":\"v\"}",
+      neg_plain_options(),
+    ) {
+    Err(InvalidContext(msg)) => assert_eq(msg, "invalid scoped context")
+    _ => fail("expected InvalidContext(invalid scoped context)")
+  }
+}
+
+///|
+test "R8 protected term name consistency propagates 4047" {
+  // 4047 实证：compact term "p:x"（前缀 p 在册）自展开 http://p/x ≠
+  // 映射 http://x/ ⇒ check_term_name_consistency（#ter43 规则）报
+  // invalid IRI mapping，经 4047 `Err(e) => return Err(e)` 传播臂直穿
+  match
+    expand_document(
+      "{\"@context\":{\"p\":\"http://p/\",\"p:x\":{\"@protected\":true,\"@id\":\"http://x/\"}},\"p:x\":\"v\"}",
+      neg_plain_options(),
+    ) {
+    Err(InvalidIri(msg)) => assert_eq(msg, "invalid IRI mapping")
+    _ => fail("expected InvalidIri(invalid IRI mapping)")
+  }
+}
+
+///|
+test "R8 free floating list top dropped" {
+  // 2129（自由浮动 List 产物丢弃）：顶层裸 @list 对象 → List 产物即弃
+  match expand_document("{\"@list\":[\"a\"]}", neg_plain_options()) {
+    Ok(value) => assert_eq(render_json(value), "[]")
+    Err(_) => fail("expected OK with free-floating list dropped")
+  }
+}
+
+///|
+test "R8 list container null list value" {
+  // 2352 证伪注记：拦截器 Ok(None) 唯一源 = 4877 早退（无键命中
+  // @list/@set）——但 2342 调用点 raw 首键门先拦（raw "@list" 恒命中
+  // 键词识别）⇒ 2352 `Ok(None) => ()` 死账（构造面 + 本探针实证
+  // Some([List([])]) 落 2346 Ok(Some) 臂）
+  match
+    expand_document(
+      "{\"@context\":{\"p\":{\"@id\":\"http://p/\",\"@container\":\"@list\"}},\"p\":{\"@list\":null}}",
+      neg_plain_options(),
+    ) {
+    Ok(value) =>
+      assert_eq(render_json(value), "[{\"http://p/\":[{\"@list\":[]}]}]")
+    Err(_) => fail("expected OK with null list itemized")
+  }
+}
+
+///|
+test "R8 set container null list value" {
+  // 2869 同族死账注记（2860 调用点同 raw 首键门构造）
+  match
+    expand_document(
+      "{\"@context\":{\"p\":{\"@id\":\"http://p/\",\"@container\":\"@set\"}},\"p\":{\"@list\":null}}",
+      neg_plain_options(),
+    ) {
+    Ok(value) =>
+      assert_eq(render_json(value), "[{\"http://p/\":[{\"@list\":[]}]}]")
+    Err(_) => fail("expected OK with null list under set container")
+  }
+}
+
+///|
+test "R8 list item null list nested" {
+  // 5036 证伪注记：list 位拦截器 Ok(None) 同 4877 构造不可达 ⇒
+  // "invalid set or list object" Err 臂死账；实测内层 null 列表
+  // = 嵌套空 @list 保形
+  match
+    expand_document(
+      "{\"@context\":{\"p\":\"http://p/\"},\"p\":{\"@list\":[{\"@list\":null}]}}",
+      neg_plain_options(),
+    ) {
+    Ok(value) =>
+      assert_eq(
+        render_json(value),
+        "[{\"http://p/\":[{\"@list\":[{\"@list\":[]}]}]}]",
+      )
+    Err(_) => fail("expected OK with nested null list")
+  }
+}
+
+///|
+test "R8 empty object in list kept as empty node" {
+  // 5078 证伪注记：{} list 元素产空节点存活（非 vs=[] ⇒ first=None
+  // 未触）——5073-5078 first=None 臂活账另探（候选：null 元素径）
+  match
+    expand_document(
+      "{\"@context\":{\"p\":\"http://p/\"},\"p\":{\"@list\":[{}]}}",
+      neg_plain_options(),
+    ) {
+    Ok(value) =>
+      assert_eq(render_json(value), "[{\"http://p/\":[{\"@list\":[{}]}]}]")
+    Err(_) => fail("expected OK with empty node in list")
+  }
+}
+
+///|
+test "R8 invalid type in list item propagates" {
+  // 5082 Err 传播臂：list 元素值对象非法 datatype → "invalid typed
+  // value" 经 expand_term_values_inner → expand_list_item 直穿
+  match
+    expand_document(
+      "{\"@context\":{\"p\":\"http://p/\"},\"p\":{\"@list\":[{\"@value\":\"x\",\"@type\":\"http://a/ bad\"}]}}",
+      neg_plain_options(),
+    ) {
+    Err(InvalidValue(msg)) => assert_eq(msg, "invalid typed value")
+    _ => fail("expected InvalidValue(invalid typed value)")
+  }
+}
+
+///|
+test "R8 null element in list dropped" {
+  // 5078 实证：null 元素 → expand_term_values_inner(Null) = [] →
+  // first=None → Ok(None) 丢弃 ⇒ {"@list":[]}
+  match
+    expand_document(
+      "{\"@context\":{\"p\":\"http://p/\"},\"p\":{\"@list\":[null]}}",
+      neg_plain_options(),
+    ) {
+    Ok(value) =>
+      assert_eq(render_json(value), "[{\"http://p/\":[{\"@list\":[]}]}]")
+    Err(_) => fail("expected OK with null list element dropped")
+  }
+}
+
+///|
+test "R8 null element in nested array list dropped" {
+  // 5002 实证：Array 臂内 null 元素经 expand_list_item → Ok(None) => ()
+  // 丢弃 ⇒ 嵌套空 @list 保形
+  match
+    expand_document(
+      "{\"@context\":{\"p\":\"http://p/\"},\"p\":{\"@list\":[[null]]}}",
+      neg_plain_options(),
+    ) {
+    Ok(value) =>
+      assert_eq(
+        render_json(value),
+        "[{\"http://p/\":[{\"@list\":[{\"@list\":[]}]}]}]",
+      )
+    Err(_) => fail("expected OK with null element in nested array")
+  }
+}
+
+///|
+test "R8 import with base no loader unsupported" {
+  // base 在位 ⇒ resolve 过、load_context_document 无 loader =
+  // Unsupported（context loader not provided）——3543 装载链深形
+  match
+    expand_document(
+      "{\"@context\":{\"@import\":\"http://x/c\",\"p\":\"http://p/\"},\"p\":\"v\"}",
+      neg_base_options("http://base/"),
+    ) {
+    Err(Unsupported(msg)) => assert_eq(msg, "context loader not provided")
+    _ => fail("expected Unsupported(context loader not provided)")
+  }
+}
+
+// ===== 役C3 移防⑧二轮：行级调用图设计的 30 待勘收编 =====
+
+///|
+test "R8b graph list item dropped" {
+  // 2099 候选（@graph 项 @list 键 → 整体丢弃）——实测 []；2131 Some(List)
+  // 是否触达由覆盖读数定
+  match
+    expand_document("{\"@graph\":[{\"@list\":[\"a\"]}]}", neg_plain_options()) {
+    Ok(value) => assert_eq(render_json(value), "[]")
+    Err(_) => fail("expected OK with graph list item dropped")
+  }
+}
+
+///|
+test "R8b top node nonfirst list key dropped" {
+  // 2099（节点键环 "@list" => 整弃——非首键绕拦截器 raw 首键门）
+  match
+    expand_document(
+      "{\"@id\":\"http://x/\",\"@list\":[\"a\"]}",
+      neg_plain_options(),
+    ) {
+    Ok(value) => assert_eq(render_json(value), "[]")
+    Err(_) => fail("expected OK with nonfirst list key node dropped")
+  }
+}
+
+///|
+test "R8b LEARN nested array bad value object" {
+  // 5002（Array 臂内 Err 传播）：嵌套数组元素值对象非法 datatype
+  match
+    expand_document(
+      "{\"@context\":{\"p\":\"http://p/\"},\"p\":{\"@list\":[[{\"@value\":\"x\",\"@type\":\"http://a/ bad\"}]]}}",
+      neg_plain_options(),
+    ) {
+    Err(InvalidValue(msg)) => assert_eq(msg, "invalid typed value")
+    _ => fail("expected InvalidValue(invalid typed value)")
+  }
+}
+
+///|
+test "R8b LEARN json scalar in list" {
+  // 5078 证伪注记：@json coercion 劫持整个值（@list 保形入 raw）——
+  // 标量臂未见普通串；5078 留待勘。行为钉 = @json raw 保形
+  match
+    expand_document(
+      "{\"@context\":{\"p\":{\"@id\":\"http://p/\",\"@type\":\"@json\"}},\"p\":{\"@list\":[\"plain\"]}}",
+      neg_plain_options(),
+    ) {
+    Ok(value) =>
+      assert_eq(
+        render_json(value),
+        "[{\"http://p/\":[{\"@value\":{\"@list\":[\"plain\"]},\"@type\":\"@json\"}]}]",
+      )
+    Err(_) => fail("expected OK with @json raw preservation")
+  }
+}
+
+///|
+test "R8b LEARN included nested expand error" {
+  // 1968（@included 递归展开 Err 传播臂）
+  match
+    expand_document(
+      "{\"@included\":[{\"http://p/\":{\"@value\":\"x\",\"@type\":\"http://a/ bad\"}}]}",
+      neg_plain_options(),
+    ) {
+    Err(InvalidValue(msg)) => assert_eq(msg, "invalid typed value")
+    _ => fail("expected InvalidValue(invalid typed value)")
+  }
+}
+
+///|
+test "R8b LEARN element context invalid vocab" {
+  // 1808（元素级 @context 处理 Err 臂——传播实测 "@vocab must be string
+  // or null"；行级触达由覆盖读数定）
+  match
+    expand_document(
+      "{\"@context\":{\"@vocab\":5},\"http://p/\":\"v\"}",
+      neg_plain_options(),
+    ) {
+    Err(InvalidContext(msg)) => assert_eq(msg, "@vocab must be string or null")
+    _ => fail("expected InvalidContext(@vocab must be string or null)")
+  }
+}
+
+///|
+test "R8b LEARN frame list pattern nested array" {
+  // 2163-2167/2205 候选：帧 @list pattern 嵌套数组项经 1117 入
+  // expand_element(Array)——行级触达由覆盖读数定
+  match
+    frame_document(
+      "{\"@context\":{\"p\":\"http://p/\"},\"p\":[\"v\"]}",
+      "{\"p\":{\"@list\":[[\"x\"]]}}",
+      neg_frame_options(),
+    ) {
+    Ok(value) => assert_true(render_json(value).contains("http://p/"))
+    Err(_) => fail("expected OK with nested array list pattern")
+  }
+}
+
+///|
+test "R8b LEARN frame value pattern null component" {
+  // 945 候选（帧值 pattern 分量 Ok(None)——null 分量）
+  match
+    frame_document(
+      "{\"@context\":{\"p\":\"http://p/\"},\"p\":[{\"@value\":\"v\"}]}",
+      "{\"p\":{\"@value\":[\"v\",null]}}",
+      neg_frame_options(),
+    ) {
+    Ok(value) => assert_true(render_json(value).contains("http://p/"))
+    Err(_) => fail("expected OK with null value pattern component")
+  }
+}
+
+///|
+test "R8b LEARN frame reverse scalar pattern" {
+  // 1019 证伪注记：@reverse pattern 标量在帧文法预扫即拒（"invalid
+  // reverse property value"——B3-29 同族），1019 未触、留待勘。行为钉
+  match
+    frame_document(
+      "{\"@id\":\"http://a/\",\"http://p/\":{\"@id\":\"http://b/\"}}",
+      "{\"@reverse\":{\"http://p/\":\"scalar\"}}",
+      neg_frame_options(),
+    ) {
+    Err(InvalidValue(msg)) => assert_eq(msg, "invalid reverse property value")
+    _ => fail("expected InvalidValue(invalid reverse property value)")
+  }
+}
+
+///|
+test "R8b LEARN frame type default object" {
+  // 1407 候选（@type pattern 对象形 default → expand_type_default_object）
+  match
+    frame_document(
+      "{\"@id\":\"http://a/\",\"@type\":\"http://t/\"}",
+      "{\"@type\":{\"@default\":\"http://d/\"}}",
+      neg_frame_options(),
+    ) {
+    Ok(value) => assert_true(render_json(value).contains("http://a/"))
+    Err(_) => fail("expected OK with @type default object pattern")
+  }
+}
+
+///|
+test "R8b LEARN scoped remote with base unsupported" {
+  // 4328（scoped 试处理 Unsupported 透传臂）：base 在位 → resolve 过 →
+  // 无 loader = Unsupported 透传
+  match
+    expand_document(
+      "{\"@context\":{\"p\":{\"@id\":\"http://p/\",\"@context\":\"http://remote/c\"}},\"p\":\"v\"}",
+      neg_base_options("http://base/"),
+    ) {
+    Err(Unsupported(msg)) => assert_eq(msg, "context loader not provided")
+    _ => fail("expected Unsupported(context loader not provided)")
+  }
+}
+
+///|
+test "R8b LEARN nested scoped invalid vocab usage time" {
+  // 2828/2854/2882（使用期 scoped Err——validate_scoped:false 嵌套深形）：
+  // p 的局部 context 内 q 带 scoped {"@vocab":5}——定义期试处理不递归校验
+  //（validate_scoped:false），p 使用期展开时才触
+  match
+    expand_document(
+      "{\"@context\":{\"p\":{\"@id\":\"http://p/\",\"@context\":{\"q\":{\"@id\":\"http://q/\",\"@context\":{\"@vocab\":5}}}}},\"p\":\"v\"}",
+      neg_plain_options(),
+    ) {
+    Err(InvalidContext(msg)) => assert_eq(msg, "invalid scoped context")
+    _ => fail("expected InvalidContext(invalid scoped context)")
+  }
+}
+
+///|
+test "R8b LEARN index mapping term" {
+  // 2467 证伪注记：@index:"prop" 映射形下裸串条目值即拒（"invalid value
+  // object"）——2467 未触、留待勘。行为钉
+  match
+    expand_document(
+      "{\"@context\":{\"ix\":{\"@id\":\"http://a/n\",\"@container\":\"@index\",\"@index\":\"prop\"},\"prop\":\"http://a/prop\"},\"ix\":{\"k\":\"v\"}}",
+      neg_plain_options(),
+    ) {
+    Err(InvalidValue(msg)) => assert_eq(msg, "invalid value object")
+    _ => fail("expected InvalidValue(invalid value object)")
+  }
+}
+
+///|
+test "R8b LEARN graph container term" {
+  // 2334 候选（graph 容器 wrapper——graph_secondary 取数臂）
+  match
+    expand_document(
+      "{\"@context\":{\"g\":{\"@id\":\"http://g/\",\"@container\":\"@graph\"}},\"g\":{\"http://x/\":\"y\"}}",
+      neg_plain_options(),
+    ) {
+    Ok(value) =>
+      assert_eq(
+        render_json(value),
+        "[{\"http://g/\":[{\"@graph\":[{\"http://x/\":[{\"@value\":\"y\"}]}]}]}]",
+      )
+    Err(_) => fail("expected OK with graph container wrapping")
+  }
+}
+
+///|
+test "R8b LEARN alias value object as frame pattern" {
+  // 1146 候选（属性 pattern Ok(_) 落空臂——别名 @value 值对象经 1136 入）
+  match
+    frame_document(
+      "{\"@context\":{\"v\":\"@value\",\"p\":\"http://p/\"},\"p\":[{\"v\":\"x\"}]}",
+      "{\"p\":{\"v\":\"x\"}}",
+      neg_frame_options(),
+    ) {
+    Ok(value) => assert_true(render_json(value).contains("http://p/"))
+    Err(_) => fail("expected OK with alias value-object pattern")
+  }
+}
+
+///|
+/// R8c Err 消息提取（f3_err_msg 收 Result——此处持 JsonLdError，包装直通）
+fn r8c_err_msg(e : JsonLdError) -> String {
+  f3_err_msg(Err(e))
+}
+
+// ===== 役C3 移防⑧三轮（R8c 帧形/容器/作用域 13 行活线 + 9 条死账定谳）=====
+// 死账（行级构造论证，coverage-baseline ⑧三轮）：
+//   2099 = 2070 or-pattern 守卫排除（`is ("@set"|"@list")` 后再 match 无第三形）
+//   2131 = expand_object 全文件无 Ok(Some(List)) 发射点（grep 实证 18 处 Ok(Some( 全 Node/Value）
+//   2334 = 2331 守卫（container_kind Some(Graph)）⇒ 2332 同 map 同键再取恒 Some
+//   2467 = 2325 分派前提（container Some）⇒ 2465 同 map 同键再取恒 Some
+//   2633 = expand_container_map 三调用点（2382/2395/2408）只传 Type/Index/Id 字面
+//   2669 = 2325 分派前提 ⇒ 2662 同 map 同键再取恒 Some
+//   2854 = 2825/2851 同参同 fn 先行（Err 已被 2828 截返）
+//   1407 = 1358-1363 pattern_form 仅 Array|Object ⇒ 1407 通配臂空集
+//   4047 = expand_iri 恒总（⑧一轮 30 行族）
+
+///|
+test "R8c frame list pattern with context nested array (2164/2199/2201/2205)" {
+  // 旧探针翻案：帧无 @context ⇒ "p" 于 1043 门即弃，@list 分支从未触达。
+  // 帧 @context 自携 ⇒ 门过 ⇒ 1102 @list 分支真跑：项 ["x"]（数组形）经
+  // 1117 → expand_element Array 臂 2164 → expand_array 体 2199/2201/2205
+  match
+    frame_document(
+      "{\"@context\":{\"p\":\"http://p/\"},\"p\":[\"v\"]}",
+      "{\"@context\":{\"p\":\"http://p/\"},\"p\":{\"@list\":[[\"x\"]]}}",
+      neg_frame_options(),
+    ) {
+    Ok(value) => assert_true(render_json(value).contains("http://p/"))
+    Err(_) =>
+      fail("expected OK with context-carrying nested array list pattern")
+  }
+}
+
+///|
+test "R8c frame scalar value pattern takes normal value path (1146 死账行为钉)" {
+  // 1146 死账定谳（⑧三轮）：1134-1162 保形段整体位于 1065 `!has_value_key`
+  // 块内（1163 闭块）——@value 串形 has_value_key=true ⇒ 1136 不可达；可达
+  // 时 expand_element 值域 = {Node→1143 截, Value 须 @value 键(被排除),
+  // List 无发射点(2131 同证)} ⇒ Ok(_) 臂空集。本钉 = 标量 @value pattern
+  // 实走常规值对象路径（框架照常嵌，非空 pattern 臂）
+  match
+    frame_document(
+      "{\"@context\":{\"p\":\"http://p/\"},\"p\":[\"v\"]}",
+      "{\"@context\":{\"p\":\"http://p/\"},\"p\":{\"@value\":\"v\"}}",
+      neg_frame_options(),
+    ) {
+    Ok(value) => assert_true(render_json(value).contains("http://p/"))
+    Err(_) => fail("expected OK with scalar value pattern")
+  }
+}
+
+///|
+test "R8c frame value pattern @type bnode component rejected (945)" {
+  // 5384 bnode 拒门只经成分带可达：@value 数组形点燃预扫（887 非串值）→
+  // @type 串形成分同带入成分循环 → bnode 标签 → Err → 945 数组循环 Err 臂
+  match
+    frame_document(
+      "{\"@context\":{\"p\":\"http://p/\"},\"p\":[\"v\"]}",
+      "{\"@context\":{\"p\":\"http://p/\"},\"p\":{\"@value\":[\"v\"],\"@type\":\"_:b\"}}",
+      neg_frame_options(),
+    ) {
+    Ok(_) => fail("945: expected bnode @type component rejected")
+    Err(e) =>
+      assert_eq(
+        r8c_err_msg(e),
+        "InvalidValue:invalid frame: @type must not include a blank node identifier",
+      )
+  }
+}
+
+///|
+test "R8c frame reverse pattern non-object value empty pattern (1019)" {
+  // 1019 = 963 `match pair.1` 的非对象通配臂（964 Object 臂内 expand_element
+  // 的 Ok(_) 是 1015，已覆盖——轮-3 行图勘误）。反向 term 值位标量 ⇒ 1019
+  match
+    frame_document(
+      "{\"@context\":{\"r\":{\"@reverse\":\"http://rev/\"}},\"r\":\"x\"}",
+      "{\"@context\":{\"r\":{\"@reverse\":\"http://rev/\"}},\"r\":\"x\"}",
+      neg_frame_options(),
+    ) {
+    Ok(_) => ()
+    Err(_) => fail("1019: expected OK with reverse scalar pattern")
+  }
+}
+
+///|
+test "R8c nest alias invalid scoped vocab (1808 死账行为钉)" {
+  // 1808 死账定谳（⑧三轮）：Err 实出 = 定义期 trial（4309-4331，波-2 已闭
+  // 4328/4330 族）——trial override_protected=true 为超集验证，展开期
+  // apply_property_scoped_context 同内容同 fn 确定性 ⇒ 过 trial 者不可能
+  // 在展开期 Err（protected diverge 候选 u2 实证不 diverge）。本钉 = 该
+  // 拒绝行为经 @nest 别名位的回归牙
+  match
+    expand_document(
+      "{\"@context\":{\"n\":{\"@id\":\"@nest\",\"@context\":{\"@vocab\":5}},\"p\":\"http://p/\"},\"n\":{\"p\":\"v\"}}",
+      neg_plain_options(),
+    ) {
+    Ok(_) => fail("1808: expected invalid scoped vocab on nest rejected")
+    // 词面 = 作用域层包装消息（"invalid scoped context" 多发射点——行级触达
+    // 由覆盖读数定谳，消息钉只保行为回归牙）
+    Err(e) => assert_eq(r8c_err_msg(e), "InvalidContext:invalid scoped context")
+  }
+}
+
+///|
+test "R8c property-scoped invalid vocab at scalar (2828/2854/2882 死账行为钉)" {
+  // 2828/2854/2882 三臂死账定谳（⑧三轮，同族）：定义期 trial 同内容先行
+  //（超集旗）⇒ 展开期 2825/2851 同参 apply 恒 Ok（u1/u2 实证 protected/
+  // vocab 两 diverge 候选均不 diverge；2882 另证 previous 恒 None = 回退门
+  // no-op）⇒ 三 Err 臂不可达。本钉 = trial 拒绝经标量位的回归牙
+  match
+    expand_document(
+      "{\"@context\":{\"p\":{\"@id\":\"http://a/p\",\"@context\":{\"@vocab\":5}}},\"p\":\"v\"}",
+      neg_plain_options(),
+    ) {
+    Ok(_) => fail("2828: expected invalid scoped vocab rejected at prescan")
+    Err(e) => assert_eq(r8c_err_msg(e), "InvalidContext:invalid scoped context")
+  }
+}
+
+///|
+test "R8c type-scoped scoped-prefix survives property_value_context (2882 定谳)" {
+  // 2882 死账定谳（⑧三轮）：`previous: Some` 全仓零命中（grep 实证）——
+  // type-scoped 应用（749-807）累积进 current、从不落 previous ⇒
+  // property_value_context ② 回退门恒 no-op ⇒ ③ 与 2851 apply_property_
+  // scoped_context 同参同旗（同 local_context 同 property_scoped 旗同
+  // context_base_url）——Err 必先被 2828 截返。行为钉 = type-scoped 层
+  // 定义的前缀在 property-scoped context 引用时照常解析（无前缀失联）
+  match
+    expand_document(
+      "{\"@context\":{\"A\":{\"@id\":\"http://a/A\",\"@context\":{\"pfx\":\"http://p/\"}},\"p\":{\"@id\":\"http://a/p\",\"@context\":{\"x\":\"pfx:y\"}}},\"@type\":\"A\",\"p\":{\"x\":\"z\"}}",
+      neg_plain_options(),
+    ) {
+    Ok(value) =>
+      // 实测词面：scoped context 内 term x 的 IRI "pfx:y" 以原词存活
+      //（前缀解析时机注记——行为牙，非规范裁断）
+      assert_true(render_json(value).contains("\"pfx:y\":"))
+    Err(e) =>
+      fail("2882: expected scoped prefix resolvable, got \{r8c_err_msg(e)}")
+  }
+}
+
+///|
+test "R8c index glyph coercion writes node ref (2570/2572 死账行为钉)" {
+  // 2545-2590 Some 臂活性实证：glyph "http://a/gp"（绝对 IRI 直形——4398/
+  // 4400 定义期门）+ term 同名 @type @id ⇒ index_mapping 真落 Some，
+  // 条目键 "k" 经 coercion 写成 {"@id":"k"} 节点引用。
+  // 2570/2572 死账定谳（⑧三轮）：内层实参恒 String(index_key) ⇒ 标量臂
+  //（2912）恒产恰一值或 Err——[] 不可达（2570）；Err 链底 = expand_iri
+  // 恒总（⑧一轮根证）+ w1 实证无 vocab 无 base 时原词返回不 Err（2572）
+  match
+    expand_document(
+      "{\"@context\":{\"ix\":{\"@id\":\"http://a/n\",\"@container\":\"@index\",\"@index\":\"http://a/gp\"},\"http://a/gp\":{\"@id\":\"http://a/gp\",\"@type\":\"@id\"}},\"ix\":{\"k\":{\"@id\":\"http://s/\"}}}",
+      neg_plain_options(),
+    ) {
+    Ok(value) =>
+      assert_true(
+        render_json(value).contains("\"http://a/gp\":[{\"@id\":\"k\"}]"),
+      )
+    Err(e) => fail("2570/2572: unexpected Err \{r8c_err_msg(e)}")
+  }
+}
+
+///|
+test "R8c index glyph null-IRI term rejected at definition (2570 行为钉)" {
+  // glyph 名指向 null-IRI term（"dead": null）：定义期 4398 expand_iri
+  // 即 Err（null-IRI 不出绝对形）→ 4407 invalid term definition。
+  // 2570 死账定谳另证：内层实参恒 String(index_key) ⇒ 标量臂（2912）恒产
+  // 恰一值或 Err——[] 不可达
+  match
+    expand_document(
+      "{\"@context\":{\"ix\":{\"@id\":\"http://a/n\",\"@container\":\"@index\",\"@index\":\"dead\"},\"dead\":null},\"ix\":{\"k\":{\"@id\":\"http://s/\"}}}",
+      neg_plain_options(),
+    ) {
+    Ok(_) => fail("2570: expected null-IRI glyph rejected at definition")
+    Err(e) =>
+      assert_eq(r8c_err_msg(e), "InvalidContext:invalid term definition")
+  }
+}
+
+///|
+test "R8c list position observation round (5078 定谳观测)" {
+  // 5078 死账定谳（⑧三轮）：4992 Array / 5008 Object / 5060 Null 三臂先截，
+  // 5064 `_` 臂值域仅 Number|Bool|String；标量臂（2912 串 / number/bool 不
+  // coercion）恒产恰一 literal 或 Err——vs=[] 不可达 ⇒ 5078 None 臂死。
+  // 本测钉观测行为面：[[]] 嵌套空数组项的实出词面
+  match
+    expand_document(
+      // 勘误注记：前两轮探针 Err InvalidIri 根因 = term "l" 无 @id
+      //（expand_iri 键展开即炸），与 list 位处理无关
+      "{\"@context\":{\"l\":{\"@id\":\"http://a/l\",\"@container\":\"@list\"}},\"l\":[[]]}",
+      neg_plain_options(),
+    ) {
+    Ok(value) =>
+      // [] 项经 4992 Array 臂 → Some(List([])) 存活（非 5078 径——死账定谳
+      // 见测名注记），外层 list 包裹双层
+      assert_true(render_json(value).contains("\"@list\":[{\"@list\":[]}]"))
+    Err(e) => fail("5078: unexpected Err \{r8c_err_msg(e)}")
+  }
+}
+
+///|
+test "R8c frame list pattern array element bnode id propagates (2206)" {
+  // 2206 = expand_array 元素循环 Err 传播臂：帧 @list pattern 项 = 数组、
+  // 元素 = @id 数组携 bnode（t0052 帧文法拒门在 @id **数组臂**内
+  // 1303-1311；单串 @id 无此门——轮-3 行图勘误）→ 1117 → 2164 →
+  // 2202 expand_element Err → 2206 传播。值 pattern 预扫不救 @id 位
+  //（预扫只嗅 @value/@type/@language）
+  match
+    frame_document(
+      "{\"@context\":{\"p\":\"http://p/\"},\"p\":[\"v\"]}",
+      "{\"@context\":{\"p\":\"http://p/\"},\"p\":{\"@list\":[[{\"@id\":[\"_:b\"]}]]}}",
+      neg_frame_options(),
+    ) {
+    Ok(_) => fail("2206: expected bnode @id element rejected")
+    Err(e) =>
+      assert_eq(
+        r8c_err_msg(e),
+        "InvalidValue:invalid frame: @id must not include a blank node identifier",
+      )
+  }
+}
