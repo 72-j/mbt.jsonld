@@ -1,0 +1,7 @@
+// 性能基线 harness（常备；役P1 立法）——见 main.mbt 头注与 perf-baseline.txt
+pkgtype(kind: "executable")
+
+import {
+  "moonbitlang/async",
+  "thy1016/jsonld",
+}

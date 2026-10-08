@@ -517,7 +517,7 @@ expand_standard/to_rdf 手写钩子），**不是模型 vs 引擎**——J2/J3 �
 | compaction | 核心层（Expander 的逆操作） | 暂不做（§1，看擂台） | 立案不排期；套件 compact 246 例规模在册 |
 | N3 互操作（@graph↔Formula） | 规格 + ADR 在册 | 不在本子项目范围 | 两面各自收口后另立 |
 | Datalog / GraphDB Sink | 物化层规格在册 | 不做 | 同上 |
-| 性能底线（1μs/token 等） | 宪法量化条款 | 缓打（todo：先测后优化） | 性能优化立案不排期 |
+| 性能底线（1μs/token 等） | 宪法量化条款 | 役P1 立法开工（2026-10-09，先测后优化） | 性能基线 `perf-baseline.txt` + 常备 harness `cmd/bench`；优化批次须 hotspot 实证先导（§9.6） |
 
 
 ## 8 J3 前置勘定（toRdf 467 例；2026-09-28 勘定，开工前钉）
@@ -3216,3 +3216,25 @@ N-Quads 解析/发射双面 + fromRDF 节点图构建皆在同包）。**开工 
   ＋`flatten_document(String, context? : String, JsonLdOptions)`、
   ＋`render_json(JsonValue) -> String`——**净 −1 条目**（承诺面收缩与
   通用输出入口兼得）。
+
+### 9.6 性能役立法（役P1，2026-10-09；先测后优化）
+- **裁定**：性能优化由「立案不排期」改判 **役P1 开工**（用户拍板「开役，P3
+  首轮勘定先行」）——触发件 = 在册挂账「真 COW/持久化 map 待性能擂台触发」+
+  覆盖率/一致性全战役收官后门全锁（性能改动回归即红的前置成立）。
+- **三件前置钉（本笔同笔落）**：
+  ① **基线立法** `perf-baseline.txt`——口径（native + `@async.now()` 墙钟 +
+  warmup/k=5 中位数）+ 语料形状注记 + 首轮双轮读数 + 判据线 + 勘定发现七条；
+  ② **harness 常备** `cmd/bench`（executable 包；语料进程内确定性生成零仓库
+  膨胀；每场景计时前结构断言前检——计错结果即垃圾读数）；自报行
+  `[bench] scenario=… n=… median=…ms k=5 runs=[…]`（套件自报同族）；
+  ③ **判据线**：默认场景中位数回归 >10% 红；高方差场景（compact_wide /
+  from_rdf_wide）>20%；优化批次动手前必须 hotspot 实证（禁凑数式修法，
+  const §6.5 ⑤；J2 性能役先例同判）。
+- **首轮勘定结论（靶单，详见 perf-baseline.txt 勘定发现）**：compact 头号
+  热点（同语料 expand 的 6–7×，compaction 侧从无勘定史）；fromRdf 高方差 +
+  超线性嫌疑（n=20000 → 25.4s）；解析占比 <0.5% 无辜（J2「主成本 = 结构
+  分配」结论推广到 compact/toRdf 侧）；expand_nest 2000 别名 40ms 线性段
+  （J2 索引化修法无回归）。副产品：@nest 别名序依赖（td 对象形 + 前向引用
+  = 拒）——套件无 oracle，挂账不扩（perf-baseline.txt ⑥）。
+- **边界**：本役只测不优；COW/持久化 map（P1 线）与分配面（P2 线）为后续
+  批次，动手各带勘定探针批。pub 面 .mbti 零变化（perf 属内政）。

@@ -1,0 +1,68 @@
+# 性能基线（JSON-LD 子项目独立基线；役P1 立，2026-10-09）
+#
+# 状态：**首轮勘定读数在册（P3 线——toRdf/canon/compact/fromRdf 未勘面首轮）**。
+#   本基线此刻**只测不优**（spec §7 处置「先测后优化」兑现）：读数 = 优化前快照；
+#   判据线 = 回归门（下方），非棘轮（优化批次落地后另议棘轮方向）。
+#
+# 度量口径（**固定顺序保证可复现**）：
+#   cd jsonld && moon run cmd/bench 2>/dev/null | grep '^\[bench\]'
+#   - 后端：native（moon.mod preferred_target；cmd/main 同交付形）
+#   - 计时：@async.now()（ms 墙钟）；每场景 warmup 1 + k=5 计时取**中位数**
+#   - 语料：进程内确定性生成（cmd/bench/main.mbt gen_* 函数，零仓库膨胀）
+#   - 前检：每场景计时前先跑结构断言（Ok + 规模哨兵）——计错结果即垃圾读数
+#
+# 判据线（红门，const「先立判据线，越过才对外说」兑现）：
+#   - 默认：任一场景中位数回归 > **10%**（超出跨轮噪声带）即红
+#   - 例外带（高方差场景，噪声带实测放宽）：compact_wide > **20%**、
+#     from_rdf_wide > **20%**（轮内方差 ±45% 实测——GC/分配抖动，见勘定发现②）
+#   - 优化批次动手前**必须**先立 hotspot 实证（勘定探针），禁凑数式修法
+#     （const §6.5 ⑤；J2 性能役先例 = 唯一二次方点实测定靶）
+#
+# 语料形状注记（与 cmd/bench/main.mbt gen_* 同源；改形状 = 改口径 = 同笔入沿革）：
+#   parse_wide   n=20000 单节点 N 属性（http://ex/p<i>="v<i>"）纯解析（parse_json）
+#   expand_wide  同上形状，expand_document 全管线
+#   expand_deep  depth=800 链式嵌套（core @json.parse 默认最大嵌深 1024，贴近上限取信号）
+#   expand_nest  m=2000 单节点 M 属性、互异 @nest 别名键前置（合并机制全展开；
+#                别名须先于引用 term 定义——勘定发现⑥）
+#   compact_wide expand_wide 同语料 + 配套 ctx（每属性短 term p<i>→http://ex/p<i>）
+#   flatten_wide expand_wide 同语料，flatten_document（无 context）
+#   to_rdf_wide  expand_wide 同语料 → N quads
+#   from_rdf_wide n=4000 独立三元组 N-Quads（s<i> p<i> v<i>）→ JSON-LD
+#   canon_chain  n=1500 bnode 链（每环 2 quads：值 + 下钻）→ RDFC-1.0 canonicalize
+#
+# 读数（2026-10-09 役P1 首轮；同机双轮——跨轮稳定性自证）：
+#   scenario      n       中位数(r1)   中位数(r2)   跨轮漂移   轮内噪声
+#   parse_wide    20000      9ms         10ms        ~0        ±2%
+#   expand_wide   20000   2690ms       2615ms       −3%        ±3%
+#   expand_deep     800      6ms          6ms         0        ±2%
+#   expand_nest    2000     40ms         39ms       −3%        ±3%
+#   compact_wide  20000  17873ms      15709ms      −12%       ±10%   ← 高方差带
+#   flatten_wide  20000   2638ms       2657ms       +1%        ±1%
+#   to_rdf_wide   20000   2537ms       2658ms       +5%        ±2%（偶发长尾 3.4-3.6s）
+#   from_rdf_wide  4000    914ms        971ms       +6%       ±45%   ← 高方差带
+#   canon_chain    1500     76ms         76ms         0        ±3%
+#
+# 读数沿革：
+#   2026-10-09 役P1 首轮（上表 r1/r2 双轮）——P3 线勘定立法本笔。优化前快照，
+#   无前值可比。
+#
+# 勘定发现（P3 首轮；优化批次的靶单）：
+#   ① **compact = 头号热点**：同语料 compact 15.7–17.9s vs expand 2.6–2.7s
+#      ≈ **6–7×**——compaction 侧从无性能勘定史（J2 只勘了 expand 侧），首轮即
+#      独大。优化批第一靶。
+#   ② **fromRdf 高方差 + 超线性嫌疑**：n=4000 轮内 523–1344ms（±45%）；
+#      n=20000 试测 13.7–37.8s（中位 25.4s）——缩放律存疑（线性 vs 二次），
+#      留探针批专测。方差大 = GC/分配抖动面（与 J2「主成本 = 结构分配」同族信号）。
+#   ③ **解析占比可忽略**：parse 9–10ms vs 管线 2.5–17.9s（<0.5%）——成本全在
+#      算法 IR/展开结构，core 解析器无辜。J2 结论（「剩余主成本 = 展开结构分配」）
+#      在 compact/toRdf 侧同样成立。
+#   ④ **expand_nest 2000 别名 = 40ms 线性段**——J2 索引化修法（merge_property_values
+#      槽位表）在多 nest 键场景保持线性，无回归迹象。
+#   ⑤ canon bnode 链 1500 环 = 76ms——RDFC-1.0 在链形语料上便宜（n-degree 哈希
+#      未爆）；碰撞组语料另立场景待下轮。
+#   ⑥ **语义勘定副产品（@nest 别名序依赖）**：td 对象形 @nest 别名 + 前向引用
+#      （别名定义在引用 term 之后）= 引擎拒（invalid @nest value）；别名前置或
+#      简单形则过。官方套件无此形 oracle（tn 系全为已定义别名）⇒ 按「无 oracle
+#      不扩」挂账不扩，仅记于此。bench 语料已按合规形（别名前置）构造。
+#   ⑦ deep 场景上限 = core @json.parse 默认最大嵌深 1024（J0 勘定的直接后果；
+#      depth>1024 的文档本库解析层即拒——容量边界，非缺陷）。
