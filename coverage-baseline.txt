@@ -309,3 +309,34 @@ compact_standard 覆盖收兵 → 役C3 frame 91。
 与役C2 关系：C2 = compact_standard 役已收兵（余 51 全数死账归类，
 不回头）；C3 = frame.mbt 役已收兵；C3 移防 = 同役扩展文件序，探针
 系列随各文件 wbtest 既有序续号，不另开役。
+役C3移防⑦二轮（2026-10-08，engine 收兵轮）：272→**251**（棘轮 Δ−21，
+479/479 绿）。活账 21 闭：42/1326/1243/1247/1259/1273/1292/1375（入口
+Err 链——parse/flatten_core/context 解包/process 上传四面）/119/370/435/
+525/563/606/608/827（标量弃置·canonical 数组·bool 全序相等·排序跳过·
+重标漏中·hex A-F）/920/1046/1179（载体再现 merge·同谓词双对·注入异值
+追加）/1432/1443/1306（包裹/多节点碰撞·空=context）。探针 e8 系 13 测。
+死账新归类 27（六族）：
+① 单产返回面 4：851/874/885（flatten_walk_value 三臂全 Some，None 臂
+   构造面不可达）、1415（compact_node_jv 单产 Ok(Object)@compact:2127）；
+② 顶层产出恒 Node 4：191（push_top_value other=List 臂——ExpandObject
+   恒 Node|None〔顶层 @list 实证渲染 []〕、ExpandValue 仅标量形）、
+   1418/1434/1445（compact 三臂 `_ => ()`——values ⊆ Node，Value@167
+   即弃、List 不产顶层）；
+③ 成员形不变式 6：937/1147（成员首对恒 ("@id",String)——构造点 1059/
+   1161 全同）、952/962/989/1183（槽值恒 Array/串）、1294（成员恒 @id
+   首对 → 再展开恒 Some(Node)）；
+④ 预注册/账本同源 7：926/1119/1121/1151（members 走查前必注册——""
+   init@1341、g:@1094；1119/1121 同块 1120/1122 报覆盖 = 插桩归属漂移
+   嫌疑，同块不可能部分执行，按块判死）、1105（graph_scope scopes+
+   members 同块双写）、1354（members[""] init 回落臂）、1079（prop_order/
+   prop_map 同源账本恒命中）；
+⑤ 预并单向并集 ⊆ 不变式 4：967/972/975/977（并账对象恒 ⊆ 首见全形
+   ——nq_merge 单向并集；e8 载体两位置再现证伪探针实证不中）；
+⑥ 展开侧弃置 2：1191（reverse 值对象展开即弃——证伪探针）。
+勘定：1046 原始重复键解析层即去重（实证不可达）——可达面 = 同 id 预并
+同谓词双对（nq_merge 248-250 原样并入）；1306 勘误：e7 空文档钉走的是
+无 context 直出臂，with-context 空主体才是本臂；119 勘误：顶层 {} 走
+Some(Node)→185 自由浮动弃置非 None 面，@value:null 数组成员才是 None
+面；1262 复核 e7 已闭（在途条目行号对齐无幻影）。
+**engine 余 30 行全数死账归类，收兵**。余账：canon 3 / to_rdf 15 /
+expand 72 / nquads 1 待勘；compact 51 + frame 43 + from_rdf 36 已归类。
