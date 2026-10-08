@@ -342,3 +342,16 @@ test "f6: compound ref with language prop but no value (659)" {
     Err(_) => fail("659: expected language-only ref to fall through")
   }
 }
+
+///|
+test "f6: list member first pointing at nil (914)" {
+  // first 位直指 nil IRI = 空嵌套列表（914 空物化臂）
+  match
+    from_rdf_document(
+      "<http://s/> <http://p/> _:l .\n_:l <\{f6_ns}first> <\{f6_ns}nil> .\n_:l <\{f6_ns}rest> <\{f6_ns}nil> .",
+      from6_options(),
+    ) {
+    Ok(value) => assert_true(render_json(value).contains("@list"))
+    Err(_) => fail("914: expected nil-first list to convert")
+  }
+}

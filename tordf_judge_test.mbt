@@ -1094,7 +1094,6 @@ test "trdf5: reverse-position ignored-id subject none (912)" {
       let text = render_nq(quads)
       assert_true(!text.contains("<http://a/>"))
     }
-    Err(_) => fail("DBG912 other variant")
-    Err(_) => fail("DBG912 other variant")
+    Err(_) => fail("912: expected relative-id reverse node to be tolerated")
   }
 }
