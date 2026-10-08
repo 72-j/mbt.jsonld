@@ -1100,7 +1100,6 @@ test "C2-B3-19 index 映射空节点属性实证（2340 探路）" {
   match compact_document(doc, ctx, c2_options()) {
     Ok(jv) => {
       let out = render_json(jv)
-      debug("B3-19 OUT: \{out}")
       assert_true(out.find("http://ex/n1") is Some(_))
     }
     Err(_) => fail("unexpected err")
