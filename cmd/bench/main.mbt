@@ -237,7 +237,7 @@ fn scenario_expand_wide() -> Unit {
     Ok(jv) => {
       let out = @jsonld.render_json(jv)
       if out.find("http://ex/p0") is None ||
-        out.find("http://ex/p19999") is None {
+        out.find("http://ex/p\{n - 1}") is None {
         fail("expand_wide", "sentinel props missing (truncated corpus?)")
         return
       }
@@ -314,7 +314,7 @@ fn scenario_compact_wide() -> Unit {
   match @jsonld.compact_document(doc, ctx, bench_options()) {
     Ok(jv) => {
       let out = @jsonld.render_json(jv)
-      if out.find("\"p0\"") is None || out.find("\"p19999\"") is None {
+      if out.find("\"p0\"") is None || out.find("\"p\{n - 1}\"") is None {
         fail("compact_wide", "sentinel terms missing (truncated corpus?)")
         return
       }

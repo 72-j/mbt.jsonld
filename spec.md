@@ -3232,9 +3232,12 @@ N-Quads 解析/发射双面 + fromRDF 节点图构建皆在同包）。**开工 
   const §6.5 ⑤；J2 性能役先例同判）。
 - **首轮勘定结论（靶单，详见 perf-baseline.txt 勘定发现）**：compact 头号
   热点（同语料 expand 的 6–7×，compaction 侧从无勘定史）；fromRdf 高方差 +
-  超线性嫌疑（n=20000 → 25.4s）；解析占比 <0.5% 无辜（J2「主成本 = 结构
-  分配」结论推广到 compact/toRdf 侧）；expand_nest 2000 别名 40ms 线性段
-  （J2 索引化修法无回归）。副产品：@nest 别名序依赖（td 对象形 + 前向引用
-  = 拒）——套件无 oracle，挂账不扩（perf-baseline.txt ⑥）。
+  超线性嫌疑（n=20000 → 25.4s）；解析占比 <0.5% 无辜（实测）。〔批2 勘正〕
+  「J2 结构分配结论推广」系推断已被打点证伪——compact 主成本坐实 =
+  **O(P×T) 候选全量扫描**（compact_term_candidates 逐属性扫 2 万 term，
+  11 调用点 + 前缀扫描同型；P4 分解 82%）；expand 侧另实测二次形状
+  （wide 4.8×/倍增、nest ~3.5×/倍增——核③「无回归」撤回，单点定不了
+  缩放律）。副产品：@nest 别名序依赖（td 对象形 + 前向引用 = 拒）——
+  套件无 oracle，挂账不扩（perf-baseline.txt ⑥）。
 - **边界**：本役只测不优；COW/持久化 map（P1 线）与分配面（P2 线）为后续
   批次，动手各带勘定探针批。pub 面 .mbti 零变化（perf 属内政）。
