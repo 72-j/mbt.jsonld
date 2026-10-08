@@ -340,3 +340,18 @@ Some(Node)→185 自由浮动弃置非 None 面，@value:null 数组成员才是
 面；1262 复核 e7 已闭（在途条目行号对齐无幻影）。
 **engine 余 30 行全数死账归类，收兵**。余账：canon 3 / to_rdf 15 /
 expand 72 / nquads 1 待勘；compact 51 + frame 43 + from_rdf 36 已归类。
+役C3移防①④收尾（2026-10-08，nquads 1 + canon 3 全数死账归类，251 持平
+——零关行零探针，构造面定谳）：
+- nquads 336（Nq2Done => ()）：状态机五处赋值（110/178/263/274/331）全
+  带 break 先于再入——Nq2Done 态永不作为输入态进 match，臂不可达。
+- canon 384（hash_first_degree None 臂）：调用面两处（420 related /
+  585 主环候选）⊆ bnode_to_quads 在册键（映射由全 quads 构建）——在册
+  不变式，None 面不可达。
+- canon 493（hash_n_degree None 臂）：同在册不变式——identifier 主环
+  候选 + 递归 related（537）皆 ⊆ 在册键。
+- canon 567（chosen_issuer None 臂）：首轮不剪枝不变式——首剪块 528
+  短路守 chosen_path != ""，首轮恒入选（552-554 chosen_issuer=Some），
+  561 预算耗尽先于 564 返回——到达 565 时恒 Some。
+canon_rdfc10 收兵（余 0 待勘）；nquads_parse 收兵（余 0 待勘）。
+余账：to_rdf 15 / expand_standard 72 待勘；compact 51 + frame 43 +
+from_rdf 36 + engine 30 已归类。
