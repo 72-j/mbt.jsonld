@@ -3170,9 +3170,28 @@ N-Quads 解析/发射双面 + fromRDF 节点图构建皆在同包）。**开工 
 - 语义边界：render_json = **往返保真 min-JSON**（键序 / 数词形原样）≠
   json_canonical（RDFC-1.0 规范化形）——两函数各有用途，不复不混。
 
-### 9.3 圈外裁定保持（定位拍板的边界）
-- **remote-doc 19 例维持圈外**：load_context 同步注入 = 调用方供 fetch——
-  通用库不做内建网络面；此裁定在库定位下落定为**设计**（非缺口）。
+### 9.3 圈外裁定保持（定位拍板的边界；2026-10-08 圈外复核增补）
+- **remote-doc 18 例圈外**（例数勘误：manifest sequence 实数 = **18**——原记
+  「19 例」系误计 manifest 根对象 @id，python 逐条点验勘正）：load_context
+  同步注入 = 调用方供 fetch——通用库不做内建网络面；此裁定在库定位下落定为
+  **设计**（非缺口）。
+- **圈外复核（2026-10-08）**：
+  - **辛批 tc031/tc034 已入圈**（陈账勘误）：二例实住 expand 套件桶清单
+    （suite_expand_test.mbt，385/385 plain 内含）——迁移机制 = 己批 loader
+    注入 + harness BFS 预载文件查表（loader_from_map，零网络），J0「无内建
+    网络面」裁定不破；#tc031 oracle = 庚批 with_context_base_url（应用期
+    context base URL 覆写）已落码。
+  - **18 例二分定性**：装载语义 5（t0001-0004/t0008——「loader 给什么处理
+    什么 + 失败报 loading document failed」，引擎侧已被 loader 负例链覆盖）+
+    传输语义 13（redirect 301/303/307 ×3、HTTP Link 头 ×5、Content-Type
+    协商/alternate ×5——语义住 **fetcher** 不住引擎）= 真圈外维持；fetcher
+    契约（redirect 后 Content-Type 判定 / Link 头解析 / base=documentUrl）
+    将来供真 fetcher 时按 W3C README 对表，非本库承诺面。
+  - **钩子消费面完备**：load_context_document 共用件单点（REC 4.1.2 步
+    5.2.5/5.4）；消费点 = 文档级串臂（resolve_context_reference 步 5.2.1
+    共用，不回落 active.base）+ @import + scoped context；JsonLdOptions
+    通道全入口携带（expand/compact/flatten/frame/from_rdf）；loader None →
+    Unsupported 红非静默；CLI make_options load_context=None（壳不接网络）。
 - **CLI**（2026-10-06 改判）：役65 原判「不附 CLI」（render_json 晋 pub 是库输出
   面）；发布前用户令改判——随模块附 `cmd/main` 可执行薄壳（八命令 expand /
   compact / flatten / frame / to-rdf / from-rdf / canonicalize / json-canonical；
