@@ -80,6 +80,27 @@ test "e7: suite helper direct calls (370/435/440/484)" {
 }
 
 ///|
+test "jcs_serialize 钉（评审役 R-1）：键码点序 + JCS 直出" {
+  // 键序反例 = json_canonical 的长度序（@id/ex:p/@context）；JCS 码点序 =
+  // @context < @id < ex:p——本钉改线即红
+  let value = match
+    parse_json("{\"ex:p\":1,\"@id\":\"a\",\"@context\":\"b\"}") {
+    Ok(value) => value
+    Err(_) => fail("parse failed")
+  }
+  assert_eq(
+    jcs_serialize(value),
+    "{\"@context\":\"b\",\"@id\":\"a\",\"ex:p\":1}",
+  )
+  // JCS 转义形（§3.2.2.2 短转义）+ 数词形词样保真
+  let value2 = match parse_json("{\"k\":\"a\\nb\",\"m\":0.002}") {
+    Ok(value) => value
+    Err(_) => fail("parse failed")
+  }
+  assert_eq(jcs_serialize(value2), "{\"k\":\"a\\nb\",\"m\":0.002}")
+}
+
+///|
 test "e7: isomorphic bnode graph faces (525/563/606/608)" {
   // 同构文档：@graph 数组序差 + bnode 标签差（双射重贴）
   let ours = match

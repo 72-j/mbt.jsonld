@@ -362,7 +362,10 @@ fn serialize_node(node : ExpandedNode) -> JsonValue {
 }
 
 ///|
-/// 对拍归一：对象键序不敏感（键按字典序重排，递归）；数组保序
+/// 对拍归一：对象键序不敏感（键按字典序重排，递归）；数组保序。
+/// 定位勘正（评审役 R-1，2026-10-09）：本品 = 比对归一器，**非** RFC 8785
+/// JCS（0.1.0 宣称失实，下版 CHANGELOG 改口）；对外 JCS 规范化用
+/// jcs_serialize（to_rdf.mbt，#tjs01~23 oracle）。
 pub fn json_canonical(value : JsonValue) -> JsonValue {
   match value {
     JsonValue::Object(pairs) => {

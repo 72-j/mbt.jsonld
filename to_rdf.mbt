@@ -730,6 +730,15 @@ fn nq_jcs(value : JsonValue) -> String {
 }
 
 ///|
+/// JCS 规范化序列化出口（RFC 8785；评审役 R-1 处置，2026-10-09 晋 pub）：
+/// 键 = Unicode 码点序（nq_key_compare）、字符串转义 §3.2.2.2、数值词形 =
+/// ECMAScript Number::toString——本体 nq_jcs（J3.3，#tjs01~23 oracle 全绿）。
+/// 与 json_canonical（对拍归一器，比对用）分账：对外规范化序列化用本品。
+pub fn jcs_serialize(value : JsonValue) -> String {
+  nq_jcs(value)
+}
+
+///|
 /// 带方向值对象的 compound-literal 面（REC §6.4——spec §8.36）：对象换新
 /// bnode + rdf:value（**恒简单字面量**，语言不进 value——tdi12 oracle）+
 /// rdf:language（小写）/ rdf:direction；无方向或非 compound 模式 ⇒ 常规

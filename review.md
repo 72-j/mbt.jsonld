@@ -130,3 +130,27 @@ fromRdf 54/54、html 50/50、canon 86/86——全 plain、零 deferred；由各 
 
 四面全绿；**红 0**；finding 5 条（1 顺手修已落 + 1 口径注记已落 +
 2 CHANGELOG 漏登记 + 1 下版必记）。无未闭事故，发布门面维持全绿。
+
+## 1.5 发布合规检查（2026-10-09；评审役后独立终检）
+
+八道门：①仓态（两仓净 + HEAD==origin + gitlink 同步）②全门（fmt --check /
+.mbti 零差 / suite + deny-warn）③语料锁版 ④主仓黄金门（skelgen/jsonld_gen
+1/1）⑤版本面（moon.mod 0.1.0 + CLI 冒烟）⑥评审役账在册 ⑦const.md §6 红线册
+⑧八面自报行一字不动——七绿一红，红已处置。
+
+- **红 R-1（已处置，b 路功能补齐）**：`json_canonical` 三处宣称 JCS（RFC 8785）
+  （README / CHANGELOG / CLI help），实现实为对拍归一器（键序 `String::compare`
+  假序、返 JsonValue、无 JCS 数词形/转义语义）；真 JCS 在 to_rdf.mbt J3.3
+  （#tjs01~23 oracle）未暴露 pub。冒烟实证：CLI 出长度序 @id/ex:p/@context，
+  JCS 应为码点序 @context/@id/ex:p。
+  **处置落码**：`jcs_serialize` 晋 pub（to_rdf.mbt，nq_jcs 包装，.mbti +1）+
+  CLI json-canonical 换线接真品（输出码点序实证 ✓）+ `json_canonical` 文档
+  重定位（比对归一器，非 JCS）+ README 四处/quickstart ⑦节同步 + 钉测 +1
+  （键序反例即红；suite 534→**535**）。
+- **finding 6（已修）**：语料锁版出生错配——`rdf-canon/manifest.csv` 自 J7
+  入树未变而 SUMS 记数不符（同笔内 SUMS 先算 manifest 后改），SHA256SUMS
+  同笔修锁（b30d…→7b83…），复验 **3068/3068 OK**。
+- **finding 7（下版更正）**：CHANGELOG「2626 件」= J0 单套件旧口径，现行
+  锁版实为 3068 件（三套件）。
+- 终判：**八道全绿**；R-1 落码后 suite 535 + deny-warn + .mbti +1（预期）
+  + CLI JCS 序实证 ✓——发布门面就绪。

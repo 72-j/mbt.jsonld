@@ -11,8 +11,9 @@ expand / compact / flatten / frame / toRDF / fromRDF 六算法全链，
     flatten 的上下文为可选参数（展平 + 压缩一步到位）。
   - **RDFC-1.0 规范化**：W3C RDF Dataset Canonicalization，SHA-256 / SHA-384
     双哈希档，规范化形与空白节点哈希表一并返回。
-  - **JCS（RFC 8785）**：`json_canonical` 树规范化（键序 + 数词形）+
-    `render_json` 序列化出口（带转义门）。
+  - **JCS（RFC 8785）**：`jcs_serialize` 规范化序列化直出（键码点序 +
+    §3.2.2.2 转义 + ECMAScript 数词形）；`json_canonical` 为对拍归一器
+    （比对用，非 JCS）；`render_json` 序列化出口（带转义门）。
   - **自带 JSON 解析器**：`parse_json` / `JsonValue` AST；产品面仅依赖
     MoonBit 标准库（core）。
   - **强类型错误面**：`JsonLdError` 九变体，`derive(Eq + Debug)`，可 match 分型。
@@ -106,7 +107,7 @@ match @jsonld.rdfc10_canonicalize_with_hash(nq, @jsonld.C14nHashAlgorithm::Sha38
 
 ```moonbit
 match @jsonld.parse_json("{\"b\": 1.0, \"a\": 2}") {
-  Ok(parsed) => println(@jsonld.render_json(@jsonld.json_canonical(parsed)))
+  Ok(parsed) => println(@jsonld.jcs_serialize(parsed))
   Err(err) => println("parse failed: \{err}")
 }
 ```
@@ -134,7 +135,8 @@ let loader = url => fetch_document(url)
 | `from_rdf_document` | N-Quads 文本 → JSON-LD 节点对象 |
 | `html_script_source` | HTML `<script type="application/ld+json">` 抽取 |
 | `rdfc10_canonicalize_with_hash` | RDFC-1.0 规范化（Sha256 / Sha384） |
-| `json_canonical` / `render_json` | JCS 规范化 / JSON 序列化 |
+| `jcs_serialize` | JCS（RFC 8785）规范化序列化直出 |
+| `json_canonical` / `render_json` | 对拍归一（比对用）/ JSON 序列化 |
 | `canonical_for_suite` / `isomorphic_for_suite` | 套件比对辅助（规范化形 / 数据集同构） |
 | `jsonld_iri_routes` / `jsonld_keyword_routes` | IRI / 关键字词表路由自省 |
 

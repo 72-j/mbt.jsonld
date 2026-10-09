@@ -86,9 +86,9 @@ fn six_algorithm_report() -> String {
     Ok((canonical, _hashes)) => canonical
     Err(_) => ""
   }
-  // ⑦ JCS：context 原文规范化（键序）
+  // ⑦ JCS：context 原文规范化（RFC 8785 直出——键码点序 + 转义 + 数词形）
   let jcs = match @jsonld.parse_json(context) {
-    Ok(value) => @jsonld.render_json(@jsonld.json_canonical(value))
+    Ok(value) => @jsonld.jcs_serialize(value)
     Err(_) => ""
   }
   let mut report = ""

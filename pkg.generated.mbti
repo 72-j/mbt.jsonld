@@ -22,6 +22,8 @@ pub fn html_script_source(String, String?, String?, Bool) -> Result[HtmlScriptSo
 
 pub fn isomorphic_for_suite(JsonValue, JsonValue) -> Bool
 
+pub fn jcs_serialize(JsonValue) -> String
+
 pub fn json_canonical(JsonValue) -> JsonValue
 
 pub fn jsonld_iri_routes() -> Array[JsonLdIriRoute]

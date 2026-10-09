@@ -2905,7 +2905,7 @@ c7aada7a3d402db8faf0c29e4570745e2884a85b07c412b11aa39b69f06acb77  .rdf-tests/rdf
 232da9c6c2b9f7e19e5d85cc7cf43760d80b7c4174406ac6404fa2c1b51d531b  .rdf-tests/rdf-canon/LICENSE.md
 fdd7484114402761bd1796e79e9de325e32e529f64b23b5c30a66ab5c8b2ae8a  .rdf-tests/rdf-canon/README.md
 3e63f6eed0afd1467c93faa007d48da780cc69608e6a3bcf4fa2391651656047  .rdf-tests/rdf-canon/index.html
-b30d05787657507bff0af2f705030ba5c55b59af5b6d6b7e9a4712ce8a0aa6d7  .rdf-tests/rdf-canon/manifest.csv
+7b835379c3352e5e4f551fa62ba227230527a219a3912715bb58b77b3035e019  .rdf-tests/rdf-canon/manifest.csv
 e9a2fe7bfc793225b848fce2bfe23dc0a4233a1910535d8ccce69633d41b3c8c  .rdf-tests/rdf-canon/manifest.jsonld
 ea1047080fbb02bb65505bbe908b4e7e19dedcf6ac2382d1dd5c067b6fda0c87  .rdf-tests/rdf-canon/manifest.ttl
 562d094ce2adc077018cf59b65197955c8f337e6d0edd1546f9c53c8c7d7f5c8  .rdf-tests/rdf-canon/mk_manifest.rb
