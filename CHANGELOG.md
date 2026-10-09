@@ -6,6 +6,42 @@
 数字单一来源纪律：套件通过计数一律引用 `suite-review.txt`（八面自报行），
 覆盖率读数一律引用 `coverage-baseline.txt`，本文件只转述、不另立。
 
+## 0.1.1（2026-10-09）
+
+发布合规修正版：JCS 能力兑现宣称（真 RFC 8785 序列化出口晋 pub）+ CLI 换线 +
+语料锁版修锁；评审役四面全绿 + 发布合规八道门收口（详见 `review.md` §1.4/§1.5）。
+
+### 新增 API
+
+- **`jcs_serialize`**：JCS（RFC 8785）规范化序列化直出——键 Unicode 码点序、
+  字符串转义 §3.2.2.2、数值词形 = ECMAScript `Number::toString`
+  （本体经 #tjs01~23 oracle 全绿）。
+
+### 修正
+
+- **CLI `json-canonical` 接真 JCS**：0.1.0 经 `json_canonical`（对拍归一器，
+  键长度序）误称 JCS——现改接 `jcs_serialize`，输出码点序。
+- **`json_canonical` 定位改口**：重定位为对拍归一器（比对用，非 JCS）；
+  README 四处与 quickstart 第 7 节同步。
+- **语料锁版修锁**：`rdf-canon/manifest.csv` 出生错配（自 J7 入树未变而
+  SHA256SUMS 记数不符）——同笔修锁，复验 **3068/3068 OK**。
+
+### 勘误（0.1.0 补遗）
+
+- 0.1.0 CHANGELOG 漏列 `jsonld_keyword_route`（单数，init 既有）。
+- 0.1.0「全量选项面」实列 11/12——`JsonLdOptions.expand_context` 漏列。
+- 0.1.0「语料 SHA256SUMS 锁版 2626 件」系 J0 单套件旧口径，实为 **3068 件**
+  （json-ld-api / json-ld-framing / rdf-canon 三套件）。
+- 0.1.0「JCS（RFC 8785）规范化 JSON」宣称失实，本版兑现（见上）。
+
+### 测试与质量
+
+- 八面套件 **1438 条**（plain 1437 + deferred 1，`suite-review.txt` 单一来源）
+  不变；总测试 **535** 全绿 + deny-warn。
+- 覆盖率棘轮 ≤ **235** 只降不升（役C5 换带，`coverage-baseline.txt`）。
+- 性能役 P1 定稿：十场景回归门 + scoped_heavy COW 回归门
+  （`perf-baseline.txt`，开局 17.9s → 全场景 ≤190ms）。
+
 ## 0.1.0（首发，2026-10-06）
 
 JSON-LD 1.1 通用库首个发布版：expand / compact / flatten / frame / toRDF /
