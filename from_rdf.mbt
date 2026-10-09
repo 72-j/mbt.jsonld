@@ -208,15 +208,6 @@ fn from_rdf_graph_ctx_scoped(
 /// scoped 纯列表判据：入口即查本键 presence 多图出局；rest 递归同规
 
 ///|
-/// (调试细胞；完即删)
-let from_rdf_scoped_log : Array[String] = [""]
-
-///|
-fn from_rdf_scoped_log_append(s : String) -> Unit {
-  from_rdf_scoped_log[0] = from_rdf_scoped_log[0] + s
-}
-
-///|
 fn from_rdf_is_pure_list_scoped(
   graph : FromRdfGraph,
   key : String,
@@ -224,25 +215,14 @@ fn from_rdf_is_pure_list_scoped(
   presence : Map[String, Map[String, Bool]],
   graph_key : String,
 ) -> Bool {
-  from_rdf_scoped_log_append("ENTER(" + key + ") ")
   match presence.get(key) {
-    Some(graphs) =>
-      if graphs.length() > 1 {
-        from_rdf_scoped_log_append("X-multi(" + key + ") ")
-        return false
-      }
+    Some(graphs) => if graphs.length() > 1 { return false }
     None => return false
   }
   if visiting.contains(key) {
-    from_rdf_scoped_log_append("X-visiting(" + key + ") MAP[")
-    for mk in visiting.keys() {
-      from_rdf_scoped_log_append(mk + " ")
-    }
-    from_rdf_scoped_log_append("] ")
     return false
   }
   if !from_rdf_is_pure_list(graph, key, visiting) {
-    from_rdf_scoped_log_append("X-plainfalse(" + key + ") ")
     return false
   }
   // rest 链续查（链上污染传播）
@@ -256,14 +236,10 @@ fn from_rdf_is_pure_list_scoped(
             return false
           }
           visiting[key] = true
-          from_rdf_scoped_log_append("REST(" + key + "->" + next_key + ") ")
           let result = from_rdf_is_pure_list_scoped(
             graph, next_key, visiting, presence, graph_key,
           )
           visiting.remove(key)
-          from_rdf_scoped_log_append(
-            "RESTBACK(" + key + "=" + result.to_string() + ") ",
-          )
           result
         }
         NqIriTerm(iri) => iri == from_rdf_nil_iri
