@@ -47,11 +47,6 @@ fn is_valid_absolute_iri(value : String) -> Bool {
 }
 
 ///|
-/// keyword 形态判定（戊批——REC 3.1："@" 后跟一个或多个纯 ALPHA；REC 关键字
-/// 均为此形态。"@" 空尾 / 含 "." 等非 ALPHA = 非 keyword 形态，可作普通 term
-/// ——#t0119 oracle：@/@foo.bar 可用、@ignoreMe（纯 ALPHA）被忽略）
-
-///|
 /// 真关键字判定（REC 1.7 关键字表——keyword 形态 + 表成员；"@iri" 等
 /// keyword 形态但非表成员者**不是**关键字）
 fn is_keyword(value : String) -> Bool {
@@ -150,12 +145,6 @@ fn split_first_colon(value : String, at : Int) -> (String, String) {
   }
   (pre.to_string(), suf.to_string())
 }
-
-///|
-/// @base 相对值解析（套件 oracle #t0090/#t0091；算法移植子仓 gen_nquads/iri.mbt
-/// fn_remove_dot_segments）：合并 = raw 拼接，点段消除只作用于合并结果——
-/// ".." 弹前段并补根段、"." 丢弃（#t0091 oracle：base1 绝对原样、base2 合并后
-/// /./ 消除）；value 绝对 → 原样（不做点段归一）
 
 ///|
 /// authority 根截取（scheme://authority——绝对路径引用替换 path 时的保留段；
@@ -2213,6 +2202,7 @@ impl Expander for StandardExpander with fn expand_array(
 }
 
 ///|
+/// 内层 term 位展开（容器应用已由外层壳处理——递归调用方一律走此层）
 /// term 位展开（①批语义）：对象 → 值对象/节点；数组 → 逐元素递归累加；
 /// string → 字面量；number → 字面量（raw 保形）；bool/null → 丢弃（属性位）
 impl Expander for StandardExpander with fn expand_term(
@@ -2758,13 +2748,6 @@ fn StandardExpander::expand_map_item_values(
 }
 
 ///|
-/// 内层 term 位展开（容器应用已由外层壳处理——递归调用方一律走此层）
-
-///|
-/// @json 值对象识别（丁批——#tjs15/#tjs16/#tjs22 oracle）：同对象存在 vocab
-/// 展开为 @type 的键、其值（可别名 term，"json" → @json）展开为 @json
-
-///|
 /// 值对象性预扫（#tc020——任一键展开为 @value 即值对象形态，与键文档序
 /// 无关；配套 @type 先至的 coercion 分路）
 fn StandardExpander::has_value_key_shaped(
@@ -2786,6 +2769,8 @@ fn StandardExpander::has_value_key_shaped(
 }
 
 ///|
+/// @json 值对象识别（丁批——#tjs15/#tjs16/#tjs22 oracle）：同对象存在 vocab
+/// 展开为 @type 的键、其值（可别名 term，"json" → @json）展开为 @json
 fn StandardExpander::is_json_value_object(
   self : StandardExpander,
   current : ActiveContext,

@@ -345,11 +345,6 @@ fn c14n_quad_line(quad : NqQuad, label : (String) -> String?) -> String {
 }
 
 ///|
-/// Hash First Degree Quads (section 4.6.3): serialize each quad holding
-/// the identifier with self forced to _:a and every other blank node to
-/// _:z, sort the lines code point order, hash the concatenation.
-
-///|
 /// Digest dispatch (the single point where the hash algorithm option
 /// materializes; every ordering key goes through here).
 fn C14nState::digest_utf8_hex(self : C14nState, input : String) -> String {

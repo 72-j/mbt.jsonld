@@ -899,17 +899,6 @@ fn nq_has_graph(node : ExpandedNode) -> Bool {
 }
 
 ///|
-/// 节点行走 + 作用域成员注册（返回主体词面）：
-/// - **图载体节点（@graph 在场）= 恒顶层 "" 成员**（#t0021 oracle：_:b0/_:b1
-///   恒顶层；其 @graph 内容 = 新具名作用域 "g:词面" 的成员——book 提升入
-///   图内、chapters 内联 _:b1）；自身属性值节点行走于 ""。
-/// - 普通节点 = 当前作用域成员（嵌套节点提升入所在图——#t0021 book；
-///   同作用域同 id 一次——#flatten-0005 oracle：裸引用不实体化）。
-/// - **@reverse 反转注入**（#t0037/#t0045/#t0046 oracle——flatten 为反转形，
-///   与 expand t0042 保形分叉）：reverse 值节点作主体、注入 (pred, 本体引用)
-///   至其成员对列表。
-
-///|
 /// 成员值级并集（役56 tin06——同 id 全形再现并入既有成员：types 未见追加、
 /// 属性同键值级去重续 append（JsonValue 结构等值）、键缺失即新建。**只在
 /// visited 命中且全形时调用**——裸引用/环再入不走此臂）
@@ -1006,6 +995,15 @@ fn flatten_member_merge(
 }
 
 ///|
+/// 节点行走 + 作用域成员注册（返回主体词面）：
+/// - **图载体节点（@graph 在场）= 恒顶层 "" 成员**（#t0021 oracle：_:b0/_:b1
+///   恒顶层；其 @graph 内容 = 新具名作用域 "g:词面" 的成员——book 提升入
+///   图内、chapters 内联 _:b1）；自身属性值节点行走于 ""。
+/// - 普通节点 = 当前作用域成员（嵌套节点提升入所在图——#t0021 book；
+///   同作用域同 id 一次——#flatten-0005 oracle：裸引用不实体化）。
+/// - **@reverse 反转注入**（#t0037/#t0045/#t0046 oracle——flatten 为反转形，
+///   与 expand t0042 保形分叉）：reverse 值节点作主体、注入 (pred, 本体引用)
+///   至其成员对列表。
 fn flatten_walk_node(
   state : FlattenState,
   node : ExpandedNode,
@@ -1202,8 +1200,6 @@ fn flatten_walk_node(
 ///|
 /// flatten 文档入口（J5——spec §8.40）：JSON 文本 → 展开全链 → F2 同 id
 /// 预合并 → 作用域成员注册 → 顶层作用域枚举。负例 = 任一段 Err。
-
-///|
 /// flatten 唯一入口（REC flatten(input, context, options) 同形——context
 /// 可选；役65 库化整形：原 flatten_document/with_context 双入口合一，
 /// 兑现役56「暴露面随 harness 裁量收缩」承诺）。context 缺省 = 展平直出

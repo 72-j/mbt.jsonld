@@ -206,8 +206,6 @@ fn from_rdf_graph_ctx_scoped(
 
 ///|
 /// scoped 纯列表判据：入口即查本键 presence 多图出局；rest 递归同规
-
-///|
 fn from_rdf_is_pure_list_scoped(
   graph : FromRdfGraph,
   key : String,
