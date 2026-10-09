@@ -91,13 +91,29 @@
 #   scoped_heavy  2000     165ms        164ms      **转正基线**（线性锚
 #                                4000 节点 = 307ms ⇒ **1.94×/倍增 = 线性**）
 #
-# **scoped_heavy 验收判据（批7 钉，用户拍板转正）**：
-#   ① 基线 = 中位 **158–165ms** 带（批6 探针 158 / 批7 双轮 165/164）；
-#   ② 缩放 = 线性锚 **1.94×/倍增**（4000 节点 307ms 实测）；回归红线 =
-#      中位超带 >10% 或倍增比 >2.5×（近二次信号）即红；
-#   ③ 角色 = **COW 回归门**：动 context 复制/共享语义（process_context :3564
-#      克隆径 / terms 身份共享 / COW 立项）必先过此门；触发批6 负载线时
-#      以本场景读数为 COW 立批证据源。
+# **scoped_heavy 验收判据（批7 钉，用户拍板转正；三判据批7+细化）**：
+#   ① 基线带判据：「带」= 跨会话中位数集合的 [min, max]——当前 = **[158, 165]ms**
+#      （批6 探针 158 / 批7 双轮 165、164；非单点容差）。读数判红 = 中位 >
+#      band_max × 1.10（现值 >181ms）或倍增 >2.5×；下穿带 = 改善信号（记录
+#      不红）。带随基线走：copy 路径优化批落地 ⇒ 同笔换带（coverage 棘轮
+#      紧阈同纪律），非固定数。
+#   ② 「必先过」判据（触发面枚举）——「context 从哪来 / terms 是否共享 /
+#      派生时谁拷贝」三问任一的代码变更即必跑 scoped_heavy（+ compact_wide
+#      [compact_index 身份共享依赖方] + suite 534）：
+#      a. process_context terms 构造分支（:3564 has_term_entries 克隆 vs 共享）；
+#      b. ActiveContext.terms 类型/表示变更（Map → 持久化/mut 包装）或
+#         compact_by_iri/reverse/prefixes 三字段语义；
+#      c. COW / 持久化 map 立项（批6 负载线动作本身）；
+#      d. compact_apply_type_scoped / apply_property_scoped_context /
+#         property_value_context 的 context 派生路径；
+#      e. merge_property_values / property_index 槽位语义。
+#      落点 = 此类批次 DoD 必含 scoped_heavy 读数（无托管 CI 实证，人工门）。
+#   ③ 「负载线」判据（批6 负载触发线量化）：真实消费方 workload（非合成
+#      基准——外部 issue / 仓内新消费模块）满足「scoped 应用次数 × 触发
+#      克隆的平均 context terms ≥ **10⁶/文档**」（scoped_heavy 合成形 =
+#      2000×200 = 4×10⁵，线取其 2.5×）⇒ COW 立批评估；评估证据 = 该
+#      workload 实测 profile（自含对照法：同 doc 有/无 scoped 测克隆占比）
+#      + scoped_heavy 门读数。前置「先转正」已由批7 兑现。
 #
 # 读数沿革：
 #   2026-10-09 役P1 首轮（上表 r1/r2 双轮）——P3 线勘定立法本笔。优化前快照，
