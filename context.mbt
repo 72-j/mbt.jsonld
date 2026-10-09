@@ -14,6 +14,13 @@ pub(all) struct ActiveContext {
   default_language : String?
   /// 默认文字方向（@context @direction 成员——丙批）：ltr/rtl
   default_direction : String?
+  /// 压缩候选倒排索引（役P1 批3——性能内政；惰性建，见 compact_term_candidates）。
+  /// 语义钉：terms-map 身份至多建一次；context 处理系构造恒 None，唯
+  /// terms 同引用的派生（compact_node_jv value_chain）三字段整组拷贝。
+  /// compact_by_iri = Some 即整组已建（三字段同笔读写）。
+  mut compact_by_iri : Map[String, Array[String]]?
+  mut compact_reverse : Array[(String, String)]?
+  mut compact_prefixes : Array[(String, String)]?
 }
 
 ///|

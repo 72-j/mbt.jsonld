@@ -114,6 +114,9 @@ fn c2_active(
     previous: None,
     default_language,
     default_direction,
+    compact_by_iri: None,
+    compact_reverse: None,
+    compact_prefixes: None,
   }
 }
 
@@ -678,6 +681,9 @@ test "C2-B2-15 直调 allow_base=false 位保绝对（行为钉）" {
     previous: None,
     default_language: None,
     default_direction: None,
+    compact_by_iri: None,
+    compact_reverse: None,
+    compact_prefixes: None,
   }
   let word = compact_iri_word(
     "http://b.example/x/y",
@@ -706,6 +712,9 @@ test "C2-B2-16 直调 base 无 //（行 235/261）" {
     previous: None,
     default_language: None,
     default_direction: None,
+    compact_by_iri: None,
+    compact_reverse: None,
+    compact_prefixes: None,
   }
   let word = compact_iri_word(
     "http://b.example/x/y",

@@ -10,6 +10,79 @@
 /// @language/@graph 容器——#tm001/#tla01 族）、@nest 链式/别名细化。
 
 ///|
+/// 惰性索引取用（役P1 批3——性能内政；每 terms-map 身份至多建一次，钉②）。
+/// 构建谓词与扫描版逐字同源（钉①候选集等价）；末段排序不动（名唯一 ⇒
+/// 排序键全序 ⇒ 集合等价 ⇒ 序列等价）。compact_by_iri = Some 即整组已建。
+fn ensure_compact_index(
+  active : ActiveContext,
+) -> (
+  Map[String, Array[String]],
+  Array[(String, String)],
+  Array[(String, String)],
+) {
+  match active.compact_by_iri {
+    Some(by_iri) =>
+      (
+        by_iri,
+        active.compact_reverse.unwrap_or([]),
+        active.compact_prefixes.unwrap_or([]),
+      )
+    None => {
+      let by_iri : Map[String, Array[String]] = Map([])
+      let by_reverse : Array[(String, String)] = []
+      let prefixes : Array[(String, String)] = []
+      for pair in active.terms {
+        let name = pair.0
+        let td = pair.1
+        match td.reverse {
+          Some(riri) => by_reverse.push((riri, name))
+          None => ()
+        }
+        match td.iri {
+          Some(pfx) => {
+            // 正向精确候选（:33 同源：iri 命中且非反转承载）
+            if td.reverse is None {
+              match by_iri.get(pfx) {
+                Some(names) => names.push(name)
+                None => by_iri[pfx] = [name]
+              }
+            }
+            // 前缀资格**静态半**（compact_iri_word 资格闸同源；动态半 pfx
+            // 长度/has_prefix 留查询侧）
+            if name.contains("/") is false &&
+              name.contains("@") is false &&
+              (
+                td.is_prefix is Some(true) ||
+                (
+                  td.is_prefix is None &&
+                  td.simple_form &&
+                  (match pfx.get_char(pfx.length() - 1) {
+                    Some(':')
+                    | Some('/')
+                    | Some('?')
+                    | Some('#')
+                    | Some('[')
+                    | Some(']')
+                    | Some('@') => true
+                    _ => false
+                  })
+                )
+              ) {
+              prefixes.push((pfx, name))
+            }
+          }
+          None => ()
+        }
+      }
+      active.compact_by_iri = Some(by_iri)
+      active.compact_reverse = Some(by_reverse)
+      active.compact_prefixes = Some(prefixes)
+      (by_iri, by_reverse, prefixes)
+    }
+  }
+}
+
+///|
 /// term 名确定性序（同 IRI 多候选——Map 迭代序不定，选取须可复现）：
 /// 容器缺省优先 → 名短优先 → 字典序。`want_reverse` 分选：正向位匹配 td.iri，
 /// 反转位匹配 td.reverse（@reverse 正向提升——#t0033/#t0050 oracle）
@@ -18,24 +91,24 @@ fn compact_term_candidates(
   want_reverse : Bool,
   active : ActiveContext,
 ) -> Array[String] {
+  let (by_iri, by_reverse, _) = ensure_compact_index(active)
   let names : Array[String] = []
-  for pair in active.terms {
-    let hit = if want_reverse {
-      // 反转位：td.reverse 匹配（@reverse term 的 iri 同载反转 IRI——
-      // 不以 iri 有无分流；#t0033/#t0050 oracle）
-      match pair.1.reverse {
-        Some(riri) => riri == pred
-        None => false
-      }
-    } else {
-      // 正向位：iri 匹配且非 reverse-bearing（反转 term 不作正向键——语义翻转）
-      match pair.1.iri {
-        Some(iri) => iri == pred && pair.1.reverse is None
-        None => false
+  if want_reverse {
+    // 反转位：td.reverse 匹配（@reverse term 的 iri 同载反转 IRI——
+    // 不以 iri 有无分流；#t0033/#t0050 oracle）
+    for entry in by_reverse {
+      if entry.0 == pred {
+        names.push(entry.1)
       }
     }
-    if hit {
-      names.push(pair.0)
+  } else {
+    // 正向位：iri 匹配且非 reverse-bearing（反转 term 不作正向键——语义翻转）
+    match by_iri.get(pred) {
+      Some(hits) =>
+        for name in hits {
+          names.push(name)
+        }
+      None => ()
     }
   }
   names.sort_by(fn(a, b) {
@@ -103,43 +176,17 @@ fn compact_iri_word(
       None => ()
     }
   }
-  // 最长前缀 compact IRI
+  // 最长前缀 compact IRI（役P1 批3：经倒排索引 prefixes 微清单——静态资格半
+  // 预计算于 ensure_compact_index（逐字段同源），查询侧 = 动态半（长度/
+  // has_prefix）+ 最长择优，谓词同源）
+  let (_, _, prefixes) = ensure_compact_index(active)
   let mut best_prefix : String? = None
   let mut best_name : String? = None
-  for pair in active.terms {
-    let name = pair.0
-    match pair.1.iri {
-      Some(pfx) =>
-        if pfx.length() < iri.length() &&
-          iri.has_prefix(pfx) &&
-          name.contains("/") is false &&
-          name.contains("@") is false &&
-          // 前缀资格闸（REC 4.2.2——1.1：@prefix 显式 true，或简单 string 形
-          // 缺省 true；map 形缺省 false——#tp001 oracle）
-          (
-            pair.1.is_prefix is Some(true) ||
-            (
-              pair.1.is_prefix is None &&
-              pair.1.simple_form &&
-              // 映射词尾闸（§8.46 精化——简单形隐式资格受词尾约束；@prefix:true
-              // 显式豁免词尾——#tp003 oracle 落闸 vs #tp005/#tp006 oracle
-              // @prefix:true 过闸：mapping 尾 '-' 照压缩）
-              (match pair.1.iri {
-                Some(pfx_word) =>
-                  match pfx_word.get_char(pfx_word.length() - 1) {
-                    Some(':')
-                    | Some('/')
-                    | Some('?')
-                    | Some('#')
-                    | Some('[')
-                    | Some(']')
-                    | Some('@') => true
-                    _ => false
-                  }
-                None => false
-              })
-            )
-          ) {
+  for entry in prefixes {
+    let name = entry.1
+    match entry.0 {
+      pfx =>
+        if pfx.length() < iri.length() && iri.has_prefix(pfx) {
           match best_prefix {
             Some(bp) =>
               if pfx.length() > bp.length() {
@@ -152,7 +199,6 @@ fn compact_iri_word(
             }
           }
         }
-      None => ()
     }
   }
   match (best_name, best_prefix) {
@@ -1233,6 +1279,9 @@ fn compact_node_jv(
       previous: active.previous,
       default_language: active.default_language,
       default_direction: active.default_direction,
+      compact_by_iri: active.compact_by_iri,
+      compact_reverse: active.compact_reverse,
+      compact_prefixes: active.compact_prefixes,
     }
   } else {
     active

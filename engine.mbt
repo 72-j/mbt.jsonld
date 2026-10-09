@@ -23,6 +23,9 @@ fn initial_context(options : JsonLdOptions) -> ActiveContext {
     previous: None,
     default_language: None,
     default_direction: None,
+    compact_by_iri: None,
+    compact_reverse: None,
+    compact_prefixes: None,
   }
 }
 

@@ -48,6 +48,9 @@ pub(all) struct ActiveContext {
   previous : PreviousContext?
   default_language : String?
   default_direction : String?
+  mut compact_by_iri : Map[String, Array[String]]?
+  mut compact_reverse : Array[(String, String)]?
+  mut compact_prefixes : Array[(String, String)]?
 }
 
 pub(all) enum C14nHashAlgorithm {

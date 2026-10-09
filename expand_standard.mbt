@@ -648,6 +648,9 @@ fn StandardExpander::revert_previous(active : ActiveContext) -> ActiveContext {
         previous: None,
         default_language: None,
         default_direction: None,
+        compact_by_iri: None,
+        compact_reverse: None,
+        compact_prefixes: None,
       }
     None => active
   }
@@ -2514,6 +2517,9 @@ fn StandardExpander::expand_container_map(
       previous: None,
       default_language: None,
       default_direction: None,
+      compact_by_iri: None,
+      compact_reverse: None,
+      compact_prefixes: None,
     }
     for item in items {
       let item_values = match
@@ -3456,6 +3462,9 @@ impl ContextProcessor for StandardExpander with fn process_context(
         previous: previous_after(active, flags.propagate),
         default_language: None,
         default_direction: None,
+        compact_by_iri: None,
+        compact_reverse: None,
+        compact_prefixes: None,
       })
     }
     JsonValue::String(context_ref) => {
@@ -3805,6 +3814,9 @@ impl ContextProcessor for StandardExpander with fn process_context(
                   previous: None,
                   default_language: None,
                   default_direction: None,
+                  compact_by_iri: None,
+                  compact_reverse: None,
+                  compact_prefixes: None,
                 }
                 let expanded = match
                   IriExpander::expand_iri(_self, building, iri, false, true) {
@@ -3934,6 +3946,9 @@ impl ContextProcessor for StandardExpander with fn process_context(
         previous: previous_after(active, propagate),
         default_language,
         default_direction,
+        compact_by_iri: None,
+        compact_reverse: None,
+        compact_prefixes: None,
       })
     }
     _ =>
@@ -4014,6 +4029,9 @@ fn StandardExpander::process_expanded_term_definition(
               previous: None,
               default_language: None,
               default_direction: None,
+              compact_by_iri: None,
+              compact_reverse: None,
+              compact_prefixes: None,
             }
             match IriExpander::expand_iri(_self, building, iri, false, true) {
               Ok(k) => {
@@ -4076,6 +4094,9 @@ fn StandardExpander::process_expanded_term_definition(
                   previous: None,
                   default_language: None,
                   default_direction: None,
+                  compact_by_iri: None,
+                  compact_reverse: None,
+                  compact_prefixes: None,
                 }
                 match IriExpander::expand_iri(_self, building, t, false, true) {
                   Ok(k) => k
@@ -4305,6 +4326,9 @@ fn StandardExpander::process_expanded_term_definition(
           previous: None,
           default_language: None,
           default_direction: None,
+          compact_by_iri: None,
+          compact_reverse: None,
+          compact_prefixes: None,
         }
         match
           ContextProcessor::process_context(
@@ -4344,6 +4368,9 @@ fn StandardExpander::process_expanded_term_definition(
               previous: None,
               default_language: None,
               default_direction: None,
+              compact_by_iri: None,
+              compact_reverse: None,
+              compact_prefixes: None,
             }
             match IriExpander::expand_iri(_self, building, rev, false, true) {
               Ok(k) =>
@@ -4393,6 +4420,9 @@ fn StandardExpander::process_expanded_term_definition(
               previous: None,
               default_language: None,
               default_direction: None,
+              compact_by_iri: None,
+              compact_reverse: None,
+              compact_prefixes: None,
             }
             match
               IriExpander::expand_iri(_self, building, index_name, false, true) {
@@ -4552,6 +4582,9 @@ fn StandardExpander::process_expanded_term_definition(
               previous: None,
               default_language: None,
               default_direction: None,
+              compact_by_iri: None,
+              compact_reverse: None,
+              compact_prefixes: None,
             }
             match
               IriExpander::expand_iri(_self, building, term_name, false, true) {

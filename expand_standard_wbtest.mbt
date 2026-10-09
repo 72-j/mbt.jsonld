@@ -11,6 +11,9 @@ test "expand_iri absolute passthrough (#t0001 对拍)" {
     previous: None,
     default_language: None,
     default_direction: None,
+    compact_by_iri: None,
+    compact_reverse: None,
+    compact_prefixes: None,
   }
   assert_true(
     IriExpander::expand_iri(
@@ -31,6 +34,9 @@ test "expand_iri bnode passthrough (#t0001 对拍)" {
     previous: None,
     default_language: None,
     default_direction: None,
+    compact_by_iri: None,
+    compact_reverse: None,
+    compact_prefixes: None,
   }
   assert_true(
     IriExpander::expand_iri(e, active, "_:b0", true, false) is Ok("_:b0"),
@@ -96,6 +102,9 @@ test "contract smoke: pending hooks refuse politely (red-not-wrong)" {
     previous: None,
     default_language: None,
     default_direction: None,
+    compact_by_iri: None,
+    compact_reverse: None,
+    compact_prefixes: None,
   }
   let options = JsonLdOptions::{
     load_context: None,
@@ -290,6 +299,9 @@ test "term/IRI chain with constructed context (②批对拍)" {
     previous: None,
     default_language: None,
     default_direction: None,
+    compact_by_iri: None,
+    compact_reverse: None,
+    compact_prefixes: None,
   }
   // term 精确查表（lookup_term 真行为）
   assert_true(
@@ -336,6 +348,9 @@ test "base-relative resolution (②批对拍)" {
     previous: None,
     default_language: None,
     default_direction: None,
+    compact_by_iri: None,
+    compact_reverse: None,
+    compact_prefixes: None,
   }
   assert_true(
     IriExpander::resolve_base(e, based, "zzz") is Ok("http://example.org/zzz"),
@@ -381,6 +396,9 @@ test "property key routing via chain (②批)" {
     previous: None,
     default_language: None,
     default_direction: None,
+    compact_by_iri: None,
+    compact_reverse: None,
+    compact_prefixes: None,
   }
   let options = JsonLdOptions::{
     load_context: None,
@@ -421,6 +439,9 @@ test "concat_vocab stays unsupported until @context batch" {
     previous: None,
     default_language: None,
     default_direction: None,
+    compact_by_iri: None,
+    compact_reverse: None,
+    compact_prefixes: None,
   }
   // concat_vocab 已落码（③批）：@vocab 未声明 = Err 非静默拼接——烟雾活账翻转
   assert_true(
@@ -589,6 +610,9 @@ test "debug ter48: vocab=false excludes term lookup" {
     previous: None,
     default_language: None,
     default_direction: None,
+    compact_by_iri: None,
+    compact_reverse: None,
+    compact_prefixes: None,
   }
   assert_true(
     IriExpander::expand_iri(e, active, "term", true, false) is Ok("term"),
@@ -606,6 +630,9 @@ test "@version declaration (③批对拍)" {
     previous: None,
     default_language: None,
     default_direction: None,
+    compact_by_iri: None,
+    compact_reverse: None,
+    compact_prefixes: None,
   }
   let options = JsonLdOptions::{
     load_context: None,
@@ -644,6 +671,9 @@ test "invalid @version rejected (③批对拍)" {
     previous: None,
     default_language: None,
     default_direction: None,
+    compact_by_iri: None,
+    compact_reverse: None,
+    compact_prefixes: None,
   }
   let options = JsonLdOptions::{
     load_context: None,
@@ -713,6 +743,9 @@ test "term value expands against in-progress vocab (t0072 对拍)" {
     previous: None,
     default_language: None,
     default_direction: None,
+    compact_by_iri: None,
+    compact_reverse: None,
+    compact_prefixes: None,
   }
   let options = JsonLdOptions::{
     load_context: None,
@@ -993,6 +1026,9 @@ test "@propagate must be boolean and 1.1-only (#tc029/#tc030 对拍)" {
     previous: None,
     default_language: None,
     default_direction: None,
+    compact_by_iri: None,
+    compact_reverse: None,
+    compact_prefixes: None,
   }
   let options_11 = JsonLdOptions::{
     load_context: None,
@@ -1659,6 +1695,9 @@ fn wb_active_null_td(vocab : String?) -> ActiveContext {
     previous: None,
     default_language: None,
     default_direction: None,
+    compact_by_iri: None,
+    compact_reverse: None,
+    compact_prefixes: None,
   }
 }
 
