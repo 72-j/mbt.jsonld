@@ -16,6 +16,7 @@ fn main {
 ///|
 fn bench_all() -> Unit {
   scenario_parse_wide()
+  scenario_scoped_heavy()
   scenario_expand_wide()
   scenario_expand_deep()
   scenario_expand_nest()
@@ -425,4 +426,64 @@ fn scenario_canon_chain() -> Unit {
     )
   })
   report("canon_chain", n, median, runs)
+}
+
+///|
+/// scoped_heavy（役P1 批7 转正——**COW 回归门**；批6 双判据的负载线钉）：
+/// J2 同形 = N 节点 × term-ful property-scoped 应用（父 context 200 terms；
+/// 每节点 sc 触发 process_context :3564 克隆径）。守什么：context 克隆路径
+/// 的份额与线性（批6 实测 158ms/2000×200 = 0.38µs/term，O(N×T)）——谁动
+/// context 复制/共享语义（含 COW），此场景先红。
+fn scenario_scoped_heavy() -> Unit {
+  let n_nodes = 2000
+  let n_terms = 200
+  let sb = StringBuilder()
+  sb.write_string("{\"@context\":{")
+  for i in 0..<n_terms {
+    if i > 0 {
+      sb.write_string(",")
+    }
+    sb.write_string("\"t")
+    sb.write_string(i.to_string())
+    sb.write_string("\":\"http://ex/t")
+    sb.write_string(i.to_string())
+    sb.write_string("\"")
+  }
+  // sc：td 带 @context（property-scoped；含 term 条目 ⇒ 克隆径）
+  sb.write_string(
+    ",\"sc\":{\"@id\":\"http://ex/sc\",\"@context\":{\"extra\":\"http://ex/extra\"}}",
+  )
+  sb.write_string("},\"@graph\":[")
+  for i in 0..<n_nodes {
+    if i > 0 {
+      sb.write_string(",")
+    }
+    sb.write_string("{\"@id\":\"http://ex/n")
+    sb.write_string(i.to_string())
+    sb.write_string("\",\"sc\":{\"extra\":\"v\"}}")
+  }
+  sb.write_string("]}")
+  let doc = sb.to_string()
+  match @jsonld.expand_document(doc, bench_options()) {
+    Ok(jv) => {
+      let out = @jsonld.render_json(jv)
+      // 哨兵：scoped context 已应用（extra 展开在场）+ 全节点数保真
+      if out.find("http://ex/extra") is None {
+        fail("scoped_heavy", "scoped ctx not applied (clone path idle?)")
+        return
+      }
+      if out.find("http://ex/n1999") is None {
+        fail("scoped_heavy", "sentinel node missing (truncated corpus?)")
+        return
+      }
+    }
+    Err(_) => {
+      fail("scoped_heavy", "expand err (复现：moon run cmd/main 同输入)")
+      return
+    }
+  }
+  let (median, runs) = time_median(5, fn() {
+    let _ = @jsonld.expand_document(doc, bench_options())
+  })
+  report("scoped_heavy", n_nodes, median, runs)
 }
