@@ -829,6 +829,11 @@ fn StandardExpander::expand_object(
   let mut node_id : String? = None
   let types : Array[String] = []
   let properties : Array[(String, Array[ExpandedValue])] = []
+  // 属性槽位索引（役P1 批4——⑧平铺属性合并索引化）：同 IRI 属性合并
+  // （壬子批 #t0034/#t0114 oracle）原为逐键线性扫全量 properties ⇒ O(P²)。
+  // 与 J2 nest 合并索引（函数尾 property_index）同纪律：整段建一次、由
+  // merge_property_values 维护、顺序语义不变（先见者占位、逐值追加尾部）。
+  let property_index : Map[String, Int] = Map([])
   let reverse_props : Array[(String, Array[ExpandedValue])] = []
   let mut node_graph : Array[ExpandedValue]? = None
   // 节点/值对象位 @index（@index mapping 批——#t0036 oracle；值对象位在收尾挂字面量）
@@ -1253,19 +1258,14 @@ fn StandardExpander::expand_object(
       // "set1": [] 空数组——键合法性门不受影响）；同 IRI 属性合并（壬子批——
       // #t0034/#t0114 oracle：多键同展一 IRI → 单键累加，按输入文档顺序）
       if is_valid_absolute_iri(expanded_key) || is_bnode_label(expanded_key) {
-        let mut merged = false
-        for i in 0..<properties.length() {
-          if properties[i].0 == expanded_key {
-            for v in values {
-              properties[i].1.push(v)
-            }
-            merged = true
-            break
-          }
-        }
-        if !merged {
-          properties.push((expanded_key, values))
-        }
+        // 同 IRI 属性合并（壬子批 #t0034/#t0114 oracle：多键同展一 IRI →
+        // 单键累加，按输入文档顺序）——役P1 批4 索引化（原逐键线性扫 ⇒
+        // O(P²)；槽位语义与 merge_property_values 全同）
+        merge_property_values(
+          properties,
+          property_index,
+          (expanded_key, values),
+        )
       }
       continue
     }

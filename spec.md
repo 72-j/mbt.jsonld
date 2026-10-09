@@ -3243,6 +3243,8 @@ N-Quads 解析/发射双面 + fromRDF 节点图构建皆在同包）。**开工 
   ⑩倒排索引（ActiveContext +3 mut 字段惰性建，预期可见变化；谓词同源 +
   末段排序保语义 + 30 构造点编译器驱动）：compact_wide 15.7–26.1s →
   3.05–3.17s（**5–8×**，验收线 ≤5s 兑现），suite 534 全绿，compact_wide
-  噪声 ±10%→±2%。余靶单：⑧⑨ expand 侧二次点（现为 compact/flatten/toRdf
-  共享下限，码级未下探——与批2 compact 码级坐实分层不同）+ fromRdf 缩放律
-  （排后）+ COW（P1 线）。
+  噪声 ±10%→±2%。**批4（同日继续令）⑧⑨ 已修**——根因同一码点
+  （expand_object 平铺属性合并逐键线性扫，J2 nest 索引化的漏网姊妹点）：
+  expand_wide 33–40×、compact/flatten/toRdf 三面同笔解放（compact 役P1
+  累计 **80×**：17.9s→223ms），缩放线性归位（1.95×/倍增），零 struct 变更。
+  余靶单：fromRdf 缩放律（排后）+ COW（P1 线）。
