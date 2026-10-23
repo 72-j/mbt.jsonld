@@ -1,7 +1,7 @@
-// ===== GENERATED FILE — DO NOT EDIT（生成物禁手写，世界宪法 §4.1）=====
+// ===== GENERATED FILE — DO NOT EDIT（生成物禁手写，const.md §7）=====
 // 源表：skelgen/jsonld_gen/jsonld_gen.toml（schema 1.0）
 // 再生：moon run skelgen/jsonld_gen/cmd（改表 → 重跑 → 黄金门对拍）
-// 绑定器：skelgen/jsonld_toml_gen.mbt（parse / validate / emit）
+// 绑定器：skelschema/jsonld_toml_gen.mbt（parse / validate / emit）
 
 ///|
 /// 步骤表全量枚举（[[steps]]）
