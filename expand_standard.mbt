@@ -1,14 +1,15 @@
 ///|
 /// 标准 expansion 实现（手写树递归；ADR-JL-4 纯函数，ActiveContext 不可变）。
-/// 落码节奏：按套件迁移顺序逐方法落码——每落一个方法配一个对拍；
-/// 未落码方法一律 `Unsupported("pending …")`（红而非错），禁止猜测语义。
-/// **挂账红语义**：未落码方法的 `Unsupported` = 内部标记 + 账记，**门仍绿**
-/// （deny-warn 双档含 stub 全过）——"全绿"≠"全实现"；落码进度 = 契约烟雾的
-/// Unsupported 计数（expand_standard_wbtest.mbt，常驻活账）。
+/// 实现顺序：按套件迁移顺序逐方法实现——每落一个方法配一组比对断言。
+/// 未实现方法一律返回 `Unsupported("pending …")`（红而非错），禁止猜测语义。
+/// 未实现项的红语义：`Unsupported` 只是内部标记，门仍算绿（deny-warn 双档
+/// 含 stub 全过）——"全绿"≠"全实现"；实现进度 = 契约烟雾测试里的
+/// Unsupported 计数（expand_standard_wbtest.mbt，常驻待办清单）。
 /// 当前覆盖：#t0001（@id + free-floating drop）+ #t0045（顶层值对象丢弃）+
 /// ①批 coercion **形态 A**（显式 @type → datatype）+ ②批 term/IRI 分拣链 +
 /// ③批 @context 简单形态（term→IRI / @vocab / @base）+ #ter48（@id 位相对拒绝）。
-/// **形态边界**：本批仅形态 A；形态 B（@id coercion）/ 形态 C（@json）挂 term/IRI 批后。
+/// **形态边界**：本批仅形态 A；形态 B（@id coercion）/ 形态 C（@json）留待 term/IRI 批后。
+/// 施工账：todo.md 覆盖率战役（役C1/C2/C3）· 性能役（役P1）。
 
 ///|
 pub(all) struct StandardExpander {}
@@ -229,7 +230,7 @@ fn merge_base_reference(base : String, reference : String) -> String {
   // ⇒ base.path 空 ⇒ 补根 "/"；否则 idx = 目录段截位 ⇒ 截最后 "/"（含）+
   // 引用（目录替换——#t0131/#t0132 oracle：tag:example/foo + a →
   // tag:example/a）。authority 感知边界取代 idx>6 魔数（短 scheme 角：
-  // a://b/c、ex:/a 曾误走补根臂——套件不可达，wbtest oracle 钉）
+  // a://b/c、ex:/a 曾误走补根臂——套件不可达，wbtest oracle 校验）
   match base.rev_find("/") {
     Some(idx) => {
       let authority_slash_end = match colon_index(base) {
@@ -345,7 +346,7 @@ fn resolve_base_value(value : String, previous : String?) -> String {
   for i in 0..<n {
     let seg = tokens[i]
     if seg is ".." {
-      // 守卫 >1：segs[0] 是根标记（""），禁弹（钉①——超根截停）
+      // 守卫 >1：segs[0] 是根标记（""），禁弹（规则①——超根截停）
       if segs.length() > 1 {
         let _ = segs.pop()
       }
@@ -1182,7 +1183,7 @@ fn StandardExpander::expand_object(
             _ => only_lang_dir = false
           }
         }
-        // @json 值对象豁免（#tjs22 oracle：@type @json 的 null 字面量保留）
+        // @json 值对象显式放行（#tjs22 oracle：@type @json 的 null 字面量保留）
         let is_json_value = StandardExpander::is_json_value_object(
           self, current, value_pairs,
         )
@@ -1192,7 +1193,7 @@ fn StandardExpander::expand_object(
         }
       }
       // null 值属性整体丢弃（#t0003 oracle；区别于空数组字面值保留——
-      // #t0004 oracle：set3: [] 保留）；**@json term 豁免**——null 即
+      // #t0004 oracle：set3: [] 保留）；**@json term 显式放行**——null 即
       // JSON null 字面量（#tjs18 oracle）
       if pair.1 is JsonValue::Null {
         let json_null_member = match current.terms.get(pair.0) {
@@ -1344,7 +1345,7 @@ fn StandardExpander::expand_object(
         // 非串值可达——frame_value_pattern 预扫（扫原始键）会把字面 "@type"
         // 的 Array/Object/Null 值劫往值 pattern 成分带（成分带内有 bnode 拒
         // 孪生门）；别名 term（如 "type"→"@type"）预扫看不到原始键，携非串值
-        // 直达此处。拆带前须先统一预扫键口径（扩到别名展开后键）——那是语义
+        // 直达此处。拆带前须先统一预扫键规则（扩到别名展开后键）——那是语义
         // 变更，非清理，勿单方面动手。
         if options.frame_expansion {
           let pattern_form = match pair.1 {
@@ -1408,7 +1409,7 @@ fn StandardExpander::expand_object(
         match pair.1 {
           JsonValue::String(t) =>
             if is_value_object {
-              // 形态 A：显式 @type → datatype（合法性钉——#t0123）
+              // 形态 A：显式 @type → datatype（合法性校验——#t0123）
               match
                 IriExpander::expand_iri(
                   self, type_scoped_context, t, true, true,
@@ -2055,7 +2056,7 @@ fn StandardExpander::append_collection_item(
   options : JsonLdOptions,
   out : Array[ExpandedValue],
 ) -> Result[Unit, JsonLdError] {
-  // 自由浮动 @set/@list 纯形节点对象分派（单键纯形才走；混合形态未钉，
+  // 自由浮动 @set/@list 纯形节点对象分派（单键纯形才走；混合形态未校验，
   // 走常规分派由关键字臂 Unsupported 报错——先验，防过宽）
   match item {
     JsonValue::Object(pairs) =>
@@ -2113,7 +2114,7 @@ fn StandardExpander::append_collection_item(
         Some(ExpandedValue::Node(node)) =>
           // 图内容 free-floating 门（#t0001 同族——@id-only/无属性节点弃；
           // graph 字段节点不受此门（is_free_floating 已扩））；frameExpansion
-          // 豁免——@id-only 帧根/子 pattern 合法（t0032 判定面）
+          // 显式放行——@id-only 帧根/子 pattern 合法（t0032 判定面）
           if is_free_floating(node) && !options.frame_expansion {
             ()
           } else {
@@ -2319,7 +2320,7 @@ fn StandardExpander::expand_term_values(
     Some(term_definition) => term_definition.container
     None => None
   }
-  // graph 容器应用（@graph 容器族——形态表见 todo §J2 开工钉）：次级
+  // graph 容器应用（@graph 容器族——形态表见 todo §J2 开工项）：次级
   // @id/@index = map 形态（键附挂条目）；裸/@set = 逐值包成 graph 节点
   if container_kind is Some(ContainerType::Graph) {
     let graph_secondary = match active.terms.get(term) {
@@ -2812,7 +2813,7 @@ fn StandardExpander::expand_term_values_inner(
   // @json 字面量拦截（丁批——REC 13.8.1 @json 值展开）：值原样（JSON 解析
   // 结果）进 @value，datatype = @json 关键字形态（oracle tjs01：输出
   // `"@type": "@json"`）；对象/数组**不作节点展开**（#tjs06/#tjs08 oracle）。
-  // canonical 选项只影响序列化词形（JCS/RFC 8785，挂 J3），展开按解析值对拍
+  // canonical 选项只影响序列化词形（JCS/RFC 8785，挂 J3），展开按解析值比对
   let scoped_for_json = match
     StandardExpander::apply_property_scoped_context(self, active, term, options) {
     Ok(context) => context
@@ -3401,9 +3402,9 @@ fn merge_import_entries(
 }
 
 ///|
-/// ContextProcessor 落码（③批）：@context 声明 → ActiveContext 构建/继承（简单形态）。
+/// ContextProcessor 实现（③批）：@context 声明 → ActiveContext 构建/继承（简单形态）。
 /// 继承：terms/vocab/base 父副本（ADR-JL-4 不可变语义 = 副本）；数组 context = 逐项合并。
-/// 落码范围：term→IRI 字符串定义、@vocab（相对先经 base）、@base、term=null（移除）。
+/// 实现范围：term→IRI 字符串定义、@vocab（相对先经 base）、@base、term=null（移除）。
 /// 未落（红而非错）：term 定义对象形态（@type/@container——⑤批）、@language/@direction
 /// 默认（后由丙批落）。
 /// **己批**：远程 context String 臂（REC 4.1.2 步 5.2：resolve → skip → overflow
@@ -3428,7 +3429,7 @@ impl ContextProcessor for StandardExpander with fn process_context(
   let mut base = active.base
   match local_context {
     // context nullification（REC 4.1.2：数组项为 null = 重置为新初始 context，
-    // **base IRI 取原 base URL**）——scoped-context 批勘定件：#tc014（type-scoped
+    // **base IRI 取原 base URL**）——scoped-context 批勘察件：#tc014（type-scoped
     // `[null]`）/ #tc018（`[null, {...}]`）的 scoped context 形态若不接受，定义期
     // 校验会误判 invalid scoped context。**@protected 批门**：override protected
     // = false 且 active context 含任何保护 term → invalid context nullification
@@ -3454,7 +3455,7 @@ impl ContextProcessor for StandardExpander with fn process_context(
     }
     JsonValue::String(context_ref) => {
       // 远程 context 臂（己批——REC 4.1.2 步 5.2：resolve → skip → overflow → load → recurse；
-      // resolve/load 与 @import 预处理共用件同源——引用解析 base 口径见
+      // resolve/load 与 @import 预处理共用件同源——引用解析 base 规则见
       // resolve_context_reference）
       let resolved = match
         resolve_context_reference(context_ref, flags, options) {
@@ -3600,7 +3601,7 @@ impl ContextProcessor for StandardExpander with fn process_context(
                 // 1.0 模式 = @vocab 非绝对（含相对/空串）即 invalid——对原始值判，
                 // base 不补救；1.1 模式 = 对 base raw 拼接（#t0092：空串 → base
                 // 本身、`../` 原样不消点段）
-                // 1.0 校验（#t0115/#t0116 oracle：相对/空串非法）豁免 bnode
+                // 1.0 校验（#t0115/#t0116 oracle：相对/空串非法）显式放行 bnode
                 // 标签（#t0075 oracle：@vocab "_:" 合法——处理模式依赖第一实证
                 // 的边界细化）；bnode 不落 base 拼接
                 if options.processing_mode is JsonLd10 &&
@@ -3685,7 +3686,7 @@ impl ContextProcessor for StandardExpander with fn process_context(
           "@version" => {
             // 1.1 API：@version 接受串 "json-ld-1.1" 与数值 1.1（套件实证
             // 159 例全为数值形且期望成功——REC"须为串"被套件输入形态否决；
-            // 数值 1.0 → 错，#tep03 负例钉边界）。1.0 模式切换（ActiveContext
+            // 数值 1.0 → 错，#tep03 负例校验边界）。1.0 模式切换（ActiveContext
             // 载入 processing_mode）挂后续批
             let version_is_11 = match pair.1 {
               JsonValue::String("json-ld-1.1") => true
@@ -3715,9 +3716,9 @@ impl ContextProcessor for StandardExpander with fn process_context(
               )
             }
           }
-          // 未落码 context 关键字（挂账活账——@protected 原落"term definition
-          // must be…"的误分类，勘定批修正为 Unsupported：@protected 族 16 枚
-          // 的挂账去向是「@protected 批」，非 term 定义形态错误）
+          // 未实现 context 关键字（待办项——@protected 原落"term definition
+          // must be…"的误分类，勘察批修正为 Unsupported：@protected 族 16 枚
+          // 的待办去向是「@protected 批」，非 term 定义形态错误）
           // @propagate 已在对象臂入口预扫描（REC 4.1.2 步 2）——此处跳过
           "@propagate" => ()
           // @protected 同上（对象臂入口预扫描：默认保护位）
@@ -4113,7 +4114,7 @@ fn StandardExpander::process_expanded_term_definition(
         match validate_container_value(td_pair.1, options) {
           Ok(_) => {
             // 存 List/Set/Language/Type 四态（@type 批——type map 应用依赖 Type）；
-            // @id/@graph 容器应用挂账存 None
+            // @id/@graph 容器应用暂存 None
             match td_pair.1 {
               JsonValue::String("@language") =>
                 td_container = Some(ContainerType::Language)
@@ -4333,7 +4334,7 @@ fn StandardExpander::process_expanded_term_definition(
             options,
           ) {
           Ok(_) => td_local_context = Some(td_pair.1)
-          // 未落码透传（诊断口径：Unsupported = 落码活账，不当作 scoped 校验失败）
+          // 未实现透传（诊断规则：Unsupported = 未实现待办，不当作 scoped 校验失败）
           Err(JsonLdError::Unsupported(m)) =>
             return Err(JsonLdError::Unsupported(m))
           Err(_) =>
@@ -4666,7 +4667,7 @@ fn container_type_matches(a : ContainerType, b : ContainerType) -> Bool {
 /// （iri/datatype/container/reverse/local_context 逐个比；#pr23/#pr24/#pr25/#pr27/
 /// #pr41 等价允许 与 #pr26/#pr28/#pr42 不等价即错 的分界）
 /// 先验注记：local_context 按 JsonValue 结构比较（键序敏感）——同语义异序的
-/// scoped context 会判不等价，本批无 oracle，挂账
+/// scoped context 会判不等价，本批无 oracle，先记待办
 fn term_definitions_equivalent(
   previous : TermDefinition,
   next : TermDefinition,
@@ -4826,7 +4827,7 @@ fn validate_container_value(
 
 ///|
 /// compact 自指环检测（⑤后半——#ter10 oracle）：值含冒号且冒号前 prefix =
-/// 被定义的 term 名自身 → 展开即环。**豁免**：suffix 以 "//" 开头 =
+/// 被定义的 term 名自身 → 展开即环。**显式放行**：suffix 以 "//" 开头 =
 /// protocol-like IRI（scheme 形态——#t0067 oracle："http://…" 作 term 值非环）
 fn is_self_prefix_compact(value : String, term_name : String) -> Bool {
   match colon_index(value) {
@@ -5103,7 +5104,7 @@ fn StandardExpander::expand_list_item(
 }
 
 ///|
-/// graph 容器展开（@graph 容器族——形态表见 todo §J2 开工钉）：
+/// graph 容器展开（@graph 容器族——形态表见 todo §J2 开工项）：
 /// 裸/@set → 逐值包成 graph 节点（{"@graph": [...]}——graph 对象值也再包一层，
 /// #t0102/#t0104 oracle）；@id → map 键 vocab 展开写条目 @id（保留既有——
 /// id map 语义，#t0085）；@index → 键原样写条目 @index、"@none" 直出（#tm013）；

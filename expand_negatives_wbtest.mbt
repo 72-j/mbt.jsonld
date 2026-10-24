@@ -1,7 +1,7 @@
-// ===== 役C1 批1：expand_object 负例臂直击钉（覆盖率战役本体） =====
+// ===== 役C1 批1：expand_object 负例分支直击（覆盖战役） =====
 // 未覆盖带定性：值对象互斥族 / @reverse 拒收族 / @graph·@nest·@included
-// 形态门族 / 帧模式 pattern 族。钉子走 pub 入口 expand_document，
-// Err 臂按变体钉死（Variant(_)+fail 兜底形态）。
+// 形态门族 / 帧模式 pattern 族。断言走 pub 入口 expand_document，
+// Err 臂按变体固定断言（Variant(_)+fail 兜底形态）。
 
 ///|
 /// plain 档 options（默认 1.1，无 base）
@@ -42,7 +42,7 @@ fn neg_frame_options() -> JsonLdOptions {
 }
 
 ///|
-/// 钉死 InvalidValue 变体（文案不钉——文案随役可修，变体是契约）
+/// 固定断言 InvalidValue 变体（文案不校验——文案随役可修，变体是契约）
 fn expect_invalid_value(text : String, options : JsonLdOptions) -> Unit raise {
   match expand_document(text, options) {
     Err(InvalidValue(_)) => ()
@@ -366,7 +366,7 @@ test "frame: aliased @id array with object item" {
 }
 
 ///|
-/// 钉死 InvalidList 变体（文案不钉）
+/// 固定断言 InvalidList 变体（文案不校验）
 fn expect_invalid_list(text : String, options : JsonLdOptions) -> Unit raise {
   match expand_document(text, options) {
     Err(InvalidList(_)) => ()
@@ -642,7 +642,7 @@ test "col: two-key @list form at graph position" {
       neg_plain_options(),
     ) {
     Ok(value) =>
-      // DIAG 定谳：@list 内容在属性展开内部被弃（list 位先验），节点本体
+      // DIAG 定论：@list 内容在属性展开内部被弃（list 位先验），节点本体
       // 带 @index 存活——2131 List 防御臂不经此形（文本难达，留账）
       assert_true(
         render_json(value) ==
@@ -691,7 +691,7 @@ test "col: @set single value error propagates" {
 }
 
 ///|
-/// 钉死 InvalidContext 变体（文案不钉）
+/// 固定断言 InvalidContext 变体（文案不校验）
 fn expect_invalid_context(text : String, options : JsonLdOptions) -> Unit raise {
   match expand_document(text, options) {
     Err(InvalidContext(_)) => ()
@@ -886,7 +886,7 @@ test "vcv: number container value" {
 }
 
 ///|
-/// 批5b：装载面两钉（loader 缺省 = Unsupported 契约；loader 出非 JSON）
+/// 批5b：装载面两处断言（loader 缺省 = Unsupported 契约；loader 出非 JSON）
 fn neg_base_options(base : String) -> JsonLdOptions {
   {
     base: Some(base),
@@ -965,7 +965,7 @@ test "base: plain reference on slashless colonless base" {
 }
 
 ///|
-/// 批5d：杂项单钉
+/// 批5d：杂项单条断言
 test "selfprefix: colonless id skips self-compact check" {
   match
     expand_document(
@@ -2185,10 +2185,10 @@ test "DIAGah: td-reverse pattern nested frame error" {
   }
 }
 
-// ===== 役C1 批9：值对象成员/@nest/@included/list item/容器组合/两阶段保护 扫尾钉 =====
-// 勘定卷见 todo.md 批9：活账 23 行（本节 + postprocess 直调）；死账 = expand_iri
+// ===== 役C1 批9：值对象成员/@nest/@included/list item/容器组合/两阶段保护 扫尾校验 =====
+// 勘察卷见 todo.md 批9：待办 23 行（本节 + postprocess 直调）；已关闭待办 = expand_iri
 // 全 Ok 族续账（19 行）+ 分派证明结构性死（5 行）+ 5036 守卫镜像 + 5149 安装门；
-// 挂账 2828/2882/1808/2572（两阶段同参，无独立触发径）；批5「2160 不可达」翻案
+// 待办 2828/2882/1808/2572（两阶段同参，无独立触发径）；批5「2160 不可达」翻案
 // （expand_object 两处 return Ok(None)——1979/2004，顶层 language-only 即达）。
 
 ///|
@@ -2299,7 +2299,7 @@ test "C9 incl: value object carries included" {
 /// 帧旗非串非布尔值静默忽略（1861 `_` 臂——@embed:5 既非词表串也非布尔）
 test "C9 frame: framing flag number value ignored" {
   match expand_document("{\"@embed\":5}", neg_frame_options()) {
-    // 帧模式空节点豁免（t0032 帧根判定面）——旗值忽略后保 {} pattern
+    // 帧模式空节点显式放行（t0032 帧根判定面）——旗值忽略后保 {} pattern
     Ok(value) => assert_eq(render_json(value), "[{}]")
     Err(_) => fail("unexpected error")
   }
@@ -2486,7 +2486,7 @@ test "C9 map: type-map protected nullification at expansion" {
   }
 }
 
-// ===== 役C1 批9 补针（首测后勘定修正）：1622/1656 子臂 + 1930 nest 递归 Err
+// ===== 役C1 批9 补充断言（首测后勘察修正）：1622/1656 子臂 + 1930 nest 递归 Err
 // + 2160（批5 裁定二次修正——expand_element 对 Ok(None) 是 Err(Unsupported)
 // 硬错面（2160），顶层驱动不经 expand_element；frame_preserve_default 对象臂
 // 才是把值空对象送进 2160 的活径） =====
@@ -2547,7 +2547,7 @@ test "C9 frame2: default language-only object empty node pending" {
   }
 }
 
-// ===== 役C1 批9 补针二：@included 残余三钉（1940/1950/1967） =====
+// ===== 役C1 批9 补充断言二：@included 残余三校验（1940/1950/1967） =====
 
 ///|
 /// @included 条目非对象（1940——收集臂只拒串（#tin07），数/布尔项到展开臂才拒）
@@ -2594,12 +2594,12 @@ test "C9 incl2: alias value entry invalid" {
   }
 }
 
-// ===== 役C3 移防⑧（expand_standard 72 勘定轮）：expand_iri 恒总函数定谳
-// 之外的活账族。**根定谳（本轮最重要产出）**：IriExpander::expand_iri 主链
+// ===== 役C3 移防⑧（expand_standard 72 勘察轮）：expand_iri 恒总函数定论
+// 之外的待办族。**根定论（本轮最重要产出）**：IriExpander::expand_iri 主链
 //（expand_standard.mbt 416-495）零 Err 表达式（keyword/term/bnode/compact/
 // absolute/vocab/base 七段全 Ok 落底）⇒ 一切 expand_iri 调用点的
 // `Err(e) => …` 臂为构造性死（30 行清单入 coverage-baseline 移防⑧）。
-// 本节探针收非 expand_iri 族的活账。=====
+// 本节探针收非 expand_iri 族的待办。=====
 
 ///|
 /// 1532：值对象双 @value 键（JSON 重复键保留）第二键 Number 覆写既有字面量
@@ -2664,7 +2664,7 @@ test "R8 top level scalar document" {
 }
 
 ///|
-/// 3760：context @import 键 = 落码空臂（import 语义不在范围，键静默忽略）
+/// 3760：context @import 键 = 实现空臂（import 语义不在范围，键静默忽略）
 test "R8 context import key ignored" {
   match
     expand_document(
@@ -2691,7 +2691,7 @@ test "R8 container array unknown member ignored" {
       neg_plain_options(),
     ) {
     // validate_container_value（4105 先手门）拒未知成员——4187-4188 组合
-    // 循环 `_ => ()` 死账（门先行，未知串到不了存储匹配）
+    // 循环 `_ => ()` 已关闭待办（门先行，未知串到不了存储匹配）
     Err(InvalidContext(msg)) => assert_eq(msg, "invalid container mapping")
     _ => fail("expected InvalidContext(invalid container mapping)")
   }
@@ -2724,7 +2724,7 @@ test "R8 10 mode list of lists invalid" {
 }
 
 ///|
-/// 学习件（即写即改——结果从失败输出读取后改钉）
+/// 学习件（即写即改——结果从失败输出读取后改校验）
 test "R8 frame nested array pattern" {
   // 2163-2166/2205 候选路（expand_element Array 臂→expand_array——非帧
   // 路不可达：expand_array 唯一调用点 2164，expand_element 非帧调用点
@@ -2788,7 +2788,7 @@ test "R8 scoped invalid local context definition gate" {
 ///|
 test "R8 scoped remote context no loader" {
   // 实测 = InvalidContext（非 Unsupported 透传臂 4328——resolve/装载在
-  // 试处理内以 InvalidContext 收尾）；4328 透传臂活账另探
+  // 试处理内以 InvalidContext 收尾）；4328 透传臂待办另探
   match
     expand_document(
       "{\"@context\":{\"p\":{\"@id\":\"http://p/\",\"@context\":\"http://remote/c\"}},\"p\":\"v\"}",
@@ -2827,7 +2827,7 @@ test "R8 free floating list top dropped" {
 test "R8 list container null list value" {
   // 2352 证伪注记：拦截器 Ok(None) 唯一源 = 4877 早退（无键命中
   // @list/@set）——但 2342 调用点 raw 首键门先拦（raw "@list" 恒命中
-  // 键词识别）⇒ 2352 `Ok(None) => ()` 死账（构造面 + 本探针实证
+  // 键词识别）⇒ 2352 `Ok(None) => ()` 已关闭待办（构造面 + 本探针实证
   // Some([List([])]) 落 2346 Ok(Some) 臂）
   match
     expand_document(
@@ -2842,7 +2842,7 @@ test "R8 list container null list value" {
 
 ///|
 test "R8 set container null list value" {
-  // 2869 同族死账注记（2860 调用点同 raw 首键门构造）
+  // 2869 同族已关闭待办注记（2860 调用点同 raw 首键门构造）
   match
     expand_document(
       "{\"@context\":{\"p\":{\"@id\":\"http://p/\",\"@container\":\"@set\"}},\"p\":{\"@list\":null}}",
@@ -2857,7 +2857,7 @@ test "R8 set container null list value" {
 ///|
 test "R8 list item null list nested" {
   // 5036 证伪注记：list 位拦截器 Ok(None) 同 4877 构造不可达 ⇒
-  // "invalid set or list object" Err 臂死账；实测内层 null 列表
+  // "invalid set or list object" Err 臂已关闭待办；实测内层 null 列表
   // = 嵌套空 @list 保形
   match
     expand_document(
@@ -2876,7 +2876,7 @@ test "R8 list item null list nested" {
 ///|
 test "R8 empty object in list kept as empty node" {
   // 5078 证伪注记：{} list 元素产空节点存活（非 vs=[] ⇒ first=None
-  // 未触）——5073-5078 first=None 臂活账另探（候选：null 元素径）
+  // 未触）——5073-5078 first=None 臂待办另探（候选：null 元素径）
   match
     expand_document(
       "{\"@context\":{\"p\":\"http://p/\"},\"p\":{\"@list\":[{}]}}",
@@ -2991,7 +2991,7 @@ test "R8b LEARN nested array bad value object" {
 ///|
 test "R8b LEARN json scalar in list" {
   // 5078 证伪注记：@json coercion 劫持整个值（@list 保形入 raw）——
-  // 标量臂未见普通串；5078 留待勘。行为钉 = @json raw 保形
+  // 标量臂未见普通串；5078 留待勘。行为校验 = @json raw 保形
   match
     expand_document(
       "{\"@context\":{\"p\":{\"@id\":\"http://p/\",\"@type\":\"@json\"}},\"p\":{\"@list\":[\"plain\"]}}",
@@ -3065,7 +3065,7 @@ test "R8b LEARN frame value pattern null component" {
 ///|
 test "R8b LEARN frame reverse scalar pattern" {
   // 1019 证伪注记：@reverse pattern 标量在帧文法预扫即拒（"invalid
-  // reverse property value"——B3-29 同族），1019 未触、留待勘。行为钉
+  // reverse property value"——B3-29 同族），1019 未触、留待勘。行为校验
   match
     frame_document(
       "{\"@id\":\"http://a/\",\"http://p/\":{\"@id\":\"http://b/\"}}",
@@ -3123,7 +3123,7 @@ test "R8b LEARN nested scoped invalid vocab usage time" {
 ///|
 test "R8b LEARN index mapping term" {
   // 2467 证伪注记：@index:"prop" 映射形下裸串条目值即拒（"invalid value
-  // object"）——2467 未触、留待勘。行为钉
+  // object"）——2467 未触、留待勘。行为校验
   match
     expand_document(
       "{\"@context\":{\"ix\":{\"@id\":\"http://a/n\",\"@container\":\"@index\",\"@index\":\"prop\"},\"prop\":\"http://a/prop\"},\"ix\":{\"k\":\"v\"}}",
@@ -3171,8 +3171,8 @@ fn r8c_err_msg(e : JsonLdError) -> String {
   f3_err_msg(Err(e))
 }
 
-// ===== 役C3 移防⑧三轮（R8c 帧形/容器/作用域 13 行活线 + 9 条死账定谳）=====
-// 死账（行级构造论证，coverage-baseline ⑧三轮）：
+// ===== 役C3 移防⑧三轮（R8c 帧形/容器/作用域 13 行活线 + 9 条已关闭待办定论）=====
+// 已关闭待办（行级构造论证，coverage-baseline ⑧三轮）：
 //   2099 = 2070 or-pattern 守卫排除（`is ("@set"|"@list")` 后再 match 无第三形）
 //   2131 = expand_object 全文件无 Ok(Some(List)) 发射点（grep 实证 18 处 Ok(Some( 全 Node/Value）
 //   2334 = 2331 守卫（container_kind Some(Graph)）⇒ 2332 同 map 同键再取恒 Some
@@ -3202,10 +3202,10 @@ test "R8c frame list pattern with context nested array (2164/2199/2201/2205)" {
 
 ///|
 test "R8c frame scalar value pattern takes normal value path (1146 死账行为钉)" {
-  // 1146 死账定谳（⑧三轮）：1134-1162 保形段整体位于 1065 `!has_value_key`
+  // 1146 已关闭待办定论（⑧三轮）：1134-1162 保形段整体位于 1065 `!has_value_key`
   // 块内（1163 闭块）——@value 串形 has_value_key=true ⇒ 1136 不可达；可达
   // 时 expand_element 值域 = {Node→1143 截, Value 须 @value 键(被排除),
-  // List 无发射点(2131 同证)} ⇒ Ok(_) 臂空集。本钉 = 标量 @value pattern
+  // List 无发射点(2131 同证)} ⇒ Ok(_) 臂空集。本校验 = 标量 @value pattern
   // 实走常规值对象路径（框架照常嵌，非空 pattern 臂）
   match
     frame_document(
@@ -3254,10 +3254,10 @@ test "R8c frame reverse pattern non-object value empty pattern (1019)" {
 
 ///|
 test "R8c nest alias invalid scoped vocab (1808 死账行为钉)" {
-  // 1808 死账定谳（⑧三轮）：Err 实出 = 定义期 trial（4309-4331，波-2 已闭
+  // 1808 已关闭待办定论（⑧三轮）：Err 实出 = 定义期 trial（4309-4331，波-2 已闭
   // 4328/4330 族）——trial override_protected=true 为超集验证，展开期
   // apply_property_scoped_context 同内容同 fn 确定性 ⇒ 过 trial 者不可能
-  // 在展开期 Err（protected diverge 候选 u2 实证不 diverge）。本钉 = 该
+  // 在展开期 Err（protected diverge 候选 u2 实证不 diverge）。本校验 = 该
   // 拒绝行为经 @nest 别名位的回归牙
   match
     expand_document(
@@ -3266,17 +3266,17 @@ test "R8c nest alias invalid scoped vocab (1808 死账行为钉)" {
     ) {
     Ok(_) => fail("1808: expected invalid scoped vocab on nest rejected")
     // 词面 = 作用域层包装消息（"invalid scoped context" 多发射点——行级触达
-    // 由覆盖读数定谳，消息钉只保行为回归牙）
+    // 由覆盖读数定论，消息校验只保行为回归牙）
     Err(e) => assert_eq(r8c_err_msg(e), "InvalidContext:invalid scoped context")
   }
 }
 
 ///|
 test "R8c property-scoped invalid vocab at scalar (2828/2854/2882 死账行为钉)" {
-  // 2828/2854/2882 三臂死账定谳（⑧三轮，同族）：定义期 trial 同内容先行
+  // 2828/2854/2882 三臂已关闭待办定论（⑧三轮，同族）：定义期 trial 同内容先行
   //（超集旗）⇒ 展开期 2825/2851 同参 apply 恒 Ok（u1/u2 实证 protected/
   // vocab 两 diverge 候选均不 diverge；2882 另证 previous 恒 None = 回退门
-  // no-op）⇒ 三 Err 臂不可达。本钉 = trial 拒绝经标量位的回归牙
+  // no-op）⇒ 三 Err 臂不可达。本校验 = trial 拒绝经标量位的回归牙
   match
     expand_document(
       "{\"@context\":{\"p\":{\"@id\":\"http://a/p\",\"@context\":{\"@vocab\":5}}},\"p\":\"v\"}",
@@ -3289,11 +3289,11 @@ test "R8c property-scoped invalid vocab at scalar (2828/2854/2882 死账行为�
 
 ///|
 test "R8c type-scoped scoped-prefix survives property_value_context (2882 定谳)" {
-  // 2882 死账定谳（⑧三轮）：`previous: Some` 全仓零命中（grep 实证）——
+  // 2882 已关闭待办定论（⑧三轮）：`previous: Some` 全仓零命中（grep 实证）——
   // type-scoped 应用（749-807）累积进 current、从不落 previous ⇒
   // property_value_context ② 回退门恒 no-op ⇒ ③ 与 2851 apply_property_
   // scoped_context 同参同旗（同 local_context 同 property_scoped 旗同
-  // context_base_url）——Err 必先被 2828 截返。行为钉 = type-scoped 层
+  // context_base_url）——Err 必先被 2828 截返。行为校验 = type-scoped 层
   // 定义的前缀在 property-scoped context 引用时照常解析（无前缀失联）
   match
     expand_document(
@@ -3314,7 +3314,7 @@ test "R8c index glyph coercion writes node ref (2570/2572 死账行为钉)" {
   // 2545-2590 Some 臂活性实证：glyph "http://a/gp"（绝对 IRI 直形——4398/
   // 4400 定义期门）+ term 同名 @type @id ⇒ index_mapping 真落 Some，
   // 条目键 "k" 经 coercion 写成 {"@id":"k"} 节点引用。
-  // 2570/2572 死账定谳（⑧三轮）：内层实参恒 String(index_key) ⇒ 标量臂
+  // 2570/2572 已关闭待办定论（⑧三轮）：内层实参恒 String(index_key) ⇒ 标量臂
   //（2912）恒产恰一值或 Err——[] 不可达（2570）；Err 链底 = expand_iri
   // 恒总（⑧一轮根证）+ w1 实证无 vocab 无 base 时原词返回不 Err（2572）
   match
@@ -3334,7 +3334,7 @@ test "R8c index glyph coercion writes node ref (2570/2572 死账行为钉)" {
 test "R8c index glyph null-IRI term rejected at definition (2570 行为钉)" {
   // glyph 名指向 null-IRI term（"dead": null）：定义期 4398 expand_iri
   // 即 Err（null-IRI 不出绝对形）→ 4407 invalid term definition。
-  // 2570 死账定谳另证：内层实参恒 String(index_key) ⇒ 标量臂（2912）恒产
+  // 2570 已关闭待办定论另证：内层实参恒 String(index_key) ⇒ 标量臂（2912）恒产
   // 恰一值或 Err——[] 不可达
   match
     expand_document(
@@ -3349,10 +3349,10 @@ test "R8c index glyph null-IRI term rejected at definition (2570 行为钉)" {
 
 ///|
 test "R8c list position observation round (5078 定谳观测)" {
-  // 5078 死账定谳（⑧三轮）：4992 Array / 5008 Object / 5060 Null 三臂先截，
+  // 5078 已关闭待办定论（⑧三轮）：4992 Array / 5008 Object / 5060 Null 三臂先截，
   // 5064 `_` 臂值域仅 Number|Bool|String；标量臂（2912 串 / number/bool 不
   // coercion）恒产恰一 literal 或 Err——vs=[] 不可达 ⇒ 5078 None 臂死。
-  // 本测钉观测行为面：[[]] 嵌套空数组项的实出词面
+  // 本测校验观测行为面：[[]] 嵌套空数组项的实出词面
   match
     expand_document(
       // 勘误注记：前两轮探针 Err InvalidIri 根因 = term "l" 无 @id
@@ -3361,7 +3361,7 @@ test "R8c list position observation round (5078 定谳观测)" {
       neg_plain_options(),
     ) {
     Ok(value) =>
-      // [] 项经 4992 Array 臂 → Some(List([])) 存活（非 5078 径——死账定谳
+      // [] 项经 4992 Array 臂 → Some(List([])) 存活（非 5078 径——已关闭待办定论
       // 见测名注记），外层 list 包裹双层
       assert_true(render_json(value).contains("\"@list\":[{\"@list\":[]}]"))
     Err(e) => fail("5078: unexpected Err \{r8c_err_msg(e)}")

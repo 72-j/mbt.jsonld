@@ -1,5 +1,5 @@
 ///|
-/// #t0001 方法级对拍：expand_iri 绝对 IRI 原样返回（@id 键的身份展开）
+/// #t0001 方法级比对：expand_iri 绝对 IRI 原样返回（@id 键的身份展开）
 
 ///|
 test "expand_iri absolute passthrough (#t0001 对拍)" {
@@ -24,7 +24,7 @@ test "expand_iri absolute passthrough (#t0001 对拍)" {
 }
 
 ///|
-/// #t0001 方法级对拍：bnode 原样返回
+/// #t0001 方法级比对：bnode 原样返回
 test "expand_iri bnode passthrough (#t0001 对拍)" {
   let e = StandardExpander::{ }
   let active = ActiveContext::{
@@ -87,9 +87,9 @@ test "empty object end-to-end: free-floating (#t0001 同族判定)" {
 }
 
 ///|
-/// 契约烟雾：未落码钩子逐一调用，断言礼貌拒绝（Unsupported）——
-/// "红而非错"纪律的可执行钉子；同时使 extend 清单与 with-fn 实现非死码。
-/// **常驻活账**：Unsupported 断言数 = 未落码钩子数（当前 12；②批
+/// 契约烟雾：未实现钩子逐一调用，断言礼貌拒绝（Unsupported）——
+/// "红而非错"纪律的可执行断言；同时使 extend 清单与 with-fn 实现非死码。
+/// **常驻待办清单**：Unsupported 断言数 = 未实现钩子数（当前 12；②批
 /// expand_compact/lookup_term/resolve_base 转真行为，③批 concat_vocab 解挂）——
 /// 每落一个方法，将其断言改为真行为断言；减到 0 = J2 expansion 完成。
 /// 禁止一次性化（否则掩盖"静默实现成 Ok"）。
@@ -120,7 +120,7 @@ test "contract smoke: pending hooks refuse politely (red-not-wrong)" {
     use_native_types: false,
     use_rdf_type: false,
   }
-  // expand_term 已落码（①批）：属性位 null → 丢弃（空数组）——烟雾活账翻转示例
+  // expand_term 已实现（①批）：属性位 null → 丢弃（空数组）——烟雾待办项翻转示例
   assert_true(
     Expander::expand_term(e, active, "t", JsonValue::Null, None, options)
     is Ok([]),
@@ -156,7 +156,7 @@ test "contract smoke: pending hooks refuse politely (red-not-wrong)" {
     Expander::set_language(e, active, JsonValue::Null) is Err(Unsupported(_)),
   )
   // 批9 直调（3141/3144）：语言非空走 `_` 保留臂；空方向走守卫臂清除——
-  // pub 面值对象方向恒 None，白盒直调钉归一契约
+  // pub 面值对象方向恒 None，白盒直调校验归一契约
   match
     Expander::postprocess_value(
       e,
@@ -208,23 +208,23 @@ test "contract smoke: pending hooks refuse politely (red-not-wrong)" {
     Expander::set_index(e, active, JsonValue::Null) is Err(Unsupported(_)),
   )
   assert_true(IriExpander::handle_keyword(e, "@id") is Ok("@id"))
-  // expand_compact 已落码（②批）：未声明前缀 = 非错误拒绝（落链由 expand_iri）——烟雾活账翻转
+  // expand_compact 已实现（②批）：未声明前缀 = 非错误拒绝（落链由 expand_iri）——烟雾待办项翻转
   assert_true(
     IriExpander::expand_compact(e, active, "ex:t", true, false)
     is Err(InvalidValue("compact prefix not declared")),
   )
-  // concat_vocab 已落码（③批）：@vocab 未声明 = Err 非静默拼接——烟雾活账翻转
+  // concat_vocab 已实现（③批）：@vocab 未声明 = Err 非静默拼接——烟雾待办项翻转
   assert_true(
     IriExpander::concat_vocab(e, active, "t")
     is Err(InvalidValue("@vocab not declared")),
   )
-  // resolve_base 已落码（②批）：无 base = 相对值原样保留（value 位语义）——烟雾活账翻转
+  // resolve_base 已实现（②批）：无 base = 相对值原样保留（value 位语义）——烟雾待办项翻转
   assert_true(IriExpander::resolve_base(e, active, "t") is Ok("t"))
   assert_true(IriExpander::lookup_term(e, active, "t") is Err(Unsupported(_)))
 }
 
 ///|
-/// #t0045 方法级对拍：@value 词形保留 + @language 键序无关合并 + 顶层值对象丢弃
+/// #t0045 方法级比对：@value 词形保留 + @language 键序无关合并 + 顶层值对象丢弃
 test "value object family batch 1 (#t0045 对拍)" {
   let options = JsonLdOptions::{
     load_context: None,
@@ -251,7 +251,7 @@ test "value object family batch 1 (#t0045 对拍)" {
 }
 
 ///|
-/// ②批对拍：构造 context（terms 手工填充，不处理 @context 声明）下的
+/// ②批比对：构造 context（terms 手工填充，不处理 @context 声明）下的
 /// IRI 分拣链——term 精确 / compact / absolute / bnode / value 位原样
 test "term/IRI chain with constructed context (②批对拍)" {
   let e = StandardExpander::{ }
@@ -308,7 +308,7 @@ test "term/IRI chain with constructed context (②批对拍)" {
     IriExpander::lookup_term(e, active, "name") is Ok("http://example.com/name"),
   )
   // 链：term 命中（vocab 位；#ter48 oracle：@id 位 vocab=false 不查表——本测为
-  // 键位对拍，vocab=true）
+  // 键位比对，vocab=true）
   assert_true(
     IriExpander::expand_iri(e, active, "name", false, true)
     is Ok("http://example.com/name"),
@@ -337,7 +337,7 @@ test "term/IRI chain with constructed context (②批对拍)" {
 }
 
 ///|
-/// ②批对拍：base 相对解析（resolve_base 真行为 + 链行为）
+/// ②批比对：base 相对解析（resolve_base 真行为 + 链行为）
 test "base-relative resolution (②批对拍)" {
   let e = StandardExpander::{ }
   let terms : Map[String, TermDefinition] = Map([])
@@ -367,7 +367,7 @@ test "base-relative resolution (②批对拍)" {
 }
 
 ///|
-/// ②批对拍：属性键路由经链（term 键 → 定义 IRI）
+/// ②批比对：属性键路由经链（term 键 → 定义 IRI）
 test "property key routing via chain (②批)" {
   let e = StandardExpander::{ }
   let terms : Map[String, TermDefinition] = Map([])
@@ -429,7 +429,7 @@ test "property key routing via chain (②批)" {
 }
 
 ///|
-/// concat_vocab 挂③断言（②批边界钉：ActiveContext 无 @vocab 字段）
+/// concat_vocab 挂③断言（②批边界断言：ActiveContext 无 @vocab 字段）
 test "concat_vocab stays unsupported until @context batch" {
   let e = StandardExpander::{ }
   let active = ActiveContext::{
@@ -443,7 +443,7 @@ test "concat_vocab stays unsupported until @context batch" {
     compact_reverse: None,
     compact_prefixes: None,
   }
-  // concat_vocab 已落码（③批）：@vocab 未声明 = Err 非静默拼接——烟雾活账翻转
+  // concat_vocab 已实现（③批）：@vocab 未声明 = Err 非静默拼接——烟雾待办项翻转
   assert_true(
     IriExpander::concat_vocab(e, active, "t")
     is Err(InvalidValue("@vocab not declared")),
@@ -451,7 +451,7 @@ test "concat_vocab stays unsupported until @context batch" {
 }
 
 ///|
-/// ③批对拍：内嵌 @context（simple term 声明）端到端
+/// ③批比对：内嵌 @context（simple term 声明）端到端
 test "@context simple term declaration end-to-end (③批对拍)" {
   let options = JsonLdOptions::{
     load_context: None,
@@ -490,7 +490,7 @@ test "@context simple term declaration end-to-end (③批对拍)" {
 }
 
 ///|
-/// @nest 合并索引化对拍（顺序语义不变钉）：同键逐值追加、异键按**首见序**占位。
+/// @nest 合并索引化比对（顺序语义不变校验）：同键逐值追加、异键按**首见序**占位。
 /// 两条 nest 条目交叉给出 {a,b} 与 {b,a} ⟹ 结果 a→[1,4]、b→[2,3]，键序 a,b
 test "@nest indexed merge keeps order semantics (tn006/tn008 同族对拍)" {
   let options = JsonLdOptions::{
@@ -542,7 +542,7 @@ test "@nest indexed merge keeps order semantics (tn006/tn008 同族对拍)" {
 }
 
 ///|
-/// ③批对拍：@vocab 声明端到端（无冒号键 → vocab 拼接）
+/// ③批比对：@vocab 声明端到端（无冒号键 → vocab 拼接）
 test "@vocab declaration end-to-end (③批对拍)" {
   let options = JsonLdOptions::{
     load_context: None,
@@ -620,7 +620,7 @@ test "debug ter48: vocab=false excludes term lookup" {
 }
 
 ///|
-/// ③批 @version 落码对拍：接受 json-ld-1.1 / 拒绝其他值
+/// ③批 @version 实现比对：接受 json-ld-1.1 / 拒绝其他值
 test "@version declaration (③批对拍)" {
   let e = StandardExpander::{ }
   let active = ActiveContext::{
@@ -705,8 +705,8 @@ test "invalid @version rejected (③批对拍)" {
 }
 
 ///|
-/// merge 绝对路径引用对拍（#t0051 oracle："/" 开头引用 → authority 保留、
-/// path 整体替换；相对引用仍截最后段——#t0129/#t0130 回归钉）
+/// merge 绝对路径引用比对（#t0051 oracle："/" 开头引用 → authority 保留、
+/// path 整体替换；相对引用仍截最后段——#t0129/#t0130 回归断言）
 test "merge_base_reference absolute-path reference (t0051 对拍)" {
   assert_true(
     merge_base_reference(
@@ -721,7 +721,7 @@ test "merge_base_reference absolute-path reference (t0051 对拍)" {
   // 引用自带 "/" → 退化出双斜杠（仅此退化形态，正规 base 不经此路；
   // authority 感知边界后 = 截段 + 引用，旧魔数分支为追加）
   assert_true(merge_base_reference("a/b", "/c") is "a//c")
-  // 相对引用回归钉
+  // 相对引用回归断言
   assert_true(
     merge_base_reference("http://example", "relative-iri")
     is "http://example/relative-iri",
@@ -733,7 +733,7 @@ test "merge_base_reference absolute-path reference (t0051 对拍)" {
 }
 
 ///|
-/// ③细化对拍：简单 term 定义的值 IRI 展开（#t0072 oracle：重定义为自身时用 @vocab）
+/// ③细化比对：简单 term 定义的值 IRI 展开（#t0072 oracle：重定义为自身时用 @vocab）
 test "term value expands against in-progress vocab (t0072 对拍)" {
   let e = StandardExpander::{ }
   let active = ActiveContext::{
@@ -784,7 +784,7 @@ test "term value expands against in-progress vocab (t0072 对拍)" {
 }
 
 ///|
-/// scoped-context 批对拍①（#tc037 oracle）：@nest 别名 term 的属性作用域
+/// scoped-context 批比对①（#tc037 oracle）：@nest 别名 term 的属性作用域
 /// context 作用于其值——嵌套对象内的 "property" 按 scoped @vocab 展开
 test "property-scoped context on @nest alias term (#tc037 对拍)" {
   let options = JsonLdOptions::{
@@ -822,7 +822,7 @@ test "property-scoped context on @nest alias term (#tc037 对拍)" {
 }
 
 ///|
-/// scoped-context 批对拍②（#tin06 同族 oracle）：scoped context 的
+/// scoped-context 批比对②（#tin06 同族 oracle）：scoped context 的
 /// {"term": null} = null IRI 映射——该键在作用域内**整体丢弃**，而非 vocab
 /// 拼成属性、也非按 @nest 语义上浮（后者对串值会报 invalid @nest value）
 test "scoped context nullifies term: key dropped (#tin06 同族对拍)" {
@@ -872,7 +872,7 @@ test "scoped context nullifies term: key dropped (#tin06 同族对拍)" {
 }
 
 ///|
-/// scoped-context 批对拍③（#tc033 oracle）：未使用的嵌入 context 仍须在
+/// scoped-context 批比对③（#tc033 oracle）：未使用的嵌入 context 仍须在
 /// **定义期**校验——内层 term 无 @id 且无 @vocab → invalid IRI mapping，
 /// 外层按 invalid scoped context 报错（REC 4.2.2 @context 臂）
 test "unused embedded context still checked (#tc033 对拍)" {
@@ -899,7 +899,7 @@ test "unused embedded context still checked (#tc033 对拍)" {
 }
 
 ///|
-/// type-scoped 批对拍①（#t0073 oracle）：元素级 @context 先于主键循环处理——
+/// type-scoped 批比对①（#t0073 oracle）：元素级 @context 先于主键循环处理——
 /// 文档中排在 @context **之前**的键亦须看到它
 test "element @context applies regardless of position (#t0073 对拍)" {
   let options = JsonLdOptions::{
@@ -937,7 +937,7 @@ test "element @context applies regardless of position (#t0073 对拍)" {
 }
 
 ///|
-/// type-scoped 批对拍②（#tc009 oracle）：type-scoped context 作用于**该节点**，
+/// type-scoped 批比对②（#tc009 oracle）：type-scoped context 作用于**该节点**，
 /// **不跨新节点**（嵌套节点回退 previous——"term-scoped context 不跨新节点"）
 test "type-scoped context does not propagate to nested node (#tc009 对拍)" {
   let options = JsonLdOptions::{
@@ -987,7 +987,7 @@ test "type-scoped context does not propagate to nested node (#tc009 对拍)" {
 }
 
 ///|
-/// type-scoped 批对拍③（#tc015 同族 oracle）：单 @id 形值**不回退**——
+/// type-scoped 批比对③（#tc015 同族 oracle）：单 @id 形值**不回退**——
 /// type-scoped @base 对 {"@id": …} 单键值仍生效；多键嵌套节点回退 outer base
 test "single-@id shaped value keeps type-scoped base (#tc015 同族对拍)" {
   let options = JsonLdOptions::{
@@ -1015,7 +1015,7 @@ test "single-@id shaped value keeps type-scoped base (#tc015 同族对拍)" {
 }
 
 ///|
-/// type-scoped 批对拍④（#tc029/#tc030 oracle）：@propagate 校验——
+/// type-scoped 批比对④（#tc029/#tc030 oracle）：@propagate 校验——
 /// 非布尔 → invalid @propagate value；1.0 模式 → invalid context entry
 test "@propagate must be boolean and 1.1-only (#tc029/#tc030 对拍)" {
   let e = StandardExpander::{ }
@@ -1087,7 +1087,7 @@ test "@propagate must be boolean and 1.1-only (#tc029/#tc030 对拍)" {
 }
 
 ///|
-/// @protected 批对拍①（#pr23/#pr42 oracle）：等价重定义**允许且保留保护位**；
+/// @protected 批比对①（#pr23/#pr42 oracle）：等价重定义**允许且保留保护位**；
 /// 不等价重定义 → protected term redefinition（判据看**旧定义**是否受保护）
 test "protected term: equivalent redefinition keeps protection (#pr42 对拍)" {
   let options = JsonLdOptions::{
@@ -1115,7 +1115,7 @@ test "protected term: equivalent redefinition keeps protection (#pr42 对拍)" {
 }
 
 ///|
-/// @protected 批对拍②（#pr17 vs #pr06 oracle）：override protected 的**面**差异——
+/// @protected 批比对②（#pr17 vs #pr06 oracle）：override protected 的**面**差异——
 /// type-scoped 应用不传（默认 false）⇒ 空化保护 term 即错；property-scoped 面传
 /// true ⇒ 同一空化形态允许
 test "override protected faces: type-scoped vs property-scoped (#pr17/#pr06 对拍)" {
@@ -1144,8 +1144,8 @@ test "override protected faces: type-scoped vs property-scoped (#pr17/#pr06 对�
 }
 
 ///|
-/// @protected 批对拍③（td 键面）：未知键 → invalid term definition（REC 键白名单）；
-/// 未落码键（@index/@direction）→ Unsupported（落码活账，禁静默忽略）
+/// @protected 批比对③（td 键面）：未知键 → invalid term definition（REC 键白名单）；
+/// 未实现键（@index/@direction）→ Unsupported（未实现待办，禁静默忽略）
 test "td unknown key vs unimplemented key (#ter56 同族对拍)" {
   let options = JsonLdOptions::{
     load_context: None,
@@ -1167,14 +1167,14 @@ test "td unknown key vs unimplemented key (#ter56 同族对拍)" {
       assert_true(message.contains("invalid term definition"))
     _ => fail("expected invalid term definition")
   }
-  // @index mapping 已落码（@index mapping 批）：容器不含 @index ⇒ invalid term definition
+  // @index mapping 已实现（@index mapping 批）：容器不含 @index ⇒ invalid term definition
   let index_without_container = "{\"@context\": {\"p\": {\"@id\": \"ex:p\", \"@index\": \"i\"}}}"
   match expand_document(index_without_container, options) {
     Err(InvalidContext(message)) =>
       assert_true(message.contains("invalid term definition"))
     _ => fail("expected invalid term definition")
   }
-  // @direction 已落码（丙批）：合法 ltr 接受；非法值 → invalid base direction
+  // @direction 已实现（丙批）：合法 ltr 接受；非法值 → invalid base direction
   let direction_ok = "{\"@context\": {\"p\": {\"@id\": \"ex:p\", \"@direction\": \"ltr\"}}}"
   assert_true(expand_document(direction_ok, options) is Ok(_))
   let direction_bad = "{\"@context\": {\"p\": {\"@id\": \"ex:p\", \"@direction\": \"sideways\"}}}"
@@ -1186,7 +1186,7 @@ test "td unknown key vs unimplemented key (#ter56 同族对拍)" {
 }
 
 ///|
-/// @container 映射批对拍①（#tm003/#tm017 oracle）：type map = 键按 vocab 展开为
+/// @container 映射批比对①（#tm003/#tm017 oracle）：type map = 键按 vocab 展开为
 /// @type **前插**；值层字符串经**隐式 @id** type mapping 成节点引用
 test "type map: prepend @type + implicit @id mapping (#tm003/#tm017 对拍)" {
   let options = JsonLdOptions::{
@@ -1233,7 +1233,7 @@ test "type map: prepend @type + implicit @id mapping (#tm003/#tm017 对拍)" {
 }
 
 ///|
-/// @container 映射批对拍②（#tc013 同族 oracle）：index map = 条目无 @index 时写入
+/// @container 映射批比对②（#tc013 同族 oracle）：index map = 条目无 @index 时写入
 /// **原始索引键**；值为对象按常规展开
 test "index map: writes @index from map key (#tc013 同族对拍)" {
   let options = JsonLdOptions::{
@@ -1273,7 +1273,7 @@ test "index map: writes @index from map key (#tc013 同族对拍)" {
 }
 
 ///|
-/// @container 映射批对拍③（#tm020 oracle）：容器含 @type 时 type mapping 只允许
+/// @container 映射批比对③（#tm020 oracle）：容器含 @type 时 type mapping 只允许
 /// @id/@vocab（显式其它值 → invalid type mapping）
 test "container @type restricts type mapping to @id/@vocab (#tm020 对拍)" {
   let options = JsonLdOptions::{
@@ -1301,7 +1301,7 @@ test "container @type restricts type mapping to @id/@vocab (#tm020 对拍)" {
 }
 
 ///|
-/// @id 容器 + language map 批对拍①（#tm001/#tm002/#tm005 oracle）：id map——
+/// @id 容器 + language map 批比对①（#tm001/#tm002/#tm005 oracle）：id map——
 /// 条目无 @id ⇒ 写**document-relative**展开的索引；已有 @id 保留
 test "id map: writes document-relative @id, keeps existing (#tm001/#tm005 对拍)" {
   let options = JsonLdOptions::{
@@ -1352,7 +1352,7 @@ test "id map: writes document-relative @id, keeps existing (#tm001/#tm005 对拍
 }
 
 ///|
-/// @id 容器 + language map 批对拍②（#tm009/#tm010/#tl001 oracle）：language map——
+/// @id 容器 + language map 批比对②（#tm009/#tm010/#tl001 oracle）：language map——
 /// 语言键非 @none（含**别名**）加 @language；条目值与数组内 null 跳过
 test "language map: @none alias and null skip (#tm010/#tl001 对拍)" {
   let options = JsonLdOptions::{
@@ -1402,7 +1402,7 @@ test "language map: @none alias and null skip (#tm010/#tl001 对拍)" {
 }
 
 ///|
-/// @id 容器 + language map 批对拍③（#t0040 oracle）：容器为 map 类但**值非 map**
+/// @id 容器 + language map 批比对③（#t0040 oracle）：容器为 map 类但**值非 map**
 /// ⇒ 落通用分支；数组逐项按元素语义展开（**不重入容器壳**——否则 `{"@id": …}`
 /// 项会被误当索引键条目）
 test "map container with array value falls through per element (#t0040 对拍)" {
@@ -1446,7 +1446,7 @@ test "map container with array value falls through per element (#t0040 对拍)" 
 }
 
 ///|
-/// @index mapping 批对拍①（#tpi06/#tpi07/#tpi10 oracle）：index key ≠ @index ⇒
+/// @index mapping 批比对①（#tpi06/#tpi07/#tpi10 oracle）：index key ≠ @index ⇒
 /// 索引键写成**一条属性**（值 = 索引，追加在既有值之前）；`@none` 条目不写属性
 test "index mapping: index written as property, appended before existing (#tpi 对拍)" {
   let options = JsonLdOptions::{
@@ -1498,7 +1498,7 @@ test "index mapping: index written as property, appended before existing (#tpi �
 }
 
 ///|
-/// @index mapping 批对拍②（#tpi01/#tpi03/#tpi04/#tpi05 oracle）：索引映射校验——
+/// @index mapping 批比对②（#tpi01/#tpi03/#tpi04/#tpi05 oracle）：索引映射校验——
 /// 1.0 / 非串 / 展开非 IRI → invalid term definition；值对象条目加索引属性 →
 /// invalid value object
 test "index mapping validation + value object rejection (#tpi 负例对拍)" {
@@ -1549,7 +1549,7 @@ test "index mapping validation + value object rejection (#tpi 负例对拍)" {
 }
 
 ///|
-/// @index mapping 批对拍③（#t0063/#t0131 oracle）：reverse 项**允许** @set/@index
+/// @index mapping 批比对③（#t0063/#t0131 oracle）：reverse 项**允许** @set/@index
 /// 容器（白名单放宽）；**reverse-bearing 节点不是自由浮动**（仅 @reverse 的根节点保留）
 test "reverse term with index container keeps reverse-only node (#t0063/#t0131 对拍)" {
   let options = JsonLdOptions::{
@@ -1604,7 +1604,7 @@ test "reverse term with index container keeps reverse-only node (#t0063/#t0131 �
 }
 
 ///|
-/// B组边界钉：merge_base_reference 三形臂位（spec §IRI 解析实现边界）——
+/// B组边界断言：merge_base_reference 三形臂位（spec §IRI 解析实现边界）——
 /// 短 scheme 角（套件不可达）经 authority 感知边界后仍走目录替换臂
 ///（RFC 5.2.3：base.path 截最后 "/" 含 + 引用）
 test "merge_base_reference short-scheme authority-aware boundary" {
@@ -1623,7 +1623,7 @@ test "merge_base_reference short-scheme authority-aware boundary" {
 }
 
 ///|
-/// C组成分门钉：nq_iri_chars_legal fragment 位判别（#te111/#te112 oracle——
+/// C组成分门校验：nq_iri_chars_legal fragment 位判别（#te111/#te112 oracle——
 /// spec 附录 IRI 正则 fragment 内不容第二 "#"；B组②平面门在其上）
 test "nq_iri_chars_legal fragment component gate" {
   // fragment 位第二 "#" 非法 → 弃（te111 #fragment-works 键）
@@ -1642,7 +1642,7 @@ test "nq_iri_chars_legal fragment component gate" {
 }
 
 ///|
-/// J3.2 数值典范形判定钉（REC §6.4）：整形判据=值整+|v|<1e21，非词面 e 有无；
+/// J3.2 数值典范形判定校验（REC §6.4）：整形判据=值整+|v|<1e21，非词面 e 有无；
 /// 整数形无前导零/-0 归 "0"；double 形首位+.尾（个位保 .0）、E 后无 +/前导零。
 test "nq_canonical_number canonical form pinning" {
   // 整数形（lexical 无 e 且值整）
@@ -1663,7 +1663,7 @@ test "nq_canonical_number canonical form pinning" {
 }
 
 ///|
-/// 批5 B 族：IriExpander 单件未触臂直调（烟雾钉只盖各单件首 Err 门；
+/// 批5 B 族：IriExpander 单件未触臂直调（烟雾测试只盖各单件首 Err 门；
 /// 此处补 td iri=None / 无冒号 / vocab 命中三面）
 fn wb_td_null() -> TermDefinition {
   {
