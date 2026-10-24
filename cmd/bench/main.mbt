@@ -1,12 +1,12 @@
-// ===== jsonld 性能基线 harness（常备；役P1 立法，2026-10-09）=====
-// 口径：native 后端（preferred_target）；计时 = @async.now()（ms 墙钟）；
+// ===== jsonld 性能基线 harness（常备；役P1 立账，2026-10-09）=====
+// 规则：native 后端（preferred_target）；计时 = @async.now()（ms 墙钟）；
 //       每场景 warmup 1 + k=5 计时取**中位数**（读数 = perf-baseline.txt）。
 // 语料：进程内确定性生成（零仓库膨胀；形状注记同笔入 perf-baseline.txt）。
-// 自报行（与套件自报同族，greppable）：
+// 自报读数行（与套件的自报同族，可直接 grep）：
 //       `[bench] scenario=<名> n=<规模> median=<ms>ms k=5 runs=[...]`
 // 判据线：任一场景中位数回归 >10%（超噪声带）即红——perf-baseline.txt 头。
-// 前检纪律：计时前每场景先跑一次**结构断言**（Ok + 规模哨兵）——计错误结果
-//       即垃圾读数（⑤勘定工具自身可能被污染；J2 fixture 教训）。
+// 前置检查：计时前每场景先跑一次**结构断言**（Ok + 规模哨兵）——计错误结果
+//       即垃圾读数（⑤勘察工具自身可能被污染；J2 fixture 教训）。
 
 ///|
 fn main {
@@ -133,8 +133,8 @@ fn gen_deep_doc(depth : Int) -> String {
 
 ///|
 /// nest：单节点 M 属性、每属性经 @nest 入**互异** nest 键（合并机制全展开）。
-/// nest 别名 term **前置 + 简单形**（勘定：td 对象形 + 前向引用 = 引擎拒——
-/// 别名查表只见已处理面；套件无 oracle，挂账不扩，见 perf-baseline.txt §勘定发现）。
+/// nest 别名 term **前置 + 简单形**（勘察：td 对象形 + 前向引用 = 引擎拒——
+/// 别名查表只见已处理面；套件无 oracle，待办不扩，见 perf-baseline.txt §勘察发现）。
 fn gen_nest_ctx(m : Int) -> String {
   let sb = StringBuilder()
   sb.write_string("{")
@@ -256,7 +256,7 @@ fn scenario_expand_wide() -> Unit {
 
 ///|
 fn scenario_expand_deep() -> Unit {
-  // depth=800：core @json.parse 默认最大嵌深 1024（J0 勘定），贴近上限取信号；
+  // depth=800：core @json.parse 默认最大嵌深 1024（J0 勘察），贴近上限取信号；
   // 递归/分派成本渐近段形态注记见 perf-baseline.txt。
   let depth = 800
   let doc = gen_deep_doc(depth)
@@ -378,7 +378,7 @@ fn scenario_to_rdf_wide() -> Unit {
 ///|
 fn scenario_from_rdf_wide() -> Unit {
   // n=4000：首轮实测 n=20000 中位数 25.4s（runs 13.7~37.8s，方差大）——
-  // fromRdf 是**头号热点信号**（P3 勘定主发现）；规模降到基线套件可承受量级，
+  // fromRdf 是**头号热点信号**（P3 勘察主发现）；规模降到基线套件可承受量级，
   // 扩散律（线性 vs 二次）留探针批专测。
   let n = 4000
   let nq = gen_nquads_flat(n)
@@ -429,7 +429,7 @@ fn scenario_canon_chain() -> Unit {
 }
 
 ///|
-/// scoped_heavy（役P1 批7 转正——**COW 回归门**；批6 双判据的负载线钉）：
+/// scoped_heavy（役P1 批7 转正——**COW 回归门**；批6 双判据的负载线校验）：
 /// J2 同形 = N 节点 × term-ful property-scoped 应用（父 context 200 terms；
 /// 每节点 sc 触发 process_context :3564 克隆径）。守什么：context 克隆路径
 /// 的份额与线性（批6 实测 158ms/2000×200 = 0.38µs/term，O(N×T)）——谁动

@@ -1,6 +1,6 @@
-// 役65 库化整形——render_json 晋 pub 白盒钉（转义门 + 往返值等价 + 键序保真）。
+// 役65 库化整形——render_json 晋 pub 白盒校验（转义门 + 往返值等价 + 键序保真）。
 // 前科：原 jv_render 字符串零转义带病（含 `"` 晋 pub 会产非法 JSON；
-// html 50/50 全绿纯因无此形输入）——本件钉死该族。
+// html 50/50 全绿纯因无此形输入）——本件固定断言该族。
 
 ///|
 test "render_json: string escaping gate" {

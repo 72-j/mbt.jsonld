@@ -1,5 +1,5 @@
 ///|
-/// fromRDF 套件 harness（役57——spec §8.130 钉）：官方 fromRdf 套件 54 例
+/// fromRDF 套件 harness（役57——spec §8.130 校验）：官方 fromRdf 套件 54 例
 /// （正 52 + 负 2）全 plain。判定 = canonical_for_suite 直比 + bnode 双射
 /// 兜底。通道 = from_rdf_document(输入 N-Quads 原文, options)。
 async test "fromRDF suite harness: manifest-driven buckets" {

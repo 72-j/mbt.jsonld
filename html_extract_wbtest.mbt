@@ -1,4 +1,4 @@
-// J9 HTML 面——扫描器白盒钉（常驻件：扫描器是持久面，钉其行为边界）。
+// J9 HTML 面——扫描器白盒校验（常驻件：扫描器是持久面，校验其行为边界）。
 // 全 assert 形；byte-inlined，不落探针文件。
 
 ///|
@@ -114,7 +114,7 @@ test "html_ld_scripts: script end-tag corner shapes" {
 
 ///|
 test "html_ld_scripts: base href first wins and base without href" {
-  // <base href> 首现生效（te020 口径）；无 href 的 <base> 不动基
+  // <base href> 首现生效（te020 规则）；无 href 的 <base> 不动基
   let doc = "<head><base href=\"http://a/\"><base href=\"http://b/\"><base></head><script type=\"application/ld+json\">{\"c\":3}</script>"
   let scan = html_ld_scripts(doc)
   assert_true(scan.scripts.length() == 1)
@@ -137,7 +137,7 @@ test "html mf3: empty-valued attr, bare-valued attr, unknown attr, typeless scri
   // '=' 后直接 '>' = 空值属性（type= → 空媒体类型不捕获）
   assert_true(html_scripts_of("<script type=>{\"a\":1}</script>").length() == 0)
   // 裸值被 '>' 终结（'/' 属值内字符——application/ld+json 裸形照捕获，
-  // 役65 断裂 bug 回归钉）
+  // 役65 断裂 bug 回归断言）
   let bare = html_scripts_of(
     "<script type=application/ld+json>{\"a\":1}</script>",
   )

@@ -3,16 +3,16 @@
 ///   件 1 接口一致 = interface_gate_test 既有门（表 handler ↔ mock 双向）。
 ///   件 2 步骤覆盖 = 本文件：steps 7 行 + keyword_dispatch 14 行 + iri_rules
 ///        7 行，逐行**行为探针**证明手写链兑现声明（缺行/多行/错向皆红）。
-///   件 3 值级对拍 = 同一探针的 expected 即精确展开形（值级，非仅行为）。
+///   件 3 值级比对 = 同一探针的 expected 即精确展开形（值级，非仅行为）。
 /// **J4 对账产出（骨架 vs 手写分叉账）**：keyword_dispatch 的 9 行 handler_hook
 /// （set_language/set_direction/expand_list/expand_set/expand_graph/
 /// expand_reverse/expand_nest/expand_included/set_index）指向 **pending 桩**——
 /// 真落点 = expand_object 内联臂（J2 各批实装处）。表行 = 声明的语义归属；
 /// 本文件 fixture 逐行证明内联臂兑现声明的 action/args。桩本身由
-/// expand_standard_wbtest 的 Unsupported 常驻活账管辖。
+/// expand_standard_wbtest 的 Unsupported 常驻待办清单管辖。
 
 ///|
-/// 值级对拍探针：doc（含 @context）→ 展开形 canonical → 与 expected 串比
+/// 值级比对探针：doc（含 @context）→ 展开形 canonical → 与 expected 串比
 fn j4_expand_eq(doc : String, expected : String) -> Bool {
   let options : @jsonld.JsonLdOptions = {
     base: None,
@@ -54,7 +54,7 @@ fn j4_expand_eq(doc : String, expected : String) -> Bool {
 }
 
 ///|
-/// 值级对拍全表（件 2 + 件 3 合一：每行 = 声明路由的行为证明 + 精确展开值）
+/// 值级比对全表（件 2 + 件 3 合一：每行 = 声明路由的行为证明 + 精确展开值）
 async test "J4: keyword_dispatch 14 routes + steps + iri_rules value-level" {
   // (路由键, doc, expected-expanded)
   let fixtures : Array[(String, String, String)] = [
@@ -118,7 +118,7 @@ async test "J4: keyword_dispatch 14 routes + steps + iri_rules value-level" {
       "_term", "{\"@context\":{\"ex\":\"http://ex/\"},\"ex:thing\":\"v\"}", "[{\"http://ex/thing\":[{\"@value\":\"v\"}]}]",
     ),
   ]
-  // 骨架路由行 ↔ 手写行为双钉：路由行存在 + fixture 值级兑现
+  // 骨架路由行 ↔ 手写行为双校验：路由行存在 + fixture 值级兑现
   for fixture in fixtures {
     let (keyword, doc, expected) = fixture
     let route = @jsonld.jsonld_keyword_route(keyword)
@@ -129,7 +129,7 @@ async test "J4: keyword_dispatch 14 routes + steps + iri_rules value-level" {
       fail("J4 值级对拍红：\{keyword}")
     }
   }
-  // 骨架路由全表行数钉（14 = 13 键 + _term）
+  // 骨架路由全表行数校验（14 = 13 键 + _term）
   assert_eq(@jsonld.jsonld_keyword_routes().length(), 14)
 }
 
@@ -148,7 +148,7 @@ async test "J4: steps coverage (entry dispatch + passthrough rows)" {
       "{\"@id\":\"http://ex/a\",\"http://ex/p\":[{\"@value\":\"v\"}]}", "[{\"@id\":\"http://ex/a\",\"http://ex/p\":[{\"@value\":\"v\"}]}]",
     ),
   ) // object 单节点
-  // 步骤 id 全集钉（7 行账面）
+  // 步骤 id 全集校验（7 行账面）
   let ids = [
     @jsonld.JsonLdStep::ExpansionEntry.id(),
     @jsonld.JsonLdStep::ExpansionExpandValue.id(),
@@ -209,8 +209,8 @@ async test "J4: iri_rules coverage (7 rules in declared order)" {
 }
 
 ///|
-/// 骨架 vs 手写分叉账钉（J4 对账产出）：9 行 keyword hook 声明指向 pending 桩
-/// （真落点 = expand_object 内联臂）——分叉在册，桩由 Unsupported 常驻活账管辖
+/// 骨架 vs 手写分叉账校验（J4 对账产出）：9 行 keyword hook 声明指向 pending 桩
+/// （真落点 = expand_object 内联臂）——分叉在册，桩由 Unsupported 常驻待办清单管辖
 async test "J4: skeleton-vs-handwritten divergence ledger" {
   let pending_hooks : Array[(String, String)] = [
     ("@language", "Expander::set_language"),

@@ -108,7 +108,7 @@ async test "HTML suite harness: manifest-driven buckets" {
         }
       Ok(result) =>
         if result.no_scripts && kind != "toRdf" {
-          // 无 script 臂·通道分叉（同形异判，2026-10-03 勘定）：expand/compact/
+          // 无 script 臂·通道分叉（同形异判，2026-10-03 勘察）：expand/compact/
           // flatten 面 ⇒ loading document failed（#te006 负例 oracle）；
           // 仅 ToRDFTest 面视作空输入（#tr006 正例 ⇒ 空数据集）
           if is_neg {
@@ -213,7 +213,7 @@ async fn html_run_channel(
 }
 
 ///|
-/// JSON 面期望对拍（expand/compact/flatten 共用）
+/// JSON 面期望比对（expand/compact/flatten 共用）
 async fn html_expect_json(
   id : String,
   entry : @jsonld.JsonValue,
@@ -257,7 +257,7 @@ async fn html_context_text(id : String, entry : @jsonld.JsonValue) -> String {
 }
 
 ///|
-/// 错误消息面（harness 失败诊断用；对拍判据不依赖错误文案）
+/// 错误消息面（harness 失败诊断用；比对判据不依赖错误文案）
 fn html_error_text(e : @jsonld.JsonLdError) -> String {
   match e {
     @jsonld.JsonLdError::Syntax(m) => "syntax: " + m

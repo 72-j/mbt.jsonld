@@ -1,9 +1,9 @@
-// ===== 役C2 批1：compact_standard 未覆盖臂探针（小族先收） =====
+// ===== 役C2 批1：compact_standard 未覆盖分支探针（先收小族） =====
 // 二路手段：① **白盒直调**（compact_bare_fit / compact_object_fit /
 // compact_value_jv / compact_list_bare_fit / literal_datatype_of /
 // compact_property_values）——把臂状态手工构造成型，臂级可达性可判；
 // ② **pub 入口** compact_document——管线可达性（含 base 相对上跳族）。
-// 纪律：探针先跑、看未行闭合再定性——**死账须实证，推理不记账**（用户令）。
+// 纪律：探针先跑、看未行闭合再定性——**已关闭待办须实证，推理不记账**（用户令）。
 
 ///|
 /// plain 档 options（1.1，无 base——与 expand neg_plain_options 同形）
@@ -286,7 +286,7 @@ test "C2-09 literal_datatype_of 混合列（行 347）" {
 }
 
 ///|
-/// **死带拆除复跑钉·形一**（原 @list 吸收块，役C2批2 拆）：同入参现走
+/// **死分支拆除复跑断言·形一**（原 @list 吸收块，役C2批2 拆）：同入参现走
 /// `compact_value_item` 的 List 容器臂（本函数逐值调用）⇒ 单 List 值仍出裸数组
 /// ——**行为零变更**（拆前/拆后同果）
 test "C2-S1 property_values @list 吸收（拆后走 value_item 臂）" {
@@ -311,7 +311,7 @@ test "C2-S1 property_values @list 吸收（拆后走 value_item 臂）" {
 }
 
 ///|
-/// **死带拆除复跑钉·形二**：1.0 档 + 嵌套 list ⇒ `compaction to list of lists`
+/// **死分支拆除复跑断言·形二**：1.0 档 + 嵌套 list ⇒ `compaction to list of lists`
 /// ——拆前属被删块内错误臂，拆后由 `compact_value_item` 同判据（行 1062）抛，
 /// 经本函数 Err 传播臂（行 1122）返回
 test "C2-S2 property_values @list×1.0 嵌套 list（拆后走 value_item 1062）" {
@@ -363,7 +363,7 @@ test "C2-P2 pub 管线 上跳越界 break（行 296）" {
 ///|
 /// **证伪尝试·裸 authority base 的上跳族**（行 232/235/253/257/261）：base 无路径
 /// （"http://a.example"）时 `boundary`（"http://"）先命中前缀短路 ⇒ 上跳块整体
-/// 不进——探针跑通即「前缀短路先手」，三行不得转死账（须另立可达性论证）
+/// 不进——探针跑通即「前缀短路先手」，三行不得转已关闭待办（须另立可达性论证）
 test "C2-F1 pub 管线 裸 authority base 前缀短路（行 232/253/257 证伪尝试）" {
   let ctx = "{\"@context\":{\"@base\":\"http://a.example\",\"@vocab\":\"http://a.example/vocab/\"}}"
   let doc = "{\"@context\":{\"@base\":\"http://a.example\",\"@vocab\":\"http://a.example/vocab/\"},\"@id\":\"/bb/cc\",\"p\":\"x\"}"
@@ -429,9 +429,9 @@ test "C2-F3 pub 管线 方向映射 term × 数值值（行 635 证伪尝试）"
   }
 }
 
-// ===== 役C2 批2：错传播链一击 + 上跳块 bp/ip/auth 臂 =====
+// ===== 役C2 批2：错传播链一击 + 上跳块 bp/ip/auth 分支 =====
 // 撞名族纪律：ctx 只走参数、doc 不嵌 @context——嵌则展开期把 "tag:…"
-// CURIE 化为 td_iri+rest，压缩位撞名检测自消（td_iri+rest == pred 豁免形）。
+// CURIE 化为 td_iri+rest，压缩位撞名检测自消（td_iri+rest == pred 显式放行形）。
 
 ///|
 /// **错传播链·@list 项节点属性位 scheme 撞名**（行 1066）：撞名 Err 在项节点
@@ -477,10 +477,10 @@ test "C2-B2-03 反转 term 载撞名子（行 1122/1205）" {
 }
 
 ///|
-/// **@vocab-miss 词形路 × 裸 authority base 保绝对**（行为钉）：@vocab 型
+/// **@vocab-miss 词形路 × 裸 authority base 保绝对**（行为断言）：@vocab 型
 /// term 未命中走前缀词步（compact_iri_word 1018 allow_base=false）⇒ 174 门
 /// （compactToRelative && allow_base——上跳块整体嵌于其内）跳过 ⇒ 尾点绝对
-/// 返回。行 232/253 定谳门死（另账）：裸 authority base ⇒ boundary="http://"
+/// 返回。行 232/253 定论门不存在（另账）：裸 authority base ⇒ boundary="http://"
 /// ⇒ 205 前缀短路先手，allow_base=true 面亦不达 227。
 /// base 纪律：active.base 只从 ctx `@base` 来（options.base 不入链）。
 test "C2-B2-04 @vocab-miss 裸 authority base 保绝对（行为钉）" {
@@ -666,10 +666,10 @@ test "C2-B2-14 图映射反转 map-miss 单值对（行 1205）" {
 }
 
 ///|
-/// **直调 compact_iri_word × allow_base=false 位保绝对**（行为钉）：174 门
+/// **直调 compact_iri_word × allow_base=false 位保绝对**（行为断言）：174 门
 /// require allow_base=true——false 位（失配兜底位）整块跳过（base 相对化 +
 /// 上跳块同门），恒保绝对词面。行 232/253 需 base 带 `//` + 裸 authority +
-/// allow_base=true，但彼形 boundary="http://" 被行 204 前缀短路截走（门死
+/// allow_base=true，但彼形 boundary="http://" 被行 204 前缀短路截走（门不存在
 /// 维持批1 判；同 scheme 层级 IRI 无绕行形）。
 test "C2-B2-15 直调 allow_base=false 位保绝对（行为钉）" {
   let terms : Map[String, TermDefinition] = Map([])
@@ -772,7 +772,7 @@ test "C2-B2-18 数值 raw × direction 吸收（635）+ 606 负得" {
 ///|
 /// **反转位分键路内嵌撞名**（行 899+2078 双闭）：无反转 term × 正向候选
 /// fw ⇒ 2067 分键路；值节点非 id-only ⇒ bare_fit 败 ⇒ **best=None**
-/// （分键路为单遍 bare_fit 环、无 object 二遍——884 门死判据）⇒ 892 逐值
+/// （分键路为单遍 bare_fit 环、无 object 二遍——884 门不存在判据）⇒ 892 逐值
 /// property_pair ⇒ 节点对象递归内嵌 "tag:2010" 撞名 Err（1201→1205）⇒
 /// 899 ⇒ 分键路 Err 臂 2078。
 test "C2-B2-19 反转位对象形内嵌撞名（899+2078）" {
@@ -856,7 +856,7 @@ test "C2-B3-03 图载体双值同组（1432）" {
       let out = render_json(jv)
       // 双载体走 None 次级 graph_bares 路（1457）；成员 id-only 节点在
       // **扩形侧**即被丢（PROBE 实证：expand_document 出 "@graph":[]——
-      // 空图成员不入扩形，非压缩侧剥点），故断言只钉载体 @id。
+      // 空图成员不入扩形，非压缩侧剥点），故断言只校验载体 @id。
       // （1432 判点在 Some(Index) 次级组路——见 B3-16。）
       assert_true(out.find("\"g\"") is Some(_))
       assert_true(out.find("http://ex/c1") is Some(_))
@@ -1143,7 +1143,7 @@ test "C2-B3-21 键化支残余撞名（2400）" {
 }
 
 ///|
-/// **property-scoped 上下文保护重定义 = 放行**（947/966 防御臂定谳钉）：
+/// **property-scoped 上下文保护重定义 = 放行**（947/966 防御臂结论断言）：
 /// property-scoped @context 重定义受保护 term **不 Err**（对照 type-scoped
 /// 判例 B3-10 = Err；T4 expand 侧同形亦放行）⇒ compact_value_item 头部
 /// apply 不经 Err 臂（947/966）——出形照常 "p":"v"。
@@ -1175,7 +1175,7 @@ test "C2-B3-23 index 次级组路成员撞名（1440+1987）" {
 }
 
 ///|
-/// **语言标签不等长不吸收**（行为钉；385 已另证构造性死——374 长度门
+/// **语言标签不等长不吸收**（行为断言；385 已另证构造性死——374 长度门
 /// 在先，"en" vs "en-US" 于长度位即拒，界内 get_char 恒 Some）：
 test "C2-B3-24 语言区域位不对称（385）" {
   let ctx = "{\"@context\":{\"lt\":{\"@id\":\"http://a/t\",\"@language\":\"en\"}}}"
@@ -1190,7 +1190,7 @@ test "C2-B3-24 语言区域位不对称（385）" {
 }
 
 ///|
-/// **无 id 带属性节点对象形渲染**（行为钉；803 已另证死账——child.id None
+/// **无 id 带属性节点对象形渲染**（行为断言；803 已另证已关闭待办——child.id None
 /// 在 762 早退、td_opt 两调用点恒 Some）：
 test "C2-B3-25 object_fit 无 id 节点权重（803）" {
   let ctx = "{\"@context\":{\"p\":\"http://a/p\"}}"
@@ -1205,7 +1205,7 @@ test "C2-B3-25 object_fit 无 id 节点权重（803）" {
 }
 
 ///|
-/// **反转属性无反转 term 兜底**（行为钉——cands 空支路；2040 真路见
+/// **反转属性无反转 term 兜底**（行为断言——cands 空支路；2040 实际路径见
 /// B3-29 反转映射逐值兜底）：
 test "C2-B3-26 反转属性无反转 term 兜底（2040）" {
   let doc = "{\"@id\":\"http://ex/s\",\"@reverse\":{\"http://ns/x\":[{\"@id\":\"http://ex/o\"}]}}"
@@ -1248,12 +1248,12 @@ test "C2-B3-28 关键词条成员撞名（1987）" {
 }
 
 ///|
-/// **反转映射逐值兜底不可构造定谳钉**（2040 构造性死）：@reverse 位值恒
+/// **反转映射逐值兜底不可构造结论断言**（2040 构造性死）：@reverse 位值恒
 /// 节点对象（扩形 1223 门——值对象/@list 形态即「invalid reverse property
 /// value」拒）+ reverse 容器白名单 Set/Index/None（4437）⇒ map_entry 唯一
 /// None 出口（2423 非节点值）在反转位不可达 ⇒ 2037 兜底死。双负实证：
 /// @language 版定义期拒（invalid reverse property）、@index 版字面量值
-/// 展开期拒（本钉）。
+/// 展开期拒（本校验）。
 test "C2-B3-29 反转映射兜底不可构造（2040 定谳钉）" {
   let ctx = "{\"@context\":{\"r\":{\"@reverse\":\"http://a/r\",\"@container\":\"@index\"}}}"
   let doc = "{\"@id\":\"http://ex/s\",\"@reverse\":{\"http://a/r\":[{\"@value\":\"x\"}]}}"

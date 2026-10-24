@@ -135,7 +135,7 @@ test "rdfc10 poison clique signals error" {
 }
 
 // ===== 役C3 移防④（canon_rdfc10 8 行）：串比较长短臂 + IRI 禁字符转义 +
-// 谓词位容错 + 解析错上抛；384/493/567 定谳死账不探（见 todo 批账）=====
+// 谓词位容错 + 解析错上抛；384/493/567 定论已关闭待办不探（见 todo 批账）=====
 
 ///|
 test "c14n mf4: compare prefix-length arms (192/194)" {
@@ -151,7 +151,7 @@ test "c14n mf4: iri forbidden char escape + parse error + literal predicate (285
     rdfc10_canonicalize_with_hash("<http://s/> <http://p^x/> \"v\" .", Sha256) {
     Ok((canonical, _)) => {
       // 反斜杠字面量过 heredoc/python 层易被吃（移防①② 坑族续）——
-      // 断转义词形 "u005E" 在场 + 全串无裸 '^'，组合钉死 UCHAR 转义
+      // 断转义词形 "u005E" 在场 + 全串无裸 '^'，组合固定断言 UCHAR 转义
       assert_true(canonical.contains("u005E"))
       assert_true(!canonical.contains("^"))
     }

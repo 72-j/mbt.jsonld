@@ -14,8 +14,8 @@ pub(all) struct ActiveContext {
   default_language : String?
   /// 默认文字方向（@context @direction 成员——丙批）：ltr/rtl
   default_direction : String?
-  /// 压缩候选倒排索引（役P1 批3——性能内政；惰性建，见 compact_term_candidates）。
-  /// 语义钉：terms-map 身份至多建一次；context 处理系构造恒 None，唯
+  /// 压缩候选倒排索引（役P1 批3——性能内部实现；惰性建，见 compact_term_candidates）。
+  /// 语义校验：terms-map 身份至多建一次；context 处理系构造恒 None，唯
   /// terms 同引用的派生（compact_node_jv value_chain）三字段整组拷贝。
   /// compact_by_iri = Some 即整组已建（三字段同笔读写）。
   mut compact_by_iri : Map[String, Array[String]]?
@@ -75,7 +75,7 @@ pub(all) struct TermDefinition {
   simple_form : Bool
   /// graph 组合容器 @set 保形位（J6 役8——[@graph,@set] 与裸 @graph 压缩
   /// 出形分叉：前者数组恒保 #t0078 / 后者 @included 包裹 #t0109；展开期
-  /// 「@set 不占次级」丢此位——判定树 Q1 钉不完整补存储，增量字段展开
+  /// 「@set 不占次级」丢此位——判定树 Q1 校验不完整补存储，增量字段展开
   /// 不读、零行为面）
   graph_set : Bool
   /// map 组合容器 @set 保形位（役33/35——[@id|@type|@language|@index, @set]

@@ -1,12 +1,12 @@
 ///|
-/// framing 面落码（J5——spec §8.93 勘定 / §8.94 开工第一笔 / 本役 = 首役
-/// #t0001 冒烟）。REC JSON-LD 1.1 Framing：管线五段复用（expand 全链 /
-/// F2 同 id 预合并 / graph map / compaction 主体），新算法主体 = Frame
-/// Matching + Framing 两递归。首役骨架覆盖 1.0 基础族单链嵌套（#t0001）；
-/// wildcard / match-none / value pattern / 帧旗覆写（@embed/@explicit/
-/// @requireAll/@omitDefault——frameExpansion 展开批）/ named graph 递归
-/// / @reverse / list pattern / @preserve 发射 / prune bnodes / 环检测
-/// 逐簇役落码，每批以套件例为钉（禁无判定面落码）。
+/// framing 面实现（J5——spec §8.93 勘察 / §8.94 开工第一笔）。
+/// REC JSON-LD 1.1 Framing：复用五段管线（expand 全链 / F2 同 id 预合并 /
+/// graph map / compaction 主体），新增算法主体 = Frame Matching + Framing 两递归。
+/// 首笔骨架覆盖 1.0 基础族单链嵌套（#t0001）；wildcard / match-none / value
+/// pattern / 帧旗覆写（@embed/@explicit/@requireAll/@omitDefault——frameExpansion
+/// 展开批）/ named graph 递归 / @reverse / list pattern / @preserve 发射 /
+/// prune bnodes / 环检测按簇分批实现，每批以套件例为校验（禁无判定面实现）。
+/// 施工账：todo.md §J5（framing 批次）。
 
 ///|
 /// framing 状态（REC framing state——骨架面：旗字段随 frameExpansion 批进）
@@ -30,7 +30,7 @@ priv struct FrameState {
   /// @last 前嵌位账（键 = graph|id → (parent 节点, 性质)——替换走性质位
   /// 值组扫描）
   last_locations : Map[String, (ExpandedNode, String)]
-  /// 压缩词表（term 键 → IRI 映射；役55 t0010 缺位发射「term 键同指」豁免
+  /// 压缩词表（term 键 → IRI 映射；役55 t0010 缺位发射「term 键同指」显式放行
   /// 的判定面——帧 document 构造，debug 镜像可空表）
   compaction_terms : Map[String, String]
   mut probe : String?
@@ -58,7 +58,7 @@ fn frame_trace(state : FrameState, line : String) -> Unit {
 ///|
 /// subject map：当前 graph 名下的 subject 集合；"@merged" = 全 graph 并集
 /// （REC Merge Node Maps 真语义——同 id 跨图**逐位并**而非整节点替换；
-/// t0068 勘定：图序排序迭代保确定序，"@default" 恒先）
+/// t0068 勘察：图序排序迭代保确定序，"@default" 恒先）
 fn frame_subject_map(state : FrameState) -> Map[String, ExpandedNode] {
   if state.graph_name == "@merged" {
     let merged : Map[String, ExpandedNode] = Map([])
@@ -233,7 +233,7 @@ fn frame_register(
         }
         None => ()
       }
-      // 自身注册**先于性质下走**（后向边勘定——tg003 根因：后向
+      // 自身注册**先于性质下走**（后向边勘察——tg003 根因：后向
       // reference 在祖先自注册前递归，把裸引用抢注进图字典，first-wins
       // 随即弃真节点 ⇒ subject map 空壳、匹配全空）。先注册真节点，后向
       // 边命中 contains 即跳过；F2 预合并已保证同 id 全节点单点
@@ -259,7 +259,7 @@ fn frame_register(
       if !nodes.contains(self_id) {
         nodes[self_id] = node
       } else {
-        // 最全者胜（后向边占位勘定二——tg005 根因：后向 reference 先注
+        // 最全者胜（后向边占位勘察二——tg005 根因：后向 reference 先注
         // 册成裸壳，真节点后到被 first-wins 挡外 ⇒ 空壳匹配不上。F2 预
         // 合并保证同 id 至多一个全节点 ⇒ 全节点到即换、裸引用互不换）
         let existing = match nodes.get(self_id) {
@@ -448,7 +448,7 @@ fn frame_flag_word(frame_node : ExpandedNode, keyword : String) -> String? {
 ///|
 /// Frame Matching 主入口：subjects 过滤 + 码点序。确定性骨架 = 恒排
 /// （REC ordered 旗「code point order if ordered」的骨架化——unordered
-/// 语义 oracle 差异面随对拍役校）
+/// 语义 oracle 差异面随比对役校）
 fn frame_matching(
   state : FrameState,
   subjects : Array[String],
@@ -476,7 +476,7 @@ fn frame_matching(
 /// @id/@type 失配恒否（硬过滤，处理即断）；余性质 requireAll 分 all/any；
 /// framing 旗/@default 键不参与匹配（REC "no other keywords are
 /// considered"）。wildcard / match-none / value pattern / @default 缺位配
-/// 形随批落码
+/// 形随批实现
 fn frame_node_matches(
   state : FrameState,
   node : ExpandedNode,
@@ -620,7 +620,7 @@ fn node_id_of(node : ExpandedNode) -> String {
 ///|
 /// 性质位匹配（REC 骨架 = node pattern 臂）：值位 node references 的 id
 /// 作 subjects 下代递归，非空即配。value pattern / wildcard / match-none
-/// / @default 缺位配随 frameExpansion 批落码
+/// / @default 缺位配随 frameExpansion 批实现
 fn frame_property_matches(
   state : FrameState,
   node : ExpandedNode,
@@ -1011,7 +1011,7 @@ fn frame_relabel_bnodes(
               Some(f) => f
               None => {
                 let f = frame_fresh_bnode(state)
-                // fresh 标签身份自映（键统一勘定——已铸标签再遇 = 命中自身，
+                // fresh 标签身份自映（键统一勘察——已铸标签再遇 = 命中自身，
                 // 不再二次铸号改写共享节点 ⇒ 双键分裂根因封堵）
                 seen[f] = f
                 seen[id] = f
@@ -1070,7 +1070,7 @@ fn frame_relabel_bnodes(
 /// → parent 收账。旗覆写（requireAll/explicit）+ explicit 收编门 + 帧缺位
 /// 性质 @preserve 发射本批已落；embed 旗三分支（@never / @once 已嵌 /
 /// 环检测）、named graph 递归（graph_map 有 id 条目）、@included、@reverse：
-/// 随各簇役落码
+/// 随各簇役实现
 fn frame_invoke(
   state : FrameState,
   subjects : Array[String],
@@ -1494,7 +1494,7 @@ fn frame_invoke(
             Some(existing) => !existing.is_empty()
             None => false
           }
-          // term 键同指豁免（役55 t0010——帧展开 concat IRI vs 输入键自
+          // term 键同指显式放行（役55 t0010——帧展开 concat IRI vs 输入键自
           // 映射 IRI：output 键为在册 term 键且其 IRI 映射 = 帧性质 IRI
           // ⇒ 同指已在册，不按缺位发 @preserve null）
           if !already {
@@ -1729,7 +1729,7 @@ fn frame_language_lowered_lit(lit : ExpandedLiteral) -> ExpandedLiteral {
 }
 
 ///|
-/// framing 文档入口（J5——spec §8.93 勘定 / §8.94 立桩 / §8.95 首役落码）：
+/// framing 文档入口（J5——spec §8.93 勘察 / §8.94 立骨架 / §8.95 首个役实现）：
 /// ①expand(input) ②F2 同 id 预合并（flatten 同源）③frame 原文 @context
 /// 抽取 + 展开（骨架 = 常规展开；frameExpansion 保形批随帧旗簇）④
 /// process_context 建 ActiveContext ⑤graph map（Node Map Generation 骨架
@@ -1759,7 +1759,7 @@ pub fn frame_document(
     Ok(doc) => doc
     Err(e) => return Err(e)
   }
-  // 帧无 @context ⇒ compaction context = 空 map（t0018 勘定——原样落整帧
+  // 帧无 @context ⇒ compaction context = 空 map（t0018 勘察——原样落整帧
   // 对象会被 process_context 当 context 处理而炸：@type 数组项即 invalid
   // context entry）
   let mut frame_inner : JsonValue = JsonValue::Object([])
@@ -1813,7 +1813,7 @@ pub fn frame_document(
     Ok(context) => context
     Err(e) => return Err(e)
   }
-  // 压缩词表（term 键 → IRI；缺位发射 term 键同指豁免判定面——役55 t0010）
+  // 压缩词表（term 键 → IRI；缺位发射 term 键同指显式放行判定面——役55 t0010）
   let compaction_terms : Map[String, String] = Map([])
   for term_name, term_definition in active.terms {
     match term_definition.iri {
@@ -2003,7 +2003,7 @@ pub fn frame_document(
     body_pairs.push((graph_key, JsonValue::Array(compacted_items)))
   }
   // @context 原文逐字回填（空 context 不发射——compact_document 同款；
-  // t0018 无帧 context 例对拍时校）
+  // t0018 无帧 context 例比对时校）
   let context_empty = match frame_inner {
     JsonValue::Object(pairs) => pairs.is_empty()
     JsonValue::Null => true

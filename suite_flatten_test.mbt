@@ -1,6 +1,6 @@
 ///|
 /// flatten 套件 harness（J5——spec §8.40）：manifest 驱动 58 例两桶
-/// （57 正 + 1 负），判定 = canonical_for_suite 对拍（数组无序、@list 保序）
+/// （57 正 + 1 负），判定 = canonical_for_suite 比对（数组无序、@list 保序）
 /// + bnode 双射兜底（isomorphic_for_suite——引用实现重标签语义）。
 /// bnode 标签：引用实现 _:b0 顺序 vs 本实现遍历序——直比不过再补双射兜底。
 async test "flatten suite harness: manifest-driven buckets" {
@@ -22,7 +22,7 @@ async test "flatten suite harness: manifest-driven buckets" {
   // compaction 面解）、tin06 = @nest 深研（author 包装节点被 data 值吸收——
   // §8.39）。本批转正 4 例：t0038/t0045 = bnode 双射兜底件、t0046 = 相对
   // IRI 保形（flatten_term 有词面恒保留）、te001 = colliding indexes 检出
-  // （F2 合并 @index 冲突 + free-floating @index 豁免）
+  // （F2 合并 @index 冲突 + free-floating @index 显式放行）
   let migrated : Array[String] = [
     "#t0001", "#t0002", "#t0003", "#t0004", "#t0005", "#t0006", "#t0007", "#t0008",
     "#t0009", "#t0010", "#t0011", "#t0012", "#t0013", "#t0014", "#t0015", "#t0016",
@@ -112,7 +112,7 @@ async test "flatten suite harness: manifest-driven buckets" {
               @jsonld.canonical_for_suite(expected_value),
             )
             if ours != expected {
-              // bnode 双射兜底（引用实现重标签语义——词面位三钉：谓词键/
+              // bnode 双射兜底（引用实现重标签语义——词面位三条断言：谓词键/
               // @id 值/@type 串值；@value 字面量不重标）
               if !@jsonld.isomorphic_for_suite(flattened, expected_value) {
                 fail(
@@ -135,7 +135,7 @@ async test "flatten suite harness: manifest-driven buckets" {
 }
 
 ///|
-/// 判定器自检（isomorphic_for_suite——bnode 双射兜底语义四钉）：
+/// 判定器自检（isomorphic_for_suite——bnode 双射兜底语义四校验）：
 /// 标签对调同构 / @type 串值位与谓词键位同入双射 / 字面量 "_:x" 不重标 /
 /// 结构异构否
 test "flatten suite judge: bnode bijection semantics" {
@@ -149,7 +149,7 @@ test "flatten suite judge: bnode bijection semantics" {
   }
   let str = fn(s : String) -> @jsonld.JsonValue { @jsonld.JsonValue::String(s) }
   let ref_ = fn(id : String) -> @jsonld.JsonValue { obj([("@id", str(id))]) }
-  // 钉一：标签对调同构（图同构、标签任意）
+  // 规则一：标签对调同构（图同构、标签任意）
   let swap_left = arr([
     obj([("@id", str("_:a")), ("http://ex/p", arr([ref_("_:b")]))]),
   ])
@@ -157,7 +157,7 @@ test "flatten suite judge: bnode bijection semantics" {
     obj([("@id", str("_:x")), ("http://ex/p", arr([ref_("_:y")]))]),
   ])
   assert_true(@jsonld.isomorphic_for_suite(swap_left, swap_right))
-  // 钉二：@type 串值位与谓词键位同入双射（flatten 词面三钉之二）
+  // 规则二：@type 串值位与谓词键位同入双射（flatten 词面三条断言之二）
   let typed_left = arr([
     obj([
       ("@id", str("_:a")),
@@ -173,7 +173,7 @@ test "flatten suite judge: bnode bijection semantics" {
     ]),
   ])
   assert_true(@jsonld.isomorphic_for_suite(typed_left, typed_right))
-  // 钉三：@value 字面量串不重标（"_:x" 字面非词面——异文即异构）
+  // 规则三：@value 字面量串不重标（"_:x" 字面非词面——异文即异构）
   let lit_left = arr([
     obj([
       ("@id", str("_:a")),
@@ -187,7 +187,7 @@ test "flatten suite judge: bnode bijection semantics" {
     ]),
   ])
   assert_false(@jsonld.isomorphic_for_suite(lit_left, lit_right))
-  // 钉四：结构异构否（词数等但入度不等——双射无解）
+  // 规则四：结构异构否（词数等但入度不等——双射无解）
   let dense_left = arr([
     obj([("@id", str("_:a")), ("http://ex/p", arr([ref_("_:b"), ref_("_:b")]))]),
     obj([("@id", str("_:b"))]),

@@ -1,5 +1,5 @@
 // ===== 役C3 移防⑥（from_rdf 54 行）：解析形态门 + 列表走查边臂 + 复合字面面
-// + 命名图族 + 直调单件。死账/挂账归类见 todo 批账（纯列门先行族勿探）。=====
+// + 命名图族 + 直调单件。已关闭待办/待办归类见 todo 批账（纯列门先行族勿探）。=====
 
 ///|
 let f6_ns : String = "http://www.w3.org/1999/02/22-rdf-syntax-ns#"
@@ -103,7 +103,7 @@ test "f6: list walk edges (901/947/913/921)" {
       "<http://s/> <http://p/> _:l .\n_:l <\{f6_ns}first> \"x\" .\n_:l <\{f6_ns}rest> _:ghost .",
       from6_options(),
     ) {
-    // 纯列门先行：rest 未入账 ⇒ 纯列判假走节点渲染（901 walk 缺席臂挂账）
+    // 纯列门先行：rest 未入账 ⇒ 纯列判假走节点渲染（901 walk 缺席臂待办）
     Ok(_) => ()
     Err(_) => fail("901: expected dangling rest to be tolerated")
   }
@@ -114,7 +114,7 @@ test "f6: list walk edges (901/947/913/921)" {
       from6_options(),
     ) {
     Err(_) => ()
-    // 渲染面无 langtag 校验（容错保形）——947 Err 源另勘挂账
+    // 渲染面无 langtag 校验（容错保形）——947 Err 源另勘待办
     Ok(_) => ()
   }
   // 嵌套纯列（913/921——first 位指向纯列链节）
@@ -244,7 +244,7 @@ test "f6: named graph faces (402/404/493/507/554)" {
       "<http://s/> <http://p/> \"x\"@toolongtag <http://g/> .",
       from6_options(),
     ) {
-    // 渲染面无 langtag 校验（容错保形）——507 Err 源另勘挂账
+    // 渲染面无 langtag 校验（容错保形）——507 Err 源另勘待办
     Ok(_) => ()
     Err(_) => fail("507: expected named bad langtag to be tolerated")
   }

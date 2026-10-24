@@ -1,5 +1,5 @@
 // ===== 役C3 移防⑦（engine 62 行）：expand_context 面 / 顶层展开驱动 /
-// 套件助手直调 / flatten 形态族 / compact 入口面。死账/挂账见 todo 批账。=====
+// 套件助手直调 / flatten 形态族 / compact 入口面。已关闭待办/待办见 todo 批账。=====
 
 ///|
 fn eng7_options() -> JsonLdOptions {
@@ -82,7 +82,7 @@ test "e7: suite helper direct calls (370/435/440/484)" {
 ///|
 test "jcs_serialize 钉（评审役 R-1）：键码点序 + JCS 直出" {
   // 键序反例 = json_canonical 的长度序（@id/ex:p/@context）；JCS 码点序 =
-  // @context < @id < ex:p——本钉改线即红
+  // @context < @id < ex:p——本校验改线即红
   let value = match
     parse_json("{\"ex:p\":1,\"@id\":\"a\",\"@context\":\"b\"}") {
     Ok(value) => value
@@ -371,7 +371,7 @@ test "e8: top-level drop and list arms (119/191)" {
     Ok(value) => assert_eq(render_json(value), "[]")
     Err(_) => fail("119: expected scalar members dropped")
   }
-  // 顶层 @list 对象 → 实测渲染 []（展开侧丢弃——行为钉；191 other 臂是否
+  // 顶层 @list 对象 → 实测渲染 []（展开侧丢弃——行为断言；191 other 臂是否
   // 可达由覆盖裁决：ExpandObject 若不产 List 则臂死）
   match expand_document("{\"@list\":[{\"@value\":\"x\"}]}", eng7_options()) {
     Ok(value) => assert_eq(render_json(value), "[]")
@@ -510,7 +510,7 @@ test "e8b: array member none drop (119)" {
 ///|
 test "e8b: flatten empty with context (1306)" {
   // 空 flatten 主体 + context 压缩通道 → compacted 空 → 空对象臂（1306）
-  // ——e7 的空文档钉走的是无 context 直出臂，未入此臂（勘误）
+  // ——e7 的空文档校验走的是无 context 直出臂，未入此臂（勘误）
   match
     flatten_document("{}", context="{\"v\":\"http://a/v\"}", eng7_options()) {
     Ok(value) => assert_eq(render_json(value), "{}")

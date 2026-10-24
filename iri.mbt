@@ -1,7 +1,7 @@
 ///|
 /// IRI 展开接口
 /// 契约面与 jsonld_gen.toml iri_rules / keyword_dispatch 的 handler 一一对应
-/// （接口一致门钉住：方法改名 ⇒ 门红）。
+/// （接口一致门校验住：方法改名 ⇒ 门红）。
 pub(open) trait IriExpander {
   /// 展开 IRI：相对/绝对/compact/vocab 相对/bnode
   fn expand_iri(

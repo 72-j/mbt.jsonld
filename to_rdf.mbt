@@ -1,6 +1,6 @@
 ///|
-/// toRDF 处理接口 —— 手写实现（J3 落码；J1 定契约）
-/// 契约面与 jsonld_gen.toml 的 handler_hook 对应（接口一致门钉住）。
+/// toRDF 处理接口 —— 手写实现（J3 实现；J1 定契约）
+/// 契约面与 jsonld_gen.toml 的 handler_hook 对应（接口一致门校验住）。
 pub(open) trait ToRdfProcessor {
   /// 展开后的节点对象图 → 四元组（@graph 图名与数据集处理在此）
   fn node_to_quads(
@@ -51,7 +51,7 @@ const RDF_LANGUAGE_IRI : String = "<http://www.w3.org/1999/02/22-rdf-syntax-ns#l
 const RDF_DIRECTION_IRI : String = "<http://www.w3.org/1999/02/22-rdf-syntax-ns#direction>"
 
 ///|
-/// toRDF 落码状态（J3.1——REC §6 对应物）：bnode 序号 / emit-once 账 / 产物
+/// toRDF 实现状态（J3.1——REC §6 对应物）：bnode 序号 / emit-once 账 / 产物
 priv struct ToRdfState {
   mut counter : Int
   emitted : Map[String, Bool]
@@ -733,7 +733,7 @@ fn nq_jcs(value : JsonValue) -> String {
 /// JCS 规范化序列化出口（RFC 8785；评审役 R-1 处置，2026-10-09 晋 pub）：
 /// 键 = Unicode 码点序（nq_key_compare）、字符串转义 §3.2.2.2、数值词形 =
 /// ECMAScript Number::toString——本体 nq_jcs（J3.3，#tjs01~23 oracle 全绿）。
-/// 与 json_canonical（对拍归一器，比对用）分账：对外规范化序列化用本品。
+/// 与 json_canonical（比对归一器，比对用）分账：对外规范化序列化用本品。
 pub fn jcs_serialize(value : JsonValue) -> String {
   nq_jcs(value)
 }
@@ -947,7 +947,7 @@ fn nq_node_to_rdf(
 }
 
 ///|
-/// toRDF 落码（J3.1——REC §6 对应物；批边界见 spec §8）：展开形 → 四元组。
+/// toRDF 实现（J3.1——REC §6 对应物；批边界见 spec §8）：展开形 → 四元组。
 /// **批内**：串/语言/显式 datatype/bnode（含回写 emit-once）/rdf:type/
 /// @list 链/具名图 + 默认图/反向。**后续批**：数值典范形（J3.2——raw 词形
 /// 直出）、@json→rdf:JSON+JCS（J3.3）、rdfDirection（J3.4，本批 direction 弃）。

@@ -23,7 +23,7 @@ fn tr9_options() -> JsonLdOptions {
 ///|
 test "tr9: canonical number direct calls (520/563)" {
   // "1.5e3"：指数字段循环在 while i<len 守卫处退出（494 None 臂不可达
-  // ——get_char 恒不越界，⑤ 定谳）→ 整形臂零添（520）→ "1500"
+  // ——get_char 恒不越界，⑤ 定论）→ 整形臂零添（520）→ "1500"
   match nq_canonical_number("1.5e3", false) {
     (form, false) => assert_eq(form, "1500")
     _ => fail("494/520: expected 1.5e3 -> 1500 integer form")
@@ -82,9 +82,9 @@ test "tr9: illegal datatype char survival (413)" {
 ///|
 test "tr9: generalized bnode reverse predicate (898/901)" {
   let input = "{\"@id\":\"http://a/x/\",\"@reverse\":{\"_:p\":{\"@id\":\"http://a/y/\"}}}"
-  // ⑤ 定谳（coverage-baseline 移防⑤）：bnode 谓词展开侧不可装机——
+  // ⑤ 定论（coverage-baseline 移防⑤）：bnode 谓词展开侧不可装机——
   // expand 1695 反向键须绝对 IRI（"_:p" scheme "_" 非法）⇒ 反向项整项
-  // 拒，generalized 旗无关。行为钉 = 两档皆无 _:p 四元组（回归牙）
+  // 拒，generalized 旗无关。行为断言 = 两档皆无 _:p 四元组（回归牙）
   let gen = { ..tr9_options(), produce_generalized_rdf: true, }
   match to_rdf_document(input, gen) {
     Ok(quads) => {

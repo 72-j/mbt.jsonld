@@ -1,6 +1,6 @@
 ///|
 /// fromRDF 主体（役57——REC §RDF-to-Object-Conversion；spec §8.130/§8.131
-/// 钉）：N-Quads → 展开且展平形节点对象数组。三段式：①全量入账（结构化
+/// 校验）：N-Quads → 展开且展平形节点对象数组。三段式：①全量入账（结构化
 /// term 存储）②形态集合判定（纯列表/复合字面）③统一渲染。核心判据
 /// （t0008 破译）：**@list 转换只发生在普通性质对象位**——rdf:first 位引
 /// 用恒 {@id} 物化（lista/b1/c1 面）；rest 位链续走吸收。named graph =
@@ -50,7 +50,7 @@ priv struct FromRdfNode {
   props : Map[String, Array[NqTerm]]
   prop_order : Array[String]
   types : Array[String]
-  /// first 位引用标记（吸收豁免判定——t0008/tli02 双面界定）
+  /// first 位引用标记（吸收显式放行判定——t0008/tli02 双面界定）
 }
 
 ///|
@@ -179,8 +179,8 @@ fn from_rdf_graph_ctx_scoped(
       presence,
       graph_key,
     )
-    // first 位物化豁免（1.0 模式面——t0008 lista/b1/c1）：first 位引用且
-    // rest 非直 nil 的纯链 = 物化（1.1 嵌套转换不豁免——tli03）
+    // first 位物化显式放行（1.0 模式面——t0008 lista/b1/c1）：first 位引用且
+    // rest 非直 nil 的纯链 = 物化（1.1 嵌套转换不显式放行——tli03）
     let first_hit = match first_refs.get(key) {
       Some(graphs) => graphs.contains(graph_key)
       None => false
@@ -796,7 +796,7 @@ fn index_of_str_prefix(dt : String, prefix : String) -> Bool {
 }
 
 ///|
-/// 纯列表节点判据（t0004/0010/0011/0012/0013/0016 语义钉）：恰 first+rest
+/// 纯列表节点判据（t0004/0010/0011/0012/0013/0016 语义校验）：恰 first+rest
 /// 各一、无他性质、types ⊆ {rdf:List}（带 rdf:List 型链仍转——t0016）；
 /// rest 链终 nil（环 = 否；rest 字面 = 否）
 fn from_rdf_is_pure_list(
@@ -879,7 +879,7 @@ fn from_rdf_walk_list(
       match first_term {
         // nil = 空列表项（tli01）；纯列表头引用 = 嵌套 @list（tli02——
         // _:a/_:b 单节链嵌套转）；first 位多节链/非纯 = {@id} 物化（t0008
-        // ——lista/b1/c1 面吸收豁免+物化）
+        // ——lista/b1/c1 面吸收显式放行+物化）
         NqIriTerm(iri) =>
           if iri == from_rdf_nil_iri {
             items.push(JsonValue::Object([("@list", JsonValue::Array([]))]))
@@ -951,7 +951,7 @@ fn from_rdf_walk_list(
 }
 
 ///|
-/// first 位引用收集（rdf:first 值位的节点键集——吸收豁免判定面）
+/// first 位引用收集（rdf:first 值位的节点键集——吸收显式放行判定面）
 fn from_rdf_collect_first_refs(
   graph : FromRdfGraph,
   graph_key : String,

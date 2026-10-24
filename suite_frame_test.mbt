@@ -1,10 +1,10 @@
 ///|
-/// framing 套件 harness（J5——spec §8.93 勘定 / §8.94 开工第一笔）：官方
+/// framing 套件 harness（J5——spec §8.93 勘察 / §8.94 开工第一笔）：官方
 /// json-ld-framing 套件 @ `3bf782ba` manifest 驱动 92 例两桶（正 89 +
 /// 负 3）。判定 = canonical_for_suite 直比 + isomorphic_for_suite bnode
 /// 双射兜底。通道 = frame_document(输入原文, frame 原文, options)。
-/// 开工第一笔立桩：92 例全 deferred（framing 面未落码，Unsupported 挂账
-/// ——§8.93 勘 4 簇表为逐簇解释）——首役起逐役迁移清桶（#t0001 冒烟起）。
+/// 开工第一笔立骨架：92 例全 deferred（framing 面未实现，Unsupported 待办
+/// ——§8.93 勘 4 簇表为逐簇解释）——首个役起逐役迁移清桶（#t0001 冒烟起）。
 async test "framing suite harness: manifest-driven buckets" {
   let manifest_text = @utf8.decode(
     @fs.read_file("./.rdf-tests/json-ld-framing/frame-manifest.jsonld").binary(),
@@ -17,7 +17,7 @@ async test "framing suite harness: manifest-driven buckets" {
     Some(@jsonld.JsonValue::Array(entries)) => entries
     _ => fail("manifest sequence missing")
   }
-  // 已迁移例（plain 桶）——首役 #t0001 起逐役增长；deferred = 未落码例
+  // 已迁移例（plain 桶）——首个役 #t0001 起逐役增长；deferred = 未实现例
   // （逐簇解释见 spec §8.93 勘 4 簇表 + 各役落账）
   // 役49 匹配语法批（spec §8.98）：match-none/wildcard/@id-@type pattern/
   // requireAll/default-only/value pattern 十簇 + 帧旗批 + 冒烟
@@ -49,12 +49,12 @@ async test "framing suite harness: manifest-driven buckets" {
     // embedded=false 拷贝态 + output 复用父位；tin01 键别名 @set/tin02
     // @included 直键/tin03 json.api 例三连）
      "#tin01", "#tin02", "#tin03",
-    // 役54-续 收口三连（spec §8.126）：t0064 @type default 对象三件套
+    // 役54-续 结束三连（spec §8.126）：t0064 @type default 对象三件套
     // （预扫组件臂+关键字臂同归 expand_type_default_object 保形 / 匹配
     // 无条件臂 / 缺位注入）；t0068 @merged 真并集（逐位并替整节点替换，
     // 图序排序迭代）；t0018 帧无 @context ⇒ compaction context 空 map
      "#t0064", "#t0068", "#t0018",
-    // 役55 t0010 张力案裁定（spec §8.127——发射词自洽豁免：撞名词=在册
+    // 役55 t0010 张力案裁定（spec §8.127——发射词自洽显式放行：撞名词=在册
     // term 键放行；REC 字面混淆错与套件正例相悖，oracle > 字面 + 键在册
     // 自洽于 term 查找序；te002 键非 term 键不受扰）
      "#t0010",
@@ -177,7 +177,7 @@ fn frame_base_from_input(entry : @jsonld.JsonValue) -> String? {
 ///|
 /// framing per-case options：options_for 同源（specVersion/processingMode
 /// 并行、任一指 1.0 即 1.0）+ base 覆写为 framing 锚。omitGraph / ordered
-/// 选项随面落码批进 JsonLdOptions（deferred 期无判定路径，落码役同笔带）
+/// 选项随面实现批进 JsonLdOptions（deferred 期无判定路径，实现役同笔带）
 fn frame_options_for(
   entry : @jsonld.JsonValue,
   map : Map[String, String],

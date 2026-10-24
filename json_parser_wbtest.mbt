@@ -1,6 +1,6 @@
 ///|
 /// json_parser 包装层测试（白盒：直用同包符号）
-/// 口径钉子（J0 勘定）：重复键 last-wins 占首现位 / 键序 ≈ 首现序 /
+/// 规则断言（J0 勘察）：重复键 last-wins 占首现位 / 键序 ≈ 首现序 /
 /// 数词形取 double 值 / 语法错误 → JsonLdError::Syntax
 
 ///|

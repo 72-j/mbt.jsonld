@@ -1,7 +1,7 @@
 ///|
 /// Expansion 接口 —— 手写实现（树递归）
 /// 契约面与 jsonld_gen.toml 的 handler_hook 一一对应（接口一致门
-/// `interface_gate_test.mbt` 钉住：trait 方法改名 ⇒ 门红）。
+/// `interface_gate_test.mbt` 校验住：trait 方法改名 ⇒ 门红）。
 pub(open) trait Expander {
   /// 展开一个 element（递归入口）
   fn expand_element(

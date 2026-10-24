@@ -1,7 +1,7 @@
 ///|
 /// 接口一致门（对账红线第一件：骨架 handler ↔ 手写 trait 方法逐一对应）。
 /// 拦截两类漂移：① 生成面 handler 指向未声明的 trait/方法；② trait 方法改名后生成面未同步。
-/// 机制：mock 全实现四 trait（`with` 形逐条，编译器钉住 trait 声明面）+
+/// 机制：mock 全实现四 trait（`with` 形逐条，编译器校验住 trait 声明面）+
 /// table_handlers 清单与生成面 handler 集合双向对表（多一少一即红）。
 /// 生成面增删 ⇒ 同笔补 mock 分支 + 本清单（生成物 ≡ 源表由外层黄金门把关）。
 
@@ -356,7 +356,7 @@ async test "interface gate smoke: mock surface is callable" {
 }
 
 ///|
-/// 役C3 移防②（gen.mbt 35/55/57）：生成面步进表直调钉——next_step 全变体
+/// 役C3 移防②（gen.mbt 35/55/57）：生成面步进表直调校验——next_step 全变体
 /// 邻接契约 + dispatch 形状白名单外 / 非入口步两兜底臂。next_step 生产面
 /// 零调用（调度走 dispatch），生成物契约面直调保活
 test "gen surface: next_step table + dispatch fallback arms (35/55/57)" {

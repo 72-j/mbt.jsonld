@@ -1,6 +1,6 @@
 // ===== 役C3：frame.mbt 未覆盖臂探针（91 冷行清剿） =====
 // 手段：pub 入口 frame_document（管线族）+ 白盒直调（pattern 内部件族）。
-// 纪律：探针先跑、看未行闭合再定性——死账须实证，推理不记账（用户令）。
+// 纪律：探针先跑、看未行闭合再定性——已关闭待办须实证，推理不记账（用户令）。
 
 ///|
 /// plain 档 options（1.1，无 base——c2_options 同形）
@@ -41,7 +41,7 @@ fn f3_err_msg(result : Result[JsonValue, JsonLdError]) -> String {
 ///|
 /// F3-01（frame.mbt 1747）：输入展开 Err 直穿——@reverse 关键字值字面量
 /// 在展开期拒（词面实测：关键字形 = invalid @reverse value；term-declare
-/// 形 = invalid reverse property value，B3-29 已钉）
+/// 形 = invalid reverse property value，B3-29 已校验）
 test "f3_01 input expand error propagates" {
   let result = frame_document(
     "{\"@reverse\":\"http:p\",\"http:q\":\"v\"}",
@@ -195,7 +195,7 @@ test "f3_09 graph parent accumulates multiple subjects" {
 /// F3-10（153）：嵌套图并集 (Some,Some) 循环体——同 id 双图各带非空
 /// 嵌套 @graph，merged 累计体图槽 push 实跑（150 臂已中而 153 未中
 /// = 此前 (Some,Some) 对 extra.graph 为空形）。
-/// **fixture 纪律（本役实证定谳）**：嵌套图**项**必须带属性——`{"@id":…}`
+/// **fixture 纪律（本役实证定论）**：嵌套图**项**必须带属性——`{"@id":…}`
 /// 裸形属**自由浮动弃置**面（仓卷批9 坑③"@id-only 图项集合位亦弃"），
 /// 展开期即出 `graph=[]` ⇒ 图字典不建、subject 不到，**非产品缺陷**
 /// （前一轮 3 红即此，实测 `reg graph_id=http:x items=0` → 补属性后 items=1）
@@ -483,10 +483,10 @@ test "f3_23 list pattern skips non-list values" {
 }
 
 ///|
-/// F3-24（720 中靶；718 证伪定谳）：node pattern 递归位的值组扫描——纯串值
+/// F3-24（720 中靶；718 证伪定论）：node pattern 递归位的值组扫描——纯串值
 /// 非 Node → 720 跳；匿名节点**在匹配时已非匿名**：frame_register 对
 /// id-less 值铸号并回写引用（id=Some("_:b0")）⇒ 718 的 ref_node.id None
-/// 臂在 subject map 值位不可达（构造性死账，注册回写不变式），递归经
+/// 臂在 subject map 值位不可达（构造性已关闭待办，注册回写不变式），递归经
 /// _:b0 配中 ⇒ s1 合法入产物（正 oracle）
 test "f3_24 node pattern recursion matches via minted bnode" {
   let input = "{\"@id\":\"http:s1\",\"http:p\":[\"P720\",{\"http:q\":\"w\"}]}"
@@ -527,10 +527,10 @@ test "f3_25 type-only value pattern drops node" {
 }
 
 ///|
-/// F3-26（800 中靶；802 死账）：@value 位 {} 通配成分——v 位 wildcard
+/// F3-26（800 中靶；802 已关闭待办）：@value 位 {} 通配成分——v 位 wildcard
 /// 臂开（800），纯串值全收（正 oracle：VWILD 进产物）。802 = 成分非
 /// Value/Node 的 `_` 臂——成分构造器（expand_standard 5363 返回面
-/// Node/Value/None）永不产 List 形 ⇒ 构造性死账
+/// Node/Value/None）永不产 List 形 ⇒ 构造性已关闭待办
 test "f3_26 value wildcard component keeps any value" {
   let input = "{\"@id\":\"http:s1\",\"http:p\":\"VWILD\"}"
   let result = frame_document(
@@ -545,9 +545,9 @@ test "f3_26 value wildcard component keeps any value" {
 }
 
 ///|
-/// F3-27（823 中靶；825 死账）：@type 位 {} 通配成分（@value 同帧
+/// F3-27（823 中靶；825 已关闭待办）：@type 位 {} 通配成分（@value 同帧
 /// listed 精确配）——t 位 wildcard 臂开（823，经 expand_type_default_object
-/// 空 @default = 空 pattern），带 datatype 值收。825 死账同 802（返回面）
+/// 空 @default = 空 pattern），带 datatype 值收。825 已关闭待办同 802（返回面）
 test "f3_27 type wildcard component keeps typed value" {
   let input = "{\"@id\":\"http:s1\",\"http:p\":{\"@value\":\"TV27\",\"@type\":\"http:T\"}}"
   let result = frame_document(
@@ -562,8 +562,8 @@ test "f3_27 type wildcard component keeps typed value" {
 }
 
 ///|
-/// F3-28（851 中靶；853 死账）：@language 位 {} 通配成分（@value 同帧
-/// listed）——l 位 wildcard 臂开（851），带语言值收。853 死账同 802
+/// F3-28（851 中靶；853 已关闭待办）：@language 位 {} 通配成分（@value 同帧
+/// listed）——l 位 wildcard 臂开（851），带语言值收。853 已关闭待办同 802
 test "f3_28 language wildcard component keeps lang value" {
   let input = "{\"@id\":\"http:s1\",\"http:p\":{\"@value\":\"LV28\",\"@language\":\"en\"}}"
   let result = frame_document(
@@ -599,11 +599,11 @@ test "f3_29 node reference value kept under value pattern" {
 }
 
 ///|
-/// F3-30（880 定谳死账 + 预检行为钉）：frame_node_matches 节点级预检
+/// F3-30（880 定论已关闭待办 + 预检行为断言）：frame_node_matches 节点级预检
 /// （489-495）对空 pattern 清单性质**带值节点整颗出局**（t0023 oracle）
 /// ⇒ frame_value_kept 的 Some([]) 形不可达：唯一调用点 1287 走
 /// node.properties item 循环——带值节点进不来（预检拒），空值数组不走
-/// item（零循环）。行为钉 = s1 整颗不在产物（实测 @graph 空）
+/// item（零循环）。行为断言 = s1 整颗不在产物（实测 @graph 空）
 test "f3_30 match-none prescan drops node entirely" {
   let input = "{\"@id\":\"http:s1\",\"http:p\":\"EMPTY880\",\"http:r\":\"RVAL\"}"
   let result = frame_document(
@@ -679,7 +679,7 @@ test "f3_33 wildcard item in list pattern" {
 }
 
 ///|
-/// F3-34（923 死账定谳）：list pattern 项 = node pattern，数据项 =
+/// F3-34（923 已关闭待办定论）：list pattern 项 = node pattern，数据项 =
 /// 匿名节点——**list 数据项同样经 register 铸号回写**（items[i] = 铸号
 /// 引用替入）⇒ 配时 ref id 恒 Some，923 的 None 臂不可达；递归经 _:bN
 /// 配中（判别探针：list pattern 作唯一语义性质，s1 入产物 = 配中实证）
@@ -849,7 +849,7 @@ test "f3_41 null id term skipped in compaction terms" {
 /// F3-42：缺位性质 @preserve 包装节点发射→摊平→值直达产物
 /// （1540 发射 + 1625 摊平 + 压缩值成形）。另性质先配（t0009 形：
 /// 纯 @default 帧拒——@default 触发值 pattern 预扫，缺位值位不配）。
-/// 1920 计数扫描面：摊平在扫描前原位完成 ⇒ id-None 节点不达扫描（死账）
+/// 1920 计数扫描面：摊平在扫描前原位完成 ⇒ id-None 节点不达扫描（已关闭待办）
 test "f3_42 preserve wrapper id none in count scan" {
   let result = frame_document(
     "{\"@id\":\"http:s1\",\"http:p\":\"x\"}",

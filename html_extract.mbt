@@ -1,9 +1,9 @@
 // J9 HTML 面（JSON-LD 1.1 API REC 9.5——HTML script 提取）：
-// Process HTML（9.5.1）+ Extract Script Content（9.5.2）两算法落码。
+// Process HTML（9.5.1）+ Extract Script Content（9.5.2）两算法实现。
 // 扫描器 = 最小良构 HTML 状态机：只认 <script … type=application/ld+json>
 // 开标与 </script 闭标（ASCII 大小写不敏感）；textContent 原文直通
 // （script 是 raw text 元素——e010 oracle：&lt;&amp;&gt; 不解码实体）。
-// 50 例勘定：无双转义嵌套（<!-- 区内 <script>）建模需求；EOF 截断按
+// 50 例勘察：无双转义嵌套（<!-- 区内 <script>）建模需求；EOF 截断按
 // HTML 规则视作元素闭合。
 
 ///|
@@ -33,13 +33,13 @@ priv enum HtmlScanMode {
 }
 
 ///|
-/// script 原文语境判定（EOF 收口用；平铺等值——避 is 或模式的 fmt 括号坑）
+/// script 原文语境判定（EOF 结束用；平铺等值——避 is 或模式的 fmt 括号坑）
 fn html_in_script(mode : HtmlScanMode) -> Bool {
   mode is HtmlScriptRaw || mode is HtmlScriptLt || mode is HtmlScriptEndProbe
 }
 
 ///|
-/// ASCII 大小写不敏感等值（标签名/type 属性比较口径）
+/// ASCII 大小写不敏感等值（标签名/type 属性比较规则）
 fn html_ci_equals(first : String, second : String) -> Bool {
   if first.length() != second.length() {
     return false
@@ -78,7 +78,7 @@ fn html_ci_prefix_of(target : String, text : String) -> Bool {
 const HTML_LD_JSON_TYPE : String = "application/ld+json"
 
 ///|
-/// HTML 空白（标签/属性分隔口径）
+/// HTML 空白（标签/属性分隔规则）
 fn html_is_space(ch : Char) -> Bool {
   ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r'
 }
@@ -265,7 +265,7 @@ fn HtmlScanner::step(self : HtmlScanner, ch : Char) -> Unit {
         }
       } else {
         // 候选破裂 → 整段回填原文（注：候选尾恰为 '<' 的极端序列不重探
-        // ——50 例勘定无此形）
+        // ——50 例勘察无此形）
         if self.capture {
           self.content.write_string(text)
         }
@@ -292,7 +292,7 @@ fn HtmlScanner::step(self : HtmlScanner, ch : Char) -> Unit {
 }
 
 ///|
-/// 属性收口：name=value 落位（script 的 type/id 判定）
+/// 属性结束：name=value 落位（script 的 type/id 判定）
 fn HtmlScanner::finalize_attr(self : HtmlScanner) -> Unit {
   let name = self.attr_name.to_string()
   if name.length() == 0 {
@@ -314,7 +314,7 @@ fn HtmlScanner::finalize_attr(self : HtmlScanner) -> Unit {
 }
 
 ///|
-/// start tag 收口：script 判定字段落位，转入原文/文本态
+/// start tag 结束：script 判定字段落位，转入原文/文本态
 fn HtmlScanner::close_start_tag(self : HtmlScanner) -> Unit {
   let name = self.tag_name.to_string()
   if html_ci_equals(name, "script") {
@@ -458,7 +458,7 @@ pub struct HtmlScriptSource {
   /// 无 <base> = None——documentUrl 本身即文档基）
   document_base : String?
   /// **无 JSON-LD script 且 extractAllScripts=false**（REC 9.5.1 无 script 臂）。
-  /// 套件 oracle 在此**通道分叉**（同形异判，2026-10-03 勘定）：ExpandTest #te006
+  /// 套件 oracle 在此**通道分叉**（同形异判，2026-10-03 勘察）：ExpandTest #te006
   /// ⇒ loading document failed；**ToRDFTest #tr006 ⇒ 空数据集**。抽取器只报事实
   /// （本旗 + source="[]"），通道语义由套件 harness 裁定。
   no_scripts : Bool

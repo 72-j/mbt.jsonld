@@ -1,9 +1,9 @@
 ///|
 /// toRDF 判定器（J3.0——spec §8.3/§8.4）：expected `.nq` 迷你解析 + 数据集
-/// 同构（bnode 双射）。受限子集（spec §8.3 勘定实测）：行式语句、终结符 ` .`、
+/// 同构（bnode 双射）。受限子集（spec §8.3 勘察实测）：行式语句、终结符 ` .`、
 /// 词面 <IRI> / `_:label`（标签无点）/ `"literal"[@lang][^^<dt>]`；转义面
 /// `\" \\ \' \t \b \n \r \f \uXXXX`（\UXXXXXXXX 同径）；IRI 内转义不受理
-/// （套件无此面，J3.1 发射侧同口径）。禁对子仓 gen_nquads 建依赖
+/// （套件无此面，J3.1 发射侧同规则）。禁对子仓 gen_nquads 建依赖
 /// （独立布局红线——spec §8.3）。
 
 ///|
@@ -827,7 +827,7 @@ fn render_nq(quads : Array[@jsonld.JsonLdQuad]) -> String {
 
 // ===== 役C3 移防⑤（to_rdf 33 行）：同 id 并集族 + colliding indexes 传播
 // 六位 + 数值典范词形 + xsd:string/1.0 curie datatype + langtag 拒收 +
-// JCS \b\f + 反向位忽略哨兵。死账十件定谳见 todo 批账（勿删）。 =====
+// JCS \b\f + 反向位忽略哨兵。已关闭待办十件定论见 todo 批账（勿删）。 =====
 
 ///|
 /// plain 档 options（默认 1.1，无方向面）

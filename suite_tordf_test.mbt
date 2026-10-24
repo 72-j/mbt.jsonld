@@ -1,9 +1,9 @@
 ///|
 /// toRdf 套件 harness（J3.0——判定器就位（tordf_judge_test.mbt），管线 J3.1
-/// 接线；spec §8 前置勘定）：manifest 驱动 467 例两桶 plain/deferred，pin 闭合。
+/// 接线；spec §8 前置勘察）：manifest 驱动 467 例两桶 plain/deferred，pin 闭合。
 /// 判定通道（J3.1 起）：正例 = expand → node_to_quads → datasets_isomorphic
 /// （expected .nq 经 parse_nquads 归一——RDF Dataset Isomorphism，非 JSON
-/// 对拍）；负例 = 管线任一段 Err；句法 = 全程无 Err。选项面 useJCS×23/
+/// 比对）；负例 = 管线任一段 Err；句法 = 全程无 Err。选项面 useJCS×23/
 /// rdfDirection×4/produceGeneralizedRdf×2 随管线批接线（JCS 独立子役）。
 async test "toRdf suite harness: judge ready, all deferred pre-J3.1" {
   let manifest_text = @utf8.decode(
@@ -90,7 +90,7 @@ async test "toRdf suite harness: judge ready, all deferred pre-J3.1" {
       Some(id) => id
       None => continue
     }
-    // 输入读入 + 解析覆盖通道：全部 467 输入过 parse_json（J0 口径持续验证）
+    // 输入读入 + 解析覆盖通道：全部 467 输入过 parse_json（J0 规则持续验证）
     let input_path = json_string_get(entry, "input")
     if input_path is Some(p) {
       let text = @utf8.decode(
@@ -123,7 +123,7 @@ async test "toRdf suite harness: judge ready, all deferred pre-J3.1" {
     }
     if migrated.contains(id) {
       plain.push(id)
-      // 判定管线（J3.1）：expand → node_to_quads → 判定器同构对拍
+      // 判定管线（J3.1）：expand → node_to_quads → 判定器同构比对
       // options/preload = harness 全同装配（expand 侧同款垫片——ctx §3 纪律）
       let p = match input_path {
         Some(p) => p

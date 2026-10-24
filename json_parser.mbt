@@ -1,9 +1,9 @@
 ///|
 /// JSON 值（内部文档模型）
-/// 实施卷口径（spec.md §7 / J0 勘定 2026-09-25）：包装官方 core 解析器
+/// 实施卷规则（spec.md §7 / J0 勘察 2026-09-25）：包装官方 core 解析器
 /// （moonbitlang/core/json，工具链内置零依赖），不自建解析层。
 /// Object 收有序对——core 按 Map 折叠后转出：重复键 last-wins（占首现位）、
-/// 键序 ≈ 首现序（1.1 算法按属性排序 + 输出侧自排序，键序挂账 J2 对拍收口）。
+/// 键序 ≈ 首现序（1.1 算法按属性排序 + 输出侧自排序，键序待办 J2 比对结束）。
 pub(all) enum JsonValue {
   Null
   Bool(Bool)
@@ -19,12 +19,12 @@ pub(all) enum JsonValue {
 pub extend JsonValue with @moonbitlang/core/debug.Debug::{to_repr}
 
 ///|
-/// [0079] 消警：Eq 派生的 equal/not_equal 显式升格（2026-09-25，对拍结构相等用）
+/// [0079] 消警：Eq 派生的 equal/not_equal 显式升格（2026-09-25，比对结构相等用）
 pub extend JsonValue with Eq::{equal, not_equal}
 
 ///|
 /// JSON 解析接口：官方解析器包装
-/// 挂账注记（J0）：数词形超 double 精确域时 core 留 `repr~`，本层暂弃——
+/// 待办注记（J0）：数词形超 double 精确域时 core 留 `repr~`，本层暂弃——
 /// toRDF 数词形按值还是按原文，J3 对套件实证（DataRoundTripping 族 + useJCS 23 例）后再定。
 pub fn parse_json(text : String) -> Result[JsonValue, JsonLdError] {
   let parsed = try @json.parse(text) catch {
