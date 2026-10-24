@@ -186,7 +186,7 @@ fn push_top_value(
           out.push(item)
         }
       } else if is_free_floating(node) && !frame_expansion {
-        // 顶层 free-floating 节点即弃（#t0001 同族）；frameExpansion 豁免
+        // 顶层 free-floating 节点即弃（#t0001 同族）；frameExpansion 显式放行
         // ——@id-only 帧根是合法 pattern（t0032 判定面：弃则空帧全配）
       } else {
         out.push(value)
@@ -232,23 +232,23 @@ fn is_free_floating(node : ExpandedNode) -> Bool {
   node.graph is None &&
   node.included is None && // included-bearing 节点不弃（#tin03：仅 @included 的根节点保留）
   // reverse-bearing 节点不弃（@index mapping 批——#t0131 oracle：仅 @reverse 的根节点
-  // 保留；@reverse 项进 reverse_props 而非 properties，故须显式豁免）
+  // 保留；@reverse 项进 reverse_props 而非 properties，故须显式显式放行）
   node.reverse_props.is_empty() &&
   // index-bearing 节点不弃（#te001 oracle——flatten「Conflicting indexes」负例
   // 实证：@id+@index 裸节点须抵达节点字典合并面，弃则冲突不可见；expand/toRdf
   // 套件均无此形在册案例，零回归面）
   node.index is None
 }
-// 豁免清单沿革（第五位，2026-10-01 framing 役49）：frameExpansion 模式下
-// @id-only 帧根/子 pattern 不弃（t0032 判定面——弃则帧空全配）。
-// **族核（用户核）**：与前四位**不同族**——前四位（graph/included/reverse/
-// index）是「内容承载节点」**普适豁免**（任何模式下该节点都有意义）；本位是
-// **模式条件豁免**（同一 @id-only 节点在常规展开仍弃，仅 frameExpansion 保）。
-// 故不作普适判扩展，走调用点 `!options.frame_expansion` 旁路（push_top_value
-// + 集合位两门），is_free_floating 本体零改动。
+// 显式放行清单第 5 项：frameExpansion 模式下，@id-only 帧根/子 pattern 不丢弃
+// （t0032 判定面——丢弃会让帧为空、全部误配）。
+// 与前四项不同族：graph/included/reverse/index 是「内容承载节点」的普适放行
+// （任何模式下都有意义）；这一项是**模式条件放行**（常规展开仍弃，仅
+// frameExpansion 保留）。因此不做普适判据扩展，而在调用点用
+// `!options.frame_expansion` 旁路（push_top_value + 集合位两门），
+// is_free_floating 本体零改动。
 
 ///|
-/// ExpandedValue → 展开形态 JsonValue（对拍通道；J2 按覆盖面扩展）
+/// ExpandedValue → 展开形态 JsonValue（比对通道；J2 按覆盖面扩展）
 fn serialize_value(value : ExpandedValue) -> JsonValue {
   match value {
     ExpandedValue::Node(node) => serialize_node(node)
@@ -362,7 +362,7 @@ fn serialize_node(node : ExpandedNode) -> JsonValue {
 }
 
 ///|
-/// 对拍归一：对象键序不敏感（键按字典序重排，递归）；数组保序。
+/// 比对归一：对象键序不敏感（键按字典序重排，递归）；数组保序。
 /// 定位勘正（评审役 R-1，2026-10-09）：本品 = 比对归一器，**非** RFC 8785
 /// JCS（0.1.0 宣称失实，下版 CHANGELOG 改口）；对外 JCS 规范化用
 /// jcs_serialize（to_rdf.mbt，#tjs01~23 oracle）。
@@ -472,15 +472,15 @@ fn json_total_compare(a : JsonValue, b : JsonValue) -> Int {
 
 ///|
 /// JSON-LD 文档同构判定（bnode 双射兜底；役65 定位改判：功能=通用同构
-/// 比对器——直比对拍不过时，bnode 词面升为存在变量——存在标签双射 f 使
-/// relabel 后规范形逐字节相等 ⇒ 同构成立。词面位三钉（flatten 输出形）：
+/// 比对器——直比比对不过时，bnode 词面升为存在变量——存在标签双射 f 使
+/// relabel 后规范形逐字节相等 ⇒ 同构成立。词面位三条断言（flatten 输出形）：
 /// 谓词键位 / "@id" 值位 / "@type" 数组串值位；"@value" 字面量串不重标
 /// （字面量 "_:x" 非节点词面）。标签数 > 8 直接 false——**8 是排列数工作
 /// 界，非经验值**：回溯最坏 = n! 次全文档重标规范渲染，8! = 40320 次为可
 /// 接受上界；套件实测最大 4 标签（#t0038，24 排列），8 留 4 倍标签余量。
 /// 「suite」系历史名非用途限定。
 pub fn isomorphic_for_suite(ours : JsonValue, expected : JsonValue) -> Bool {
-  // @graph 数组集合语义（役52 交棒钉兑现——RDF 图无序；framing unordered
+  // @graph 数组集合语义（役52 交棒断言兑现——RDF 图无序；framing unordered
   // oracle 序不判定。只松不紧：canonical 直比通道不受扰，兜底面放宽）
   let ours_norm = jv_sort_graph_arrays(ours)
   let expected_norm = jv_sort_graph_arrays(expected)
@@ -504,7 +504,7 @@ pub fn isomorphic_for_suite(ours : JsonValue, expected : JsonValue) -> Bool {
 }
 
 ///|
-/// @graph 数组排序规范化（役52 序勘定低成本路线）：对象含 @graph 键且值
+/// @graph 数组排序规范化（役52 序勘察低成本路线）：对象含 @graph 键且值
 /// 为数组 ⇒ 元素按 canonical 词形排序（深走全树）；其余结构原样递归
 fn jv_sort_graph_arrays(value : JsonValue) -> JsonValue {
   match value {
@@ -546,7 +546,7 @@ fn jv_sort_graph_arrays(value : JsonValue) -> JsonValue {
 }
 
 ///|
-/// bnode 词面收集（三钉位递归全走；词面去重入表——判定器同形 nq_term_is_bnode）
+/// bnode 词面收集（三条断言位递归全走；词面去重入表——判定器同形 nq_term_is_bnode）
 fn jv_bnode_labels(value : JsonValue, into : Map[String, Bool]) -> Unit {
   match value {
     JsonValue::Object(pairs) =>
@@ -582,7 +582,7 @@ fn jv_bnode_labels(value : JsonValue, into : Map[String, Bool]) -> Unit {
 }
 
 ///|
-/// bnode 词面重标（三钉位替换——与收集位对称；mapping 只含 bnode 词面，
+/// bnode 词面重标（三条断言位替换——与收集位对称；mapping 只含 bnode 词面，
 /// 命中即换、未命中保留原形）
 fn jv_relabel_bnodes(
   value : JsonValue,
@@ -628,7 +628,7 @@ fn jv_relabel_bnodes(
 }
 
 ///|
-/// 标签双射回溯（left 逐个向 right 未用词面派位；满位即重标对拍——
+/// 标签双射回溯（left 逐个向 right 未用词面派位；满位即重标比对——
 /// mapping 同位覆写无需撤销，used 撤销保双射）
 fn jv_bnode_assign(
   left : Array[String],
@@ -753,7 +753,7 @@ fn flatten_reserve(value : ExpandedValue, into : Map[String, Bool]) -> Unit {
 /// **≠ json_canonical**：键序/数词形/数组序一概不动（规范形归
 /// json_canonical，本函数只管词法保真）。字符串转义 `"` `\` 与全部控制
 /// 字符（`\b\f\n\r\t` 命名形 + 其余 \u00XX）；数词形 = Double 插值词形
-/// （render∘parse 往返值等价，wbtest 钉）。
+/// （render∘parse 往返值等价，wbtest 校验）。
 pub fn render_json(value : JsonValue) -> String {
   match value {
     JsonValue::Null => "null"
@@ -1016,7 +1016,7 @@ fn flatten_walk_node(
   let visit_key = "\{scope}|\{term}"
   let is_graph = nq_has_graph(node)
   if state.visited.contains(visit_key) {
-    // 全形再现 = 成员值级并集（役56 tin06 勘定——REC Generate Node Map
+    // 全形再现 = 成员值级并集（役56 tin06 勘察——REC Generate Node Map
     // 语义：同 id 每次出现都并入节点图成员；visited 早退只应吞裸引用/
     // 环再入。included 先行序下后到全形携带的属性不得整弃）
     if node.types.length() > 0 ||
@@ -1233,7 +1233,7 @@ pub fn flatten_document(
 /// flatten + compaction 合成（REC flatten(input, context)——context 非
 /// null ⇒ 展平后以该 context 压缩；役56 t0044。成员**再展开**（flatten
 /// 展开形幂等——绝对 IRI 键/引用/@value 形不变形）后走压缩正机
-/// （compact_node_jv）；wrap 三钉同 compact_document，compactArrays=false
+/// （compact_node_jv）；wrap 三条断言同 compact_document，compactArrays=false
 /// 单节点也 @graph 包裹（#t0091 同款）。
 fn flatten_with_context_inner(
   text : String,
@@ -1358,9 +1358,9 @@ fn flatten_core(
 }
 
 ///|
-/// compaction 文档入口（J6——spec §8.41 钉一）：JSON 文本 + 主动 context
+/// compaction 文档入口（J6——spec §8.41 规则一）：JSON 文本 + 主动 context
 /// 文本 → 展开全链 → context 处理 → 压缩序列化（compact_standard.mbt）。
-/// 负例 = 任一段 Err。输出形三钉：展开空 → {}；单节点 → 对象；n 节点 →
+/// 负例 = 任一段 Err。输出形三条断言：展开空 → {}；单节点 → 对象；n 节点 →
 /// @graph 包裹。@context 键 = **原文逐字**发射（223/223 实证），context 空
 /// 不发射（6 例实证——ctx {} 族）。
 pub fn compact_document(
@@ -1403,7 +1403,7 @@ pub fn compact_document(
     Ok(context) => context
     Err(e) => return Err(e)
   }
-  // 压缩主体（顶层形三钉；单节点解包随 compactArrays——#t0091 oracle：
+  // 压缩主体（顶层形三条断言；单节点解包随 compactArrays——#t0091 oracle：
   // compactArrays=false 时单节点也 @graph 包裹）
   let body_pairs : Array[(String, JsonValue)] = []
   if values.length() == 1 && options.compact_arrays {

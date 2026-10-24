@@ -1,15 +1,16 @@
 ///|
-/// expand 官方套件前置 harness（对拍流水线 J2 前置件）。
-/// 桶纪律（AGENTS.md 套件纪律）：plain（有真判据的例）/ deferred（planned）。
-/// **deferred 语义**：暂不判定，**非"已知不通过"**——迁移必须逐例（进 plain 前先有
+/// expand 官方套件 harness（expansion 比对流水线的前置件）。
+/// 分桶纪律：plain（有真判据的例）/ deferred（计划中的例）。
+/// deferred 语义：暂不判定，不等于"已知不通过"——迁移逐例进行（进 plain 前先有
 /// 真判据），禁止批量搬桶掩盖真通过/真失败。
-/// **pin 常驻**：闭合断言不是一次性检查——manifest 上游更新（条目增删）即 pin 红，
-/// 逼迫账本（本表 + 基线文件）同笔更新。
-/// **#t0001 首例语义**：manifest 顺序首条（顺序标记），非"最小可验证用例"之选；
-/// J2 首件验收 = 让 #t0001 单例端到端绿（deferred → plain）。
-/// **389/385 口径**：目录内 389 个 `*-in.jsonld` 文件 / manifest 条目 385，
-/// 差 4 为 option 变体件（同输入不同选项）；harness 与基线一律按 manifest 条目计。
-/// 解析通道走本包 `parse_json`（官方包装层喂官方语料，J0 解析器口径的活体验证）。
+/// pin 常驻：闭合断言不是一次性检查——manifest 上游更新（条目增删）即红，
+/// 本表与基线文件须同笔更新。
+/// #t0001 首例：manifest 顺序首条（顺序标记），不是"最小可验证用例"；
+/// 首件验收 = 让 #t0001 单例端到端绿（deferred → plain）。
+/// 389/385 规则：目录内 389 个 `*-in.jsonld` 文件 / manifest 条目 385，差 4 为
+/// option 变体（同输入不同选项）；harness 与基线一律按 manifest 条目计。
+/// 解析通道走本包 `parse_json`（官方包装层喂官方语料，J0 解析器的活体验证）。
+/// 施工账：todo.md §J2（比对流水线 / 迁移批次）。
 
 ///|
 /// 取对象字段（键序无关；命中即返）
@@ -42,7 +43,7 @@ fn json_string_get(value : @jsonld.JsonValue, key : String) -> String? {
 
 ///|
 /// per-case options：manifest option.specVersion → processing_mode
-/// （③细化勘定：@vocab 判定模式分叉——#t0092[1.1] vs #t0115/#t0116[1.0]）
+/// （③细化勘察：@vocab 判定模式分叉——#t0092[1.1] vs #t0115/#t0116[1.0]）
 fn options_for(
   entry : @jsonld.JsonValue,
   map : Map[String, String],
@@ -154,7 +155,7 @@ fn json_string_option(entry : @jsonld.JsonValue, key : String) -> String? {
 ///|
 
 ///|
-/// JsonValue 手写序列化（mismatch 勘定诊断——JsonValue 无 Show）
+/// JsonValue 手写序列化（mismatch 勘察诊断——JsonValue 无 Show）
 fn diag_json_str(value : @jsonld.JsonValue) -> String {
   match value {
     @jsonld.JsonValue::Null => "null"
@@ -197,7 +198,7 @@ async test "expand suite harness: manifest-driven buckets, all deferred pre-J2" 
     Some(@jsonld.JsonValue::Array(items)) => items
     _ => fail("manifest: sequence missing")
   }
-  // J0 普查钉：清单条目数 == 385
+  // J0 普查断言：清单条目数 == 385
   assert_eq(sequence.length(), 385)
   // 已迁移 plain 的条目（逐例；每例附"为什么能迁"——覆盖/未覆盖关键字）
   let migrated : Array[String] = [
@@ -234,7 +235,7 @@ async test "expand suite harness: manifest-driven buckets, all deferred pre-J2" 
     // #t0118（空 scheme 修正）：":fish" 非绝对 → vocab 拼接（"foo:bar" colon 非
     // 首位仍为绝对原样）——is_valid_absolute_iri 首位冒号排除
      "#t0118",
-    // —— should-error 负例验证批（校验落码后转 plain 负例）——
+    // —— should-error 负例验证批（校验实现后转 plain 负例）——
     // #ter26（负）：关键字别名冲突 → colliding keywords
      "#ter26",
     // #ter37（负）：值对象内 @id → invalid value object
@@ -263,10 +264,10 @@ async test "expand suite harness: manifest-driven buckets, all deferred pre-J2" 
     // #ter48（负·③二轮修正）：@id 位相对 IRI 不可用 → invalid IRI mapping
     // （term 查表按 vocab 位门控 + @id 位绝对/bnode 校验——与②批边界表同源）
      "#ter48",
-    // —— ④批 A 组（依赖分组勘定 + 探针实测 74/101 通过；逐例端到端对拍由本 harness 执行）——
+    // —— ④批 A 组（依赖分组勘察 + 探针实测 74/101 通过；逐例端到端比对由本 harness 执行）——
     // A 组 = 只依赖已落语义（@context 简单声明 + term 字符串定义 + 值对象 + coercion 形态 A）
-    // 27 例挂账留 deferred：mismatch ×10 / unexpected-error ×9 / should-error ×7（详见 todo §J2 ④批）
-    // ⑤批落码复测回桶（2026-09-26）：tem01/ten05/ter10/ter21/ter22/ter35/ter53/
+    // 27 例待办留 deferred：mismatch ×10 / unexpected-error ×9 / should-error ×7（详见 todo §J2 ④批）
+    // ⑤批实现复测回桶（2026-09-26）：tem01/ten05/ter10/ter21/ter22/ter35/ter53/
     // tes01/tes02 九例原靠 td 对象 stub 拒绝"拒绝即过"——⑤真码落地后露真容，
     // 其无效点（td 的 @container/@language/@prefix/@nest/@context 键验证）在
     // 批边界外，回 deferred 挂「⑤后半·td 其余键验证批」（详见 todo §J2 ⑤批）
@@ -277,7 +278,7 @@ async test "expand suite harness: manifest-driven buckets, all deferred pre-J2" 
     //（#tpr42 已由 @protected 批迁入并在其块内记账——此处去重，2026-09-27）
      "#tin07", "#tin08", "#tin09", "#tso01", "#tso02", "#tso03", "#tso07", "#tso10",
     "#tso12", "#tso13", "#ttn01",
-    // —— ⑤批 A 组（td 对象形态 + coercion——2026-09-26；批边界/判据/对拍点见 todo §J2 ⑤批）——
+    // —— ⑤批 A 组（td 对象形态 + coercion——2026-09-26；批边界/判据/比对点见 todo §J2 ⑤批）——
     // #t0007：形态 D（td @type 显式 datatype）+ 两遍 context 处理（后置 prefix
     // 定义——简单 term——对对象形态 td 可用）
      "#t0007",
@@ -291,7 +292,7 @@ async test "expand suite harness: manifest-driven buckets, all deferred pre-J2" 
      "#t0069",
     // #t0071：td @id 自映射排除（compact 形 term 名重定义；简单臂同规则泛化）
      "#t0071",
-    // #t0088：coercion 负向钉——number/bool 不转 @id；属性位 bool 保留为 @value
+    // #t0088：coercion 负向断言——number/bool 不转 @id；属性位 bool 保留为 @value
     // 字面量（本批修正：原误丢弃）
      "#t0088",
     // #t0117：冒号起始 term + type mapping
@@ -305,8 +306,8 @@ async test "expand suite harness: manifest-driven buckets, all deferred pre-J2" 
      "#t0056",
     // #t0057：@vocab coercion 双真旗（vocab miss → document-relative → base）
      "#t0057",
-    // —— ⑤后半·td 其余键验证批（2026-09-26；九例回迁——⑤落码时曾因"拒绝即过"
-    // 破例回 deferred，真验证落码后按原 oracle 回归 plain）——
+    // —— ⑤后半·td 其余键验证批（2026-09-26；九例回迁——⑤实现时曾因"拒绝即过"
+    // 破例回 deferred，真验证实现后按原 oracle 回归 plain）——
     // #tem01/#ter21/#tes01/#tes02：@container 验证（串白名单 1.1/1.0 分叉 +
     // 数组仅 1.1 图组合；#ter21 = processingMode 1.0 门控）
      "#tem01", "#ter21", "#tes01", "#tes02",
@@ -320,10 +321,10 @@ async test "expand suite harness: manifest-driven buckets, all deferred pre-J2" 
      "#ter53",
     // #ten05：td @nest 关键字值（"@id"）→ invalid @nest value
      "#ten05",
-    //（#ter36 C 组落码复测回桶：@reverse-only term（td @reverse 忽略位）+
+    //（#ter36 C 组实现复测回桶：@reverse-only term（td @reverse 忽略位）+
     // list 值——其无效点 = reverse 属性值验证，挂 @reverse 批，非 C 组边界）
     // —— C 组·@list/@set 批（2026-09-26；拦截器/容器应用/1.0 嵌套门控——
-    // 批边界与判据见 todo §J2 C 组开工钉）——
+    // 批边界与判据见 todo §J2 C 组开工项）——
     // #t0004/#t0015：空 list/set 保留（属性门 container 放行）+ set 嵌套塌缩
      "#t0004", "#t0015",
     // #t0023：coercion × @container @list（元素 coercion 先行再包 List）
@@ -339,7 +340,7 @@ async test "expand suite harness: manifest-driven buckets, all deferred pre-J2" 
      "#ter32",
     // base 批复测件（Relative IRIs，期望默认 base 已解锁）
      "#t0029", "#t0062",
-    // —— @reverse 批（2026-09-26；独立于 @graph——勘定入 todo §J2）——
+    // —— @reverse 批（2026-09-26；独立于 @graph——勘察入 todo §J2）——
     // #t0037/#t0039/#t0042/#t0049/#t0064/#t0078：@reverse 节点位/term 位/
     // coercion 值/bnode 值/多 reverse（值进主体 "@reverse" 映射）
      "#t0037", "#t0039", "#t0042", "#t0049", "#t0064", "#t0078",
@@ -390,7 +391,7 @@ async test "expand suite harness: manifest-driven buckets, all deferred pre-J2" 
     // #tpr01 同族意外负例：真判定 = @protected 保护 term 重定义校验
     // （protected term redefinition），挂「@protected 批」
     // #tpr03/04/05/08/09/11/12/17/18/20/21/26/28/31/32（15 枚）同族：
-    // @protected 全族未落码，一律经旧 @version 臂拒数字 1.1 的意外机制
+    // @protected 全族未实现，一律经旧 @version 臂拒数字 1.1 的意外机制
     // 通过——真判定归「@protected 批」（tpr05/17/18/20/21 为 context
     // nullification 变体，同门）
      "#tin01", "#tin02", "#tin03", "#tin04", "#tin05",
@@ -413,7 +414,7 @@ async test "expand suite harness: manifest-driven buckets, all deferred pre-J2" 
     // #ter44（负·1.1）：compact 形 term 名映射到别处（v:term → v:somethingElse）
     //   → invalid IRI mapping（本批连带解挂）
      "#ter44",
-    // —— 同族勘定扩迁（家族普查 52 例逐例实测；见 todo §J2）——
+    // —— 同族勘察扩迁（家族普查 52 例逐例实测；见 todo §J2）——
     // #tc001：scoped context 新定义 term（foo 值内 bar 按 scoped 定义展开）
     // #tc002：scoped context 覆盖外层 term（bar 在作用域内重定义为 @id coercion）
     // #tc003：scoped context 内 term → 同文档另一 term 名（Bar → bar，
@@ -427,7 +428,7 @@ async test "expand suite harness: manifest-driven buckets, all deferred pre-J2" 
     // 机制 = REC 4.1.2 propagate=false（置 previous context）+ REC 5.1.2 元素级
     // @context 次序 → 快照 → 按 @type 键字典序/值字典序逐 term 套用（后套叠加）+
     // 新节点对象回退 previous（"term-scoped context 不跨新节点"）+ @propagate 成员
-    // #t0073（**开工前置·次序钉子**）：@context not first property——元素级 @context
+    // #t0073（**开工前置·次序断言**）：@context not first property——元素级 @context
     //   先于主键循环处理，文档中排在其前的键亦生效
     // #tc006/#tc007/#tc008：type-scoped 新定义 term / 覆盖外层 term（@id coercion）/
     //   @type 别名 term（"type": "@type"）亦触发
@@ -527,7 +528,7 @@ async test "expand suite harness: manifest-driven buckets, all deferred pre-J2" 
      "#tpi01", "#tpi03", "#tpi04", "#tpi05", "#tpi06", "#tpi07", "#tpi08", "#tpi09",
     "#tpi10", "#t0131", "#t0036", "#t0063",
     // —— @graph 容器族批（2026-09-27；单一机制 @graph 容器应用，前置全齐——
-    // 依赖复勘/形态表/批边界见 todo §J2 开工钉）——
+    // 依赖复勘/形态表/批边界见 todo §J2 开工项）——
     // 裸 @graph（值包 graph 节点；graph 对象值再包一层）
      "#t0079", "#t0093", "#t0102", "#t0103", "#t0104",
     // [@graph, @set]（摊平同包裹）
@@ -547,7 +548,7 @@ async test "expand suite harness: manifest-driven buckets, all deferred pre-J2" 
     // type-scoped / protected 叠加（scoped/protected 批已落 + 容器本批）
     // #t0077：expandContext 选项接线（选项 context 预载 + 引擎应用——远程垫片）
      "#t0077", "#tc025", "#tpr25", "#tpr43",
-    // —— 甲·直接迁移批（2026-09-27；25 例零码——判据 = canonical 对拍一致
+    // —— 甲·直接迁移批（2026-09-27；25 例零码——判据 = canonical 比对一致
     //（deferred 清点探针 POS-PASS）；逐例归因）——
     // #t0002/#t0024：@context 基础/数组多 context（③批 @context 臂顺带）
      "#t0002", "#t0024",
@@ -594,9 +595,9 @@ async test "expand suite harness: manifest-driven buckets, all deferred pre-J2" 
     // 时索引映射报错——@index mapping 批）、#tec01（td 内关键字非法——
     // 关键字重定义/互斥检查）
      "#ter08", "#ter11", "#ter18", "#tpi02", "#tec01",
-    // 兜底拒绝组（拒绝理由 = US/II 兜底臂，语义细化各归其批挂账）：
+    // 兜底拒绝组（拒绝理由 = US/II 兜底臂，语义细化各归其批待办）：
     // #ter02/#ter03（context 递归——递归检测批细化）、#ter20/#ter49（no vocab/
-    // relative prefix II 细化）、#tpr33（关键字别名 prefix——细化挂账）
+    // relative prefix II 细化）、#tpr33（关键字别名 prefix——细化待办）
      "#ter02", "#ter03", "#ter20", "#ter49", "#tpr33",
     // —— 丙·@context @language/@direction 默认值批（2026-09-27；context 七键
     // 补 @language/@direction 两臂 + term 成员三态 + 串值注入）——
@@ -675,7 +676,7 @@ async test "expand suite harness: manifest-driven buckets, all deferred pre-J2" 
     // —— 值对象语义两修直迁（2026-09-27）——
     // #t0008：language-only 值对象丢弃（saw_value 门）
      "#t0008",
-    // #t0019：@value:null 值对象 → 属性整体丢弃（预扫描，@json 豁免）
+    // #t0019：@value:null 值对象 → 属性整体丢弃（预扫描，@json 显式放行）
      "#t0019",
     // —— 戊·受限 @ 键/关键字别名批（2026-09-27；keyword 形态判定 + 真关键字
     // 互斥 + 空 term + @context 别名禁 + 未知 @ 键忽略）——
@@ -692,7 +693,7 @@ async test "expand suite harness: manifest-driven buckets, all deferred pre-J2" 
     //（#t0014 回桶：节点位 @set 键语义未定——别名/值对象已通，@set 节点位
     // 挂 @set 节点语义批）
     // —— 丁·@json literal 批（2026-09-27；@json 拦截：值原样进 @value，
-    // datatype=@json；canonical 选项不影响展开对拍——REC 钉见 todo §J2）——
+    // datatype=@json；canonical 选项不影响展开比对——REC 校验见 todo §J2）——
     // #tjs01~#tjs07：标量/对象/数组 JSON 字面量
      "#tjs01", "#tjs02", "#tjs03", "#tjs04", "#tjs05", "#tjs06", "#tjs07",
     // #tjs08~#tjs14：canonical 变体（数组/字符串/结构化/unicode/值/wierd/
@@ -702,7 +703,7 @@ async test "expand suite harness: manifest-driven buckets, all deferred pre-J2" 
      "#tjs15", "#tjs16", "#tjs17", "#tjs18", "#tjs19", "#tjs20", "#tjs21", "#tjs22",
     "#tjs23",
   ]
-  // 两桶：迁移例走端到端对拍（输入 → expansion → 对 expected）；其余 deferred
+  // 两桶：迁移例走端到端比对（输入 → expansion → 对 expected）；其余 deferred
   let deferred : Array[String] = []
   let plain : Array[String] = []
   let mut parsed_ok = 0
@@ -712,7 +713,7 @@ async test "expand suite harness: manifest-driven buckets, all deferred pre-J2" 
       Some(id) => id
       None => continue
     }
-    // 解析覆盖通道：全部有 input 的条目都过 parse_json（J0 解析器口径持续验证）
+    // 解析覆盖通道：全部有 input 的条目都过 parse_json（J0 解析器规则持续验证）
     match json_string_get(entry, "input") {
       Some(input_path) => {
         let text = @utf8.decode(
@@ -743,8 +744,8 @@ async test "expand suite harness: manifest-driven buckets, all deferred pre-J2" 
       _ => false
     }
     if migrated.contains(id) {
-      // plain：端到端真判据——正例对拍 expected（键序归一）；负例必须报错
-      // （任意 Err 即负例通过；错误码细分挂账）
+      // plain：端到端真判据——正例比对 expected（键序归一）；负例必须报错
+      // （任意 Err 即负例通过；错误码细分待办）
       let input_path = match json_string_get(entry, "input") {
         Some(path) => path
         None => fail("\{id}: migrated but no input")
@@ -830,7 +831,7 @@ async test "expand suite harness: manifest-driven buckets, all deferred pre-J2" 
   assert_eq(plain.length(), 385)
   // 解析覆盖闭合：每个有 input 的条目都走了解析通道
   assert_eq(parsed_ok + parse_err, 385)
-  // 首例钉：#t0001 已迁 plain（manifest 顺序首条；J2 首件验收 = 此例端到端绿）
+  // 首例断言：#t0001 已迁 plain（manifest 顺序首条；J2 首件验收 = 此例端到端绿）
   assert_true(plain.contains("#t0001"))
   // 复核面自报行（J4；suite-review.txt 抽取源——勿改格式）
   println(

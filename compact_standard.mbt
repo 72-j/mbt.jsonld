@@ -1,17 +1,18 @@
 ///|
-/// compaction 序列化器（J6——spec §8.41/§8.42）：expand 逆面，逐值递归、无
-/// 节点字典面（F2 禁复用——§8.41 钉一）。落地面 = 精确 term / 最长前缀
+/// compaction 序列化器（J6——spec §8.41/§8.42）：expansion 的逆面，逐值递归，
+/// 不建节点字典（F2 禁复用——§8.41 规则一）。覆盖面：精确 term / 最长前缀
 /// compact IRI / base 相对化（段界对齐）/ datatype+language 吸收 / 裸值缺省
 /// 塌缩 / @id-term 串塌缩 / @list 吸收 + @set 保形 + 数组塌缩 / 值去重 /
-/// @reverse 正向提升（reverse term 匹配）/ @nest 重嵌 / @graph·@index 面 /
-/// 顶层形三钉（0 → {} / 1 → 单对象 / n → @graph 包裹）/ @context 原文发射。
-/// 未实现面（deferred 在册）：scoped context 压缩面（type-scoped/property-
-/// scoped term 选择——#tc001/#tc013 族）、容器逆形分组（@index/@id/@type/
-/// @language/@graph 容器——#tm001/#tla01 族）、@nest 链式/别名细化。
+/// @reverse 正向提升 / @nest 重嵌 / @graph·@index 面 / 顶层形三条断言
+/// （0 → {} / 1 → 单对象 / n → @graph 包裹）/ @context 原文发射。
+/// 未实现面（deferred 在册）：scoped context 压缩（type/property-scoped term
+/// 选择——#tc001/#tc013 族）、容器逆形分组（@index/@id/@type/@language/@graph
+/// 容器——#tm001/#tla01 族）、@nest 链式/别名细化。
+/// 施工账：todo.md 覆盖率战役（役C2）· 性能役（役P1）。
 
 ///|
-/// 惰性索引取用（役P1 批3——性能内政；每 terms-map 身份至多建一次，钉②）。
-/// 构建谓词与扫描版逐字同源（钉①候选集等价）；末段排序不动（名唯一 ⇒
+/// 惰性索引取用（役P1 批3——性能内部实现；每 terms-map 身份至多建一次，规则②）。
+/// 构建谓词与扫描版逐字同源（规则①候选集等价）；末段排序不动（名唯一 ⇒
 /// 排序键全序 ⇒ 集合等价 ⇒ 序列等价）。compact_by_iri = Some 即整组已建。
 fn ensure_compact_index(
   active : ActiveContext,
@@ -253,7 +254,7 @@ fn compact_iri_word(
         // ../ 上跳形（役42/#t0045 "../parent-node"/#t0066 "../"../../" 族——
         // 同 scheme 同 authority 下按目录段回溯：ups = base 目录段数 −
         // 公共段数；fragment/query 已被上两形截走）。十二点目标形见
-        // §8.88 勘定（tests/=1 上、root 文件=3 上——统一规则：
+        // §8.88 勘察（tests/=1 上、root 文件=3 上——统一规则：
         // 段级公共前缀对 base 目录段，均一成立）
         // 上跳前提：iri 自带 path（authority 后有 "/"）——裸 authority
         // （#t0076 "http://example.com"）恒绝对
@@ -450,7 +451,7 @@ fn ascii_fold_lower(c : Char) -> Int {
 /// term 弃用落前缀词、#t0015 五 term 按值归组、#t0002 纯 term 容语言值对象）：
 /// bare_fit = 该 term 可把值吸成裸形（datatype/language 吸收、@list 容器吸收、
 /// @id-term 串塌缩、纯 term 语言态对齐）；object_fit = 值对象形在本 term 下
-/// 重展开安全（@type/@language 钉死在对象内——#t0002 term2/term3 oracle）
+/// 重展开安全（@type/@language 固定断言在对象内——#t0002 term2/term3 oracle）
 fn compact_bare_fit(
   value : ExpandedValue,
   td : TermDefinition,
@@ -544,7 +545,7 @@ fn compact_bare_fit(
 }
 
 ///|
-/// 值适配判定·对象形（值对象形在本 term 下重展开安全）：@type/@language 钉死
+/// 值适配判定·对象形（值对象形在本 term 下重展开安全）：@type/@language 固定断言
 /// 在值对象内不随 term 强转——#t0002 term2/term3 oracle（纯 term 容
 /// datatype/language 值对象）
 fn compact_object_fit(
@@ -596,8 +597,8 @@ fn compact_object_fit(
           match td.language_mapping {
             // language 版 term 与值语言态失配 → 无形可用
             Some(_) => false
-            // 纯 term：对象形可用的残域 = datatype 在场（钉 @type——
-            // #t0002 term2 oracle）或 language 在场（钉 @language——
+            // 纯 term：对象形可用的残域 = datatype 在场（校验 @type——
+            // #t0002 term2 oracle）或 language 在场（校验 @language——
             // #t0002 term3 oracle）或 context 缺省语言在场（对象形保住
             // 无语言态，裸串重展开会被注入缺省——#t0018 v0.3 oracle）
             None =>
@@ -1081,7 +1082,7 @@ fn compact_value_item(
         let word = match child.id {
           Some(id) => compact_iri_word(id, false, false, true, active, options)
           // None ⇒ 空 id_only 节点 = **空对象**（tp046 oracle——prune 摘
-          // @id 后的壳；旧渲染 None ⇒ "" 泄漏哨兵——§8.108 探针钉兑付。
+          // @id 后的壳；旧渲染 None ⇒ "" 泄漏哨兵——§8.108 探针断言兑现。
           // compact 套件零触面：无 id 无内容的嵌套节点在展开位即自由浮
           // 动弃置，此臂为 framing prune 新开面）
           None => return Ok(JsonValue::Object([]))
@@ -1139,7 +1140,7 @@ fn compact_value_item(
 /// 值数组压缩（容器旗 + 去重 + 塌缩）：@set 保形；非容器单值塌缩（compactArrays
 /// 门）；同形值去重。**@list 容器吸收不在此**——单 List 值 → 裸数组与 1.0 嵌套
 /// list 报错由 `compact_value_item` 的 List 容器臂（本函数逐值调用它）承担；
-/// 本节原有一段同义吸收块，役C2批1 收口定谳为**死带**（反向容器白名单不含 @list）
+/// 本节原有一段同义吸收块，役C2批1 结束定论为**死分支**（反向容器白名单不含 @list）
 /// 并拆除（拆前 1102-1129；行为零变更——该块与 compact_value_item 逐字同源）
 fn compact_property_values(
   vals : Array[ExpandedValue],
@@ -1196,7 +1197,7 @@ fn check_key_scheme_collision(
               Some(td_iri) => {
                 let rest = key[at + 1:].to_owned()
                 if td_iri + rest != pred {
-                  // 发射词自洽豁免（役55 t0010 裁定——spec §8.127）：键词
+                  // 发射词自洽显式放行（役55 t0010 裁定——spec §8.127）：键词
                   // 本身即在册 term 键 ⇒ 发射自洽于 term 查找序（term 命中
                   // 先于 CURIE 检查）；套件正例裁决 > REC 字面混淆错
                   // （jsonld.js compact/frame 双错与套件正例相悖，多实现
@@ -1919,7 +1920,7 @@ fn compact_node_jv(
         (Some(arr), Some(keep)) => {
           // @json 值直出（#tjs07 oracle——@json 原值即 JSON，容器/塌缩不包；
           // datatype 位是**关键字形** "@json"（丁批 #tjs01 同形），full IRI
-          // 形在管线中不存在——役34 勘定：旧守卫查 full IRI 恒不命中）
+          // 形在管线中不存在——役34 勘察：旧守卫查 full IRI 恒不命中）
           let td_json = match group_tds.get(name) {
             Some(td) => td.datatype is Some("@json")
             None => false
@@ -2178,7 +2179,7 @@ fn compact_node_jv(
 
 ///|
 /// 容器逆形映射条目（§8.43 成批机制——fit + 子键 + 键化成员剥离一体；
-/// None = 值不入该映射容器，落常规分选）。四类差异钉：
+/// None = 值不入该映射容器，落常规分选）。四类差异校验：
 /// @id = 节点 @id 作键（@id 值位旗词形——exact/vocab 禁）、值 @id 整剥
 /// （#tm001/#tm002/#tm005）；@type = 首 type 作键（类型位旗词形）、值留
 /// 残余 type（#tm003/#tm004）；@index = @index 原文作键、值 @index 剥；
