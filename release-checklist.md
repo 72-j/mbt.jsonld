@@ -43,4 +43,4 @@ moonttl 同款）；余项 = 用户择时发布。**
 | 性能回归门 | `perf-baseline.txt` | native · bench 十场景 | `moon run cmd/bench 2>/dev/null \| grep '^\[bench\]'` | 判据带 [158,165] / 回归 >10% 即红（役P1 收官读数在册） |
 | 一致性 | `consistency-baseline.txt` | J0 852/852 | 同 suite（expand 385 + toRdf 467 子集） | 852/852 ✓ |
 | 语料锁版 | `.rdf-tests/SHA256SUMS` | 3068 件 | `sha256sum -c .rdf-tests/SHA256SUMS` | **3068/3068 OK** ✓ |
-| 黄金门 | 主仓 `skelgen/jsonld_gen` | 三表→gen.mbt 逐字节 | 主仓根 `moon test skelgen/jsonld_gen` | 1/1 ✓ |
+| 黄金门 | 主仓 `rdf/jsonld_gen`（rdf 合集） | 三表→gen.mbt 逐字节 | 主仓根 `moon test rdf/jsonld_gen` | 1/1 ✓ |

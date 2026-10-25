@@ -134,7 +134,7 @@ fromRdf 54/54、html 50/50、canon 86/86——全 plain、零 deferred；由各 
 ## 1.5 发布合规检查（2026-10-09；评审役后独立终检）
 
 八道门：①仓态（两仓净 + HEAD==origin + gitlink 同步）②全门（fmt --check /
-.mbti 零差 / suite + deny-warn）③语料锁版 ④主仓黄金门（skelgen/jsonld_gen
+.mbti 零差 / suite + deny-warn）③语料锁版 ④主仓黄金门（rdf/jsonld_gen
 1/1）⑤版本面（moon.mod 0.1.0 + CLI 冒烟）⑥评审役账在册 ⑦const.md §6 红线册
 ⑧八面自报行一字不动——七绿一红，红已处置。
 
