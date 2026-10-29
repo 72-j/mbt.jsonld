@@ -25,6 +25,10 @@ RDFC-1.0 数据集规范化、JCS（RFC 8785）规范化 JSON 序列化，以及
 moon add thy1016/jsonld
 ```
 
+模块源码正式地址：gitlink <https://gitlink.org.cn/thy7/mbt.jsonld> 与
+GitHub 镜像 <https://github.com/72-j/mbt.jsonld>；工作区多模块场景可
+直接以本地树路径引用。
+
 再在用到它的包的 `moon.pkg` `import` 块中添加 `"thy1016/jsonld"`，
 代码内以 `@jsonld` 前缀使用。
 
@@ -133,7 +137,7 @@ let loader = url => fetch_document(url)
 | `html_script_source` | HTML `<script type="application/ld+json">` 抽取 |
 | `rdfc10_canonicalize_with_hash` | RDFC-1.0 规范化（Sha256 / Sha384） |
 | `jcs_serialize` | JCS（RFC 8785）规范化序列化直出 |
-| `json_canonical` / `render_json` | JSON 归一化（测试比对用）/ JSON 序列化 |
+| `json_canonical` / `render_json` | JSON 归一化（比对用途，非 JCS）/ JSON 序列化 |
 | `canonical_for_suite` / `isomorphic_for_suite` | 套件比对辅助（规范化形 / 数据集同构） |
 | `jsonld_iri_routes` / `jsonld_keyword_routes` | IRI / 关键字词表路由自省 |
 
@@ -178,13 +182,13 @@ moon run cmd/main -- canonicalize --hash sha384 dataset.nq
 moon test
 ```
 
-运行时输出各测试面的计数行（下表实测于 2026-10-06）：
+运行时输出各测试面的计数行（下表实测于 2026-10-30）：
 
 | 面 | entries | plain | deferred |
 |---|---|---|---|
 | expand | 385 | 385 | 0 |
 | toRdf | 467 | 467 | 0 |
-| compact | 246 | 245 | 1（#t0038 版次越界，设计如此） |
+| compact | 246 | 245 | 1（#t0038 版次越界超面，有意保留） |
 | frame | 92 | 92 | 0 |
 | canon（RDFC-1.0） | 86 | 86 | 0 |
 | flatten | 58 | 58 | 0 |
