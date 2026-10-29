@@ -134,7 +134,7 @@ pub fn JsonLdError::not_equal(Self, Self) -> Bool
 pub fn JsonLdError::to_repr(Self) -> @debug.Repr
 
 pub(all) struct JsonLdIriRoute {
-  order : Int
+  order : Int32
   kind : String
   condition : String
   action : String
