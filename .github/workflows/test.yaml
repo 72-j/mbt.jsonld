@@ -1,0 +1,91 @@
+# mbt.jsonld 独立仓 CI（thy1016/jsonld）。
+#
+# 形态承主仓 bitbang `.github/workflows/test.yaml`：
+#   · static（仅 Linux，只跑一次）：`check --deny-warn` + .mbti 漂移门
+#     + 套件自报行复核面 + 示例冒烟。
+#   · test（3 OS 矩阵）：`test --deny-warn` 的 wasm + native 双档
+#     （wasm 绿 ≠ native 绿；本仓 preferred_target = native，
+#     故 wasm 档显式 `--target wasm`）。
+#   · 工具链安装集中到 `.github/actions/setup-moon`；本文件只留门与判据。
+#   · 门纪律：每门一步、不串命令、禁 `continue-on-error` / `|| true`。
+#   · 无 fmt 门：现行工具链下 HEAD 存在历史格式漂移件，且 `gen.mbt` 为生成物
+#     （受主仓 `rdf/jsonld_gen` 黄金门逐字节约束，不宜手改）；格式纪律由主仓
+#     workflow 面统一承担。
+name: Test
+
+on:
+  push:
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  static:
+    name: Static gates
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Setup Moon
+        uses: ./.github/actions/setup-moon
+
+      - name: 静态门 · check --deny-warn
+        run: moon check --deny-warn
+
+      - name: 门·.mbti 漂移
+        run: |
+          moon info
+          drift="$(git status --porcelain -- '*.mbti')"
+          if [ -n "$drift" ]; then
+            echo "::error::.mbti 与源码漂移——本地跑 moon info，把 .mbti 与产生它的改动同笔提交："
+            echo "$drift"
+            exit 1
+          fi
+
+      - name: 复核面·套件自报行（README 计数表；口径同 release-checklist.md）
+        run: |
+          { cat suite-review.header.txt
+            moon test 2>&1 \
+              | grep -oE '^\[[a-zA-Z]+\] entries=[0-9]+ plain=[0-9]+ deferred=[0-9]+' | sort -u
+          } > /tmp/sr.txt
+          if ! diff -u suite-review.txt /tmp/sr.txt; then
+            echo "::error::套件自报行与入库 suite-review.txt 不一致——确为预期变更（套件增删面）时同笔重生成"
+            exit 1
+          fi
+          echo "复核面·套件自报行：同命令重生成 ≡ 入库表（逐字节）⇒ 可复现 ✓"
+
+      - name: 示例冒烟 · examples/quickstart
+        run: moon run examples/quickstart
+
+  test:
+    name: Test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    # 平台矩阵承担真机集成（路径分隔符 / native 目标 / MSYS2 链接）。
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Setup Moon
+        uses: ./.github/actions/setup-moon
+
+      - name: 测试 · --deny-warn（wasm + native 双档）
+        run: |
+          echo "=== Wasm target ==="
+          moon test --deny-warn --target wasm
+          echo "=== Native target ==="
+          moon test --deny-warn --target native
