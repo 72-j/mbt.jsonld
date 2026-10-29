@@ -1,15 +1,9 @@
 ///|
 /// 标准 expansion 实现（手写树递归；ADR-JL-4 纯函数，ActiveContext 不可变）。
-/// 实现顺序：按套件迁移顺序逐方法实现——每落一个方法配一组比对断言。
-/// 未实现方法一律返回 `Unsupported("pending …")`（红而非错），禁止猜测语义。
-/// 未实现项的红语义：`Unsupported` 只是内部标记，门仍算绿（deny-warn 双档
-/// 含 stub 全过）——"全绿"≠"全实现"；实现进度 = 契约烟雾测试里的
-/// Unsupported 计数（expand_standard_wbtest.mbt，常驻待办清单）。
-/// 当前覆盖：#t0001（@id + free-floating drop）+ #t0045（顶层值对象丢弃）+
-/// ①批 coercion **形态 A**（显式 @type → datatype）+ ②批 term/IRI 分拣链 +
-/// ③批 @context 简单形态（term→IRI / @vocab / @base）+ #ter48（@id 位相对拒绝）。
-/// **形态边界**：本批仅形态 A；形态 B（@id coercion）/ 形态 C（@json）留待 term/IRI 批后。
-/// 施工账：todo.md 覆盖率战役（役C1/C2/C3）· 性能役（役P1）。
+/// 未实现方法一律返回 `Unsupported("pending …")`（占位而非猜测语义）；
+/// 实现进度 = expand_standard_wbtest.mbt 的 Unsupported 计数（常驻待办清单）。
+/// coercion 覆盖形态 A（显式 @type → datatype）；形态 B（@id coercion）/
+/// 形态 C（@json）超面。
 
 ///|
 pub(all) struct StandardExpander {}
@@ -819,7 +813,7 @@ fn StandardExpander::expand_object(
   let mut node_id : String? = None
   let types : Array[String] = []
   let properties : Array[(String, Array[ExpandedValue])] = []
-  // 属性槽位索引（役P1 批4——⑧平铺属性合并索引化）：同 IRI 属性合并
+  // 属性槽位索引（平铺属性合并索引化）：同 IRI 属性合并
   // （壬子批 #t0034/#t0114 oracle）原为逐键线性扫全量 properties ⇒ O(P²)。
   // 与 J2 nest 合并索引（函数尾 property_index）同纪律：整段建一次、由
   // merge_property_values 维护、顺序语义不变（先见者占位、逐值追加尾部）。
@@ -949,7 +943,7 @@ fn StandardExpander::expand_object(
         _ => ()
       }
     }
-    // frameExpansion reverse-term pattern 保形（役52——t0029 判定面）：
+    // frameExpansion reverse-term pattern 保形（t0029 判定面）：
     // term 定义带 @reverse ⇒ 值位是**反向 pattern**（非反向 map）——{}
     // 通配/@default 保形入 reverse_props（键 = td 的 reverse IRI）。字面
     // "@reverse" 键（t0028 map 形）走原臂不受扰
@@ -1008,7 +1002,7 @@ fn StandardExpander::expand_object(
                         options,
                       ) {
                       Ok(ExpandedValue::Node(pattern_node)) => pattern_node
-                      // Err 传播（役53 t0054 同款——嵌套校验错不吞）
+                      // Err 传播（t0054——嵌套校验错不吞）
                       Err(e) => return Err(e)
                       Ok(_) => frame_empty_pattern()
                     }
@@ -1034,7 +1028,7 @@ fn StandardExpander::expand_object(
       if options.frame_expansion {
         match pair.1 {
           JsonValue::Object(value_pairs) => {
-            // 键合法性门（役53 tg010——保形臂与常规臂同规：不可展开键
+            // 键合法性门（tg010——保形臂与常规臂同规：不可展开键
             // （相对词无 base/无 term）即弃——REC "expanded property 为
             // null 即 drop"；"@graph" map 形帧样 subject 相对键 null 误发
             // 根因）
@@ -1139,7 +1133,7 @@ fn StandardExpander::expand_object(
                   options,
                 ) {
                 Ok(ExpandedValue::Node(pattern_node)) => pattern_node
-                // Err 传播（役53 t0054——嵌套帧文法校验错不得被落空臂吞）
+                // Err 传播（t0054——嵌套帧文法校验错不得被落空臂吞）
                 Err(e) => return Err(e)
                 Ok(_) => {
                   let fresh : ExpandedNode = {
@@ -1249,7 +1243,7 @@ fn StandardExpander::expand_object(
       // #t0034/#t0114 oracle：多键同展一 IRI → 单键累加，按输入文档顺序）
       if is_valid_absolute_iri(expanded_key) || is_bnode_label(expanded_key) {
         // 同 IRI 属性合并（壬子批 #t0034/#t0114 oracle：多键同展一 IRI →
-        // 单键累加，按输入文档顺序）——役P1 批4 索引化（原逐键线性扫 ⇒
+        // 单键累加，按输入文档顺序）——索引化（原逐键线性扫 ⇒
         // O(P²)；槽位语义与 merge_property_values 全同）
         merge_property_values(
           properties,
@@ -1341,7 +1335,7 @@ fn StandardExpander::expand_object(
         // {} 通配判定面）：数组（IRI 清单，可混 {} 通配）/ 对象 {} 通配 ⇒
         // properties @ 键（空数组 = match-none 保形）；串形走 types 字段
         // 原路（t0005/t0026 oracle 不扰）
-        // 可达性注记（役C1 批1 2026-10-06）：本 pattern 带仅经**别名键**携带
+        // 可达性注记：本 pattern 带仅经**别名键**携带
         // 非串值可达——frame_value_pattern 预扫（扫原始键）会把字面 "@type"
         // 的 Array/Object/Null 值劫往值 pattern 成分带（成分带内有 bnode 拒
         // 孪生门）；别名 term（如 "type"→"@type"）预扫看不到原始键，携非串值
@@ -3125,7 +3119,7 @@ impl Expander for StandardExpander with fn postprocess_value(
   _active : ActiveContext,
   value : ExpandedValue,
 ) -> Result[ExpandedValue, JsonLdError] {
-  // 值对象归一：空语言/空方向清除（语义为无标注）；xsd 派生挂 toRDF 役
+  // 值对象归一：空语言/空方向清除（语义为无标注）；xsd 派生挂 toRDF 面
   match value {
     ExpandedValue::Value(literal) => {
       match literal.language {
@@ -3429,7 +3423,7 @@ impl ContextProcessor for StandardExpander with fn process_context(
   let mut base = active.base
   match local_context {
     // context nullification（REC 4.1.2：数组项为 null = 重置为新初始 context，
-    // **base IRI 取原 base URL**）——scoped-context 批勘察件：#tc014（type-scoped
+    // **base IRI 取原 base URL**）——scoped-context 判例：#tc014（type-scoped
     // `[null]`）/ #tc018（`[null, {...}]`）的 scoped context 形态若不接受，定义期
     // 校验会误判 invalid scoped context。**@protected 批门**：override protected
     // = false 且 active context 含任何保护 term → invalid context nullification
@@ -3717,7 +3711,7 @@ impl ContextProcessor for StandardExpander with fn process_context(
             }
           }
           // 未实现 context 关键字（待办项——@protected 原落"term definition
-          // must be…"的误分类，勘察批修正为 Unsupported：@protected 族 16 枚
+          // must be…"的误分类，修正为 Unsupported：@protected 族 16 枚
           // 的待办去向是「@protected 批」，非 term 定义形态错误）
           // @propagate 已在对象臂入口预扫描（REC 4.1.2 步 2）——此处跳过
           "@propagate" => ()
@@ -4065,7 +4059,7 @@ fn StandardExpander::process_expanded_term_definition(
               if options.processing_mode is JsonLd10 {
                 return Err(JsonLdError::InvalidContext("invalid type mapping"))
               }
-              // keyword 形标记（役33——None 与「无 @type」双义的解；消费位
+              // keyword 形标记（None 与「无 @type」双义的解；消费位
               // 按形接闸：coercion 短路/object_fit 放行/bare 早退跳过）
               td_datatype = Some("@none")
             } else {

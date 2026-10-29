@@ -1,21 +1,22 @@
 ///|
-/// JSON-LD 处理阶段的错误（役59 起 derive(Eq, Debug)——canon 白盒锚点
-/// assert_eq Result 需错误型实现 Eq/Debug；变体全 String 包装，结构性成立）
+/// JSON-LD 处理阶段的错误（derive(Eq, Debug)——assert_eq Result 需错误型
+/// 实现 Eq/Debug；变体全 String 包装，结构性成立）
 pub(all) enum JsonLdError {
-  Syntax(String) // JSON 文本语法错误（解析层包装，2026-09-25 增）
+  Syntax(String) // JSON 文本语法错误（解析层包装）
   InvalidContext(String) // context 处理失败
   InvalidIri(String) // IRI 展开失败
   InvalidValue(String) // @value 形态非法
   InvalidList(String) // @list 形态非法
   Unsupported(String) // 未实现/不在范围（如 framing）
   ContextOverflow(String) // 远程 context 链深超限（己批——REC 4.1.2 步 5.2.3）
-  // J9 HTML 面（REC 9.5——JSON-LD 1.1 API REC 错误码实名循包内先例）
+  // HTML 面（REC 9.5——JSON-LD 1.1 API REC 错误码实名循包内先例）
   LoadingDocumentFailed(String) // 输入文档装载失败（fragment 未命中 / 无 JSON-LD script）
   InvalidScriptElement(String) // JSON-LD script 内容非合法 JSON（REC 9.5.2）
 } derive(Eq, Debug)
 
 ///|
-/// 役59：Eq/Debug 的隐式方法晋升弃用警告——extend 双清（moonxt 战线范式）
+/// [0079]：Eq/Debug 的隐式方法晋升弃用警告——extend 双清（显式晋升
+/// 只保留需要的成员）
 pub extend JsonLdError with Eq::{not_equal, equal}
 
 ///|
@@ -32,52 +33,52 @@ pub(all) struct JsonLdOptions {
   /// 由调用方注入；None + string context → Unsupported（红非静默）。同步闭包
   /// ——expand_document 保持同步。fn 字段不可派生 Debug，故本结构不再 derive
   load_context : ((String) -> Result[String, String])?
-  /// toRdf 面（J3.4——spec §8.36）：@direction 序列化模式。None = 方向弃；
+  /// toRdf 面（spec §8.36）：@direction 序列化模式。None = 方向弃；
   /// "i18n-datatype" = ^^<i18n#lang_dir>；"compound-literal" = bnode +
   /// rdf:value/language/direction 三元组组
   rdf_direction : String?
-  /// toRdf 面（J3.4）：广义三元组放行——谓词位 bnode（#t0118/#te075 oracle）
+  /// toRdf 面：广义三元组放行——谓词位 bnode（#t0118/#te075）
   produce_generalized_rdf : Bool
-  /// compaction 面（J6——spec §8.41）：数组塌缩（单值数组解包）——REC 默认
+  /// compaction 面（spec §8.41）：数组塌缩（单值数组解包）——REC 默认
   /// true；compact suite 的 compactArrays=false 件（×3）保数组形
   compact_arrays : Bool
-  /// compaction 面（J6）：IRI 相对化（base 前缀剥除）——REC 默认 true；
+  /// compaction 面：IRI 相对化（base 前缀剥除）——REC 默认 true；
   /// compactToRelative=false 件（×1）保绝对词面
   compact_to_relative : Bool
-  /// framing 面（J5——spec §8.96 帧旗矩阵）：frame 文档保形展开（framing
+  /// framing 面（spec §8.96 帧旗矩阵）：frame 文档保形展开（framing
   /// 旗/@default 对象/通配 pattern 过展开不弃）。REC JsonLdOptions/frame-
   /// Expansion 缺省 false；frame_document 内部对 frame 展开置 true，输入
   /// 展开恒 false
   frame_expansion : Bool
-  /// framing 面（J5——spec §8.99 embed 批）：顶层 @graph 包裹显式放行——REC
+  /// framing 面（spec §8.99）：顶层 @graph 包裹显式放行——REC
   /// JsonLdOptions/omitGraph 缺省 false（恒包裹）；true ⇒ 单节点不包裹
   /// （tg001 manifest 件）
   omit_graph : Bool
-  /// fromRDF 面（役57——spec §8.130）：native 词形还原（integer/double/
+  /// fromRDF 面（spec §8.130）：native 词形还原（integer/double/
   /// decimal/boolean）——REC 缺省 false
   use_native_types : Bool
-  /// fromRDF 面（役57）：rdf:type 保留属性形——REC 缺省 false
+  /// fromRDF 面：rdf:type 保留属性形——REC 缺省 false
   use_rdf_type : Bool
 }
 
 ///|
-/// [0079] 消警：Debug 派生的 to_repr 显式升格（2026-09-25）
+/// [0079] 消警：Debug 派生的 to_repr 显式升格
 pub extend JsonLdQuad with @moonbitlang/core/debug.Debug::{to_repr}
 
 ///|
-/// [0079] 消警：Debug 派生的 to_repr 显式升格（2026-09-25）
+/// [0079] 消警：Debug 派生的 to_repr 显式升格
 pub extend ExpandedLiteral with @moonbitlang/core/debug.Debug::{to_repr}
 
 ///|
-/// [0079] 消警：Debug 派生的 to_repr 显式升格（2026-09-25）
+/// [0079] 消警：Debug 派生的 to_repr 显式升格
 pub extend ExpandedValue with @moonbitlang/core/debug.Debug::{to_repr}
 
 ///|
-/// [0079] 消警：Debug 派生的 to_repr 显式升格（2026-09-25）
+/// [0079] 消警：Debug 派生的 to_repr 显式升格
 pub extend ExpandedNode with @moonbitlang/core/debug.Debug::{to_repr}
 
 ///|
-/// [0079] 消警：Debug 派生的 to_repr 显式升格（2026-09-25）
+/// [0079] 消警：Debug 派生的 to_repr 显式升格
 pub extend ProcessingMode with @moonbitlang/core/debug.Debug::{to_repr}
 
 ///|
@@ -89,7 +90,7 @@ pub(all) enum ProcessingMode {
 
 ///|
 /// 展开后的节点对象（树递归的中间态）
-/// 字段只列骨架需要的；完整字段待 J2 扩
+/// 字段只列骨架需要的；完整字段随覆盖面扩展
 pub(all) struct ExpandedNode {
   /// 节点标识（@container @id 映射批起为 mut：条目无 @id 时由 id map 索引写入——
   /// REC "if item does not have the entry @id, add …"，#tm001/#tm005 oracle）
@@ -97,11 +98,11 @@ pub(all) struct ExpandedNode {
   types : Array[String]
   properties : Array[(String, Array[ExpandedValue])]
   reverse_props : Array[(String, Array[ExpandedValue])] // @reverse 映射（reverse 批）
-  /// mut（J3.4 F2 同 id 预合并——首见对象原地并集图内容）
+  /// mut（F2 同 id 预合并——首见对象原地并集图内容）
   mut graph : Array[ExpandedValue]? // 节点位 @graph（文档级批——t0020 保留 / t0009 顶层表面化）
   // Included Blocks（@included 纯形批——in01-in04 oracle：@included 作为节点
   // 对象键渲染，非顶层拼接；嵌套 included 随序列化递归自展）
-  /// mut（J3.4 F2 同 id 预合并——首见对象原地并集 included）
+  /// mut（F2 同 id 预合并——首见对象原地并集 included）
   mut included : Array[ExpandedNode]?
   /// 节点 @index（@container 映射批：index map 应用——#tc013 oracle：index map
   /// 的键写入条目 @index；值对象位未落，挂后续 index 批）
@@ -113,7 +114,7 @@ pub(all) struct ExpandedNode {
 pub(all) enum ExpandedValue {
   Node(ExpandedNode)
   Value(ExpandedLiteral)
-  /// index 槽（役23——{@index,@list} 值对象贯通：展开收 index、压缩出
+  /// index 槽（{@index,@list} 值对象贯通：展开收 index、压缩出
   /// {@list,@index} 形——#t0041 oracle；缺省 None 零扰动存量构造/匹配）
   List(Array[ExpandedValue], index~ : String?)
 } derive(Debug)
@@ -127,7 +128,7 @@ const EXPLICIT_NULL_ID : String = ""
 
 ///|
 /// 展开后的字面量
-/// datatype = @type（IRI）；数值/布尔字面量以词形入 value（xsd 词形挂 toRDF 役）
+/// datatype = @type（IRI）；数值/布尔字面量以词形入 value（xsd 词形挂 toRDF 面）
 pub(all) struct ExpandedLiteral {
   mut value : String
   mut datatype : String?

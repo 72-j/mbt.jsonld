@@ -1,7 +1,6 @@
 ///|
 /// JSON-LD expansion 引擎：gen 调度面（gen.mbt）+ 手写钩子（expand_standard.mbt）的装配层。
 /// 引擎只做调度与顶层形态（解析 → 入口分派 → 顶层展开 → 序列化）；语义全部在钩子。
-/// J2 首件：#t0001 端到端（deferred → plain，见 suite_expand_test.mbt）。
 
 ///|
 /// 元素形态（调度词表：scalar/array/object；null 计入 scalar）
@@ -172,7 +171,7 @@ fn push_top_value(
       // 顶层 @graph 单一门（文档级批——#t0009/#t0021/#t0046 oracle）：展开后
       // 仅存 @graph 的根节点对象表面化为图内容数组；带任何其他属性（含 @id、
       // @type、正属性、@reverse）则保留节点形态（#t0021：title + @graph 并存）。
-      // **root 限定（J9 html 面双 oracle——t0020 根位解包 vs te004 数组成员位
+      // **root 限定（html 面双判词：t0020 根位解包 vs te004 数组成员位
       // 保留）**：仅@graph 包裹解包只属文档根位；顶层数组的成员位仅@graph map
       // 保包裹（REC 5.1 自由浮动丢弃清单=空/@value|@list/仅@id，无仅@graph 臂
       // ——te004 W3C 期待实证）
@@ -248,7 +247,7 @@ fn is_free_floating(node : ExpandedNode) -> Bool {
 // is_free_floating 本体零改动。
 
 ///|
-/// ExpandedValue → 展开形态 JsonValue（比对通道；J2 按覆盖面扩展）
+/// ExpandedValue → 展开形态 JsonValue（比对通道，随覆盖面扩展）
 fn serialize_value(value : ExpandedValue) -> JsonValue {
   match value {
     ExpandedValue::Node(node) => serialize_node(node)
@@ -363,9 +362,8 @@ fn serialize_node(node : ExpandedNode) -> JsonValue {
 
 ///|
 /// 比对归一：对象键序不敏感（键按字典序重排，递归）；数组保序。
-/// 定位勘正（评审役 R-1，2026-10-09）：本品 = 比对归一器，**非** RFC 8785
-/// JCS（0.1.0 宣称失实，下版 CHANGELOG 改口）；对外 JCS 规范化用
-/// jcs_serialize（to_rdf.mbt，#tjs01~23 oracle）。
+/// 定位：本品 = 比对归一器，**非** RFC 8785 JCS；对外 JCS 规范化用
+/// jcs_serialize（to_rdf.mbt，#tjs01~23）。
 pub fn json_canonical(value : JsonValue) -> JsonValue {
   match value {
     JsonValue::Object(pairs) => {
@@ -379,10 +377,10 @@ pub fn json_canonical(value : JsonValue) -> JsonValue {
 }
 
 ///|
-/// JSON-LD 文档比对（W3C README「JSON-LD Object comparison」移植；役65
-/// 定位改判：功能=通用文档比对器——对象键序不敏感；数组默认无序——唯一
+/// JSON-LD 文档比对（W3C README「JSON-LD Object comparison」移植）：
+/// 通用文档比对器——对象键序不敏感；数组默认无序——唯一
 /// 例外 @list 键下的数组保序；标量严格相等。语言标签大小写不敏感项未采
-/// （现役从严）。「suite」系历史名非用途限定。tn004 双 nest 保序输出
+/// 语言标签大小写不敏感项未采（从严）。「suite」系历史名非用途限定。tn004 双 nest 保序输出
 /// [v2,v4,v3] 与 expected [v2,v3,v4] 同判——合法置换。
 pub fn canonical_for_suite(value : JsonValue) -> JsonValue {
   canonical_suite_inner(value, false)
@@ -471,8 +469,8 @@ fn json_total_compare(a : JsonValue, b : JsonValue) -> Int {
 }
 
 ///|
-/// JSON-LD 文档同构判定（bnode 双射兜底；役65 定位改判：功能=通用同构
-/// 比对器——直比比对不过时，bnode 词面升为存在变量——存在标签双射 f 使
+/// JSON-LD 文档同构判定（bnode 双射兜底）：通用同构比对器——
+/// 直比比对不过时，bnode 词面升为存在变量——存在标签双射 f 使
 /// relabel 后规范形逐字节相等 ⇒ 同构成立。词面位三条断言（flatten 输出形）：
 /// 谓词键位 / "@id" 值位 / "@type" 数组串值位；"@value" 字面量串不重标
 /// （字面量 "_:x" 非节点词面）。标签数 > 8 直接 false——**8 是排列数工作
@@ -480,8 +478,8 @@ fn json_total_compare(a : JsonValue, b : JsonValue) -> Int {
 /// 接受上界；套件实测最大 4 标签（#t0038，24 排列），8 留 4 倍标签余量。
 /// 「suite」系历史名非用途限定。
 pub fn isomorphic_for_suite(ours : JsonValue, expected : JsonValue) -> Bool {
-  // @graph 数组集合语义（役52 交棒断言兑现——RDF 图无序；framing unordered
-  // oracle 序不判定。只松不紧：canonical 直比通道不受扰，兜底面放宽）
+  // @graph 数组集合语义（RDF 图无序；framing unordered 判词序不判定。
+  // 只松不紧：canonical 直比通道不受扰，兜底面放宽）
   let ours_norm = jv_sort_graph_arrays(ours)
   let expected_norm = jv_sort_graph_arrays(expected)
   let ours_canon = render_json(canonical_for_suite(ours_norm))
@@ -504,7 +502,7 @@ pub fn isomorphic_for_suite(ours : JsonValue, expected : JsonValue) -> Bool {
 }
 
 ///|
-/// @graph 数组排序规范化（役52 序勘察低成本路线）：对象含 @graph 键且值
+/// @graph 数组排序规范化（低成本路线）：对象含 @graph 键且值
 /// 为数组 ⇒ 元素按 canonical 词形排序（深走全树）；其余结构原样递归
 fn jv_sort_graph_arrays(value : JsonValue) -> JsonValue {
   match value {
@@ -747,9 +745,9 @@ fn flatten_reserve(value : ExpandedValue, into : Map[String, Bool]) -> Unit {
 }
 
 ///|
-/// JsonValue → JSON 文本（**往返保真 min-JSON**；役65 库化整形晋 pub——
-/// 真调用点 = html extract_all 合并源 + isomorphic_for_suite 规范渲染 +
-/// 去重键；库出口承诺 = compact/expand 返回 JsonValue 须有官方序列化器）。
+/// JsonValue → JSON 文本（**往返保真 min-JSON**）。真调用点 = html
+/// extract_all 合并源 + isomorphic_for_suite 规范渲染 + 去重键；库出口
+/// 承诺 = compact/expand 返回 JsonValue 须有官方序列化器。
 /// **≠ json_canonical**：键序/数词形/数组序一概不动（规范形归
 /// json_canonical，本函数只管词法保真）。字符串转义 `"` `\` 与全部控制
 /// 字符（`\b\f\n\r\t` 命名形 + 其余 \u00XX）；数词形 = Double 插值词形
@@ -790,8 +788,8 @@ pub fn render_json(value : JsonValue) -> String {
 }
 
 ///|
-/// JSON 字符串词形（引号包裹 + 转义门：`"` `\` 控制字符——役65 晋 pub 前
-/// 补，此前零转义渲染含 `"` 串值产非法 JSON；html 50/50 纯因无此形输入）
+/// JSON 字符串词形（引号包裹 + 转义门：`"` `\` 控制字符——零转义渲染
+/// 含 `"` 串值产非法 JSON）
 fn render_json_string(sv : String) -> String {
   let parts = StringBuilder()
   parts.write_char('"')
@@ -902,7 +900,7 @@ fn nq_has_graph(node : ExpandedNode) -> Bool {
 }
 
 ///|
-/// 成员值级并集（役56 tin06——同 id 全形再现并入既有成员：types 未见追加、
+/// 成员值级并集（tin06——同 id 全形再现并入既有成员：types 未见追加、
 /// 属性同键值级去重续 append（JsonValue 结构等值）、键缺失即新建。**只在
 /// visited 命中且全形时调用**——裸引用/环再入不走此臂）
 fn flatten_member_merge(
@@ -1016,7 +1014,7 @@ fn flatten_walk_node(
   let visit_key = "\{scope}|\{term}"
   let is_graph = nq_has_graph(node)
   if state.visited.contains(visit_key) {
-    // 全形再现 = 成员值级并集（役56 tin06 勘察——REC Generate Node Map
+    // 全形再现 = 成员值级并集（tin06——REC Generate Node Map
     // 语义：同 id 每次出现都并入节点图成员；visited 早退只应吞裸引用/
     // 环再入。included 先行序下后到全形携带的属性不得整弃）
     if node.types.length() > 0 ||
@@ -1204,8 +1202,7 @@ fn flatten_walk_node(
 /// flatten 文档入口（J5——spec §8.40）：JSON 文本 → 展开全链 → F2 同 id
 /// 预合并 → 作用域成员注册 → 顶层作用域枚举。负例 = 任一段 Err。
 /// flatten 唯一入口（REC flatten(input, context, options) 同形——context
-/// 可选；役65 库化整形：原 flatten_document/with_context 双入口合一，
-/// 兑现役56「暴露面随 harness 裁量收缩」承诺）。context 缺省 = 展平直出
+/// 可选，原双入口合一）。context 缺省 = 展平直出
 /// （数组形）；context 给定 = 展平后以该 context 压缩（flatten_with_context_inner）。
 pub fn flatten_document(
   text : String,
@@ -1231,7 +1228,7 @@ pub fn flatten_document(
 
 ///|
 /// flatten + compaction 合成（REC flatten(input, context)——context 非
-/// null ⇒ 展平后以该 context 压缩；役56 t0044。成员**再展开**（flatten
+/// null ⇒ 展平后以该 context 压缩（t0044）。成员**再展开**（flatten
 /// 展开形幂等——绝对 IRI 键/引用/@value 形不变形）后走压缩正机
 /// （compact_node_jv）；wrap 三条断言同 compact_document，compactArrays=false
 /// 单节点也 @graph 包裹（#t0091 同款）。

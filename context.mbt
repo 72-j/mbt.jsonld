@@ -3,7 +3,7 @@
 /// 作用域是树递归的关键——子节点继承父节点 context
 pub(all) struct ActiveContext {
   base : String?
-  vocab : String? // @vocab 声明（③批；相对 IRI 已按 base 解析为绝对）
+  vocab : String? // @vocab 声明（相对 IRI 已按 base 解析为绝对）
   terms : Map[String, TermDefinition]
   /// 「前一 context」快照（REC 4.1.2 步 3：propagate=false 且 result 尚无 previous
   /// 时置位）——展开**新节点对象**时回退到此（"term-scoped context 不跨新节点"。
@@ -14,7 +14,7 @@ pub(all) struct ActiveContext {
   default_language : String?
   /// 默认文字方向（@context @direction 成员——丙批）：ltr/rtl
   default_direction : String?
-  /// 压缩候选倒排索引（役P1 批3——性能内部实现；惰性建，见 compact_term_candidates）。
+  /// 压缩候选倒排索引（性能内部实现；惰性建，见 compact_term_candidates）。
   /// 语义校验：terms-map 身份至多建一次；context 处理系构造恒 None，唯
   /// terms 同引用的派生（compact_node_jv value_chain）三字段整组拷贝。
   /// compact_by_iri = Some 即整组已建（三字段同笔读写）。
@@ -66,19 +66,19 @@ pub(all) struct TermDefinition {
   language_mapping : LanguageMember?
   /// 方向映射三态（丙批）：同上三态；#tdi01/#tdi04~#tdi07 oracle
   direction_mapping : LanguageMember?
-  /// @nest 归组（J6 compaction——td 定义期 @nest 值承接；展开期嵌套透明，
+  /// @nest 归组（compaction——td 定义期 @nest 值承接；展开期嵌套透明，
   /// 压缩期按此重嵌——#tn001 oracle："p2":{"@nest":"@nest"} → "@nest":{"p2":…}）
   nest : String?
-  /// 简单形态位（J6 compaction——REC 4.2.2：1.1 下简单 string 形 term 缺省
+  /// 简单形态位（compaction——REC 4.2.2：1.1 下简单 string 形 term 缺省
   /// @prefix=true、展开 map 形缺省 false——压缩前缀资格判据；#tp001 oracle：
   /// map 形 "ex":{"@id":…} 不作前缀）
   simple_form : Bool
-  /// graph 组合容器 @set 保形位（J6 役8——[@graph,@set] 与裸 @graph 压缩
+  /// graph 组合容器 @set 保形位（compaction——[@graph,@set] 与裸 @graph 压缩
   /// 出形分叉：前者数组恒保 #t0078 / 后者 @included 包裹 #t0109；展开期
   /// 「@set 不占次级」丢此位——判定树 Q1 校验不完整补存储，增量字段展开
   /// 不读、零行为面）
   graph_set : Bool
-  /// map 组合容器 @set 保形位（役33/35——[@id|@type|@language|@index, @set]
+  /// map 组合容器 @set 保形位（[@id|@type|@language|@index, @set]
   /// 的 @set 次级：map 发射位按此保数组——#ts002 oracle；单元素数组/裸形
   /// 恒 false）
   container_set : Bool

@@ -1,9 +1,9 @@
 ///|
 /// JSON 值（内部文档模型）
-/// 实施卷规则（spec.md §7 / J0 勘察 2026-09-25）：包装官方 core 解析器
+/// 实施卷规则（spec.md §7）：包装官方 core 解析器
 /// （moonbitlang/core/json，工具链内置零依赖），不自建解析层。
 /// Object 收有序对——core 按 Map 折叠后转出：重复键 last-wins（占首现位）、
-/// 键序 ≈ 首现序（1.1 算法按属性排序 + 输出侧自排序，键序待办 J2 比对结束）。
+/// 键序 ≈ 首现序（1.1 算法按属性排序 + 输出侧自排序）。
 pub(all) enum JsonValue {
   Null
   Bool(Bool)

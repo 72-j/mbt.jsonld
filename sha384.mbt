@@ -1,5 +1,5 @@
 // SHA-384 (FIPS 180-4 sections 6.3/6.4) self-implementation, the RDFC-1.0
-// hashAlgorithm=SHA384 variant (suite test075; REC section 3.1 option).
+// hashAlgorithm=SHA384 variant (REC section 3.1 option).
 // Same 512-bit compression as SHA-512: 64-bit words, 80 rounds, message
 // padded to 128-byte blocks with a 128-bit length field; the digest is
 // the first six state words as 96 lowercase hex chars. The round

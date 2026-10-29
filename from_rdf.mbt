@@ -1,8 +1,8 @@
 ///|
-/// fromRDF 主体（役57——REC §RDF-to-Object-Conversion；spec §8.130/§8.131
+/// fromRDF 主体（REC §RDF-to-Object-Conversion；spec §8.130/§8.131
 /// 校验）：N-Quads → 展开且展平形节点对象数组。三段式：①全量入账（结构化
 /// term 存储）②形态集合判定（纯列表/复合字面）③统一渲染。核心判据
-/// （t0008 破译）：**@list 转换只发生在普通性质对象位**——rdf:first 位引
+/// （t0008）：**@list 转换只发生在普通性质对象位**——rdf:first 位引
 /// 用恒 {@id} 物化（lista/b1/c1 面）；rest 位链续走吸收。named graph =
 /// 图名节点 @graph 位；rdf:type → @type（useRdfType 例外）；xsd:string
 /// datatype 剥除；useNativeTypes → native 词形（boolean 词形空间含 1/0、

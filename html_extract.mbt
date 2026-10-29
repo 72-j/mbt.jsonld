@@ -1,9 +1,9 @@
-// J9 HTML 面（JSON-LD 1.1 API REC 9.5——HTML script 提取）：
+// HTML 面（JSON-LD 1.1 API REC 9.5——HTML script 提取）：
 // Process HTML（9.5.1）+ Extract Script Content（9.5.2）两算法实现。
 // 扫描器 = 最小良构 HTML 状态机：只认 <script … type=application/ld+json>
 // 开标与 </script 闭标（ASCII 大小写不敏感）；textContent 原文直通
-// （script 是 raw text 元素——e010 oracle：&lt;&amp;&gt; 不解码实体）。
-// 50 例勘察：无双转义嵌套（<!-- 区内 <script>）建模需求；EOF 截断按
+// （script 是 raw text 元素——e010：&lt;&amp;&gt; 不解码实体）。
+// 套件面无双转义嵌套（<!-- 区内 <script>）建模需求；EOF 截断按
 // HTML 规则视作元素闭合。
 
 ///|
@@ -233,7 +233,7 @@ fn HtmlScanner::step(self : HtmlScanner, ch : Char) -> Unit {
       }
     HtmlAttrBare =>
       // 裸值只被空白/'>' 终结——'/' 属值内字符（HTML 规范裸值不含 '/'
-      // 终结形；application/ld+json 含 '/'，役65 探针实证断裂 bug）
+      // 终结形；application/ld+json 含 '/'，否则属性值断裂）
       if ch == '>' {
         self.finalize_attr()
         self.close_start_tag()
@@ -265,7 +265,7 @@ fn HtmlScanner::step(self : HtmlScanner, ch : Char) -> Unit {
         }
       } else {
         // 候选破裂 → 整段回填原文（注：候选尾恰为 '<' 的极端序列不重探
-        // ——50 例勘察无此形）
+        // ——套件面无此形）
         if self.capture {
           self.content.write_string(text)
         }
@@ -458,7 +458,7 @@ pub struct HtmlScriptSource {
   /// 无 <base> = None——documentUrl 本身即文档基）
   document_base : String?
   /// **无 JSON-LD script 且 extractAllScripts=false**（REC 9.5.1 无 script 臂）。
-  /// 套件 oracle 在此**通道分叉**（同形异判，2026-10-03 勘察）：ExpandTest #te006
+  /// 套件判词在此**通道分叉**（同形异判）：ExpandTest #te006
   /// ⇒ loading document failed；**ToRDFTest #tr006 ⇒ 空数据集**。抽取器只报事实
   /// （本旗 + source="[]"），通道语义由套件 harness 裁定。
   no_scripts : Bool

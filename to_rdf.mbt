@@ -1,5 +1,5 @@
 ///|
-/// toRDF 处理接口 —— 手写实现（J3 实现；J1 定契约）
+/// toRDF 处理接口 —— 手写实现
 /// 契约面与 jsonld_gen.toml 的 handler_hook 对应（接口一致门校验住）。
 pub(open) trait ToRdfProcessor {
   /// 展开后的节点对象图 → 四元组（@graph 图名与数据集处理在此）
@@ -730,7 +730,7 @@ fn nq_jcs(value : JsonValue) -> String {
 }
 
 ///|
-/// JCS 规范化序列化出口（RFC 8785；评审役 R-1 处置，2026-10-09 晋 pub）：
+/// JCS 规范化序列化出口（RFC 8785；评审处置后晋 pub）：
 /// 键 = Unicode 码点序（nq_key_compare）、字符串转义 §3.2.2.2、数值词形 =
 /// ECMAScript Number::toString——本体 nq_jcs（J3.3，#tjs01~23 oracle 全绿）。
 /// 与 json_canonical（比对归一器，比对用）分账：对外规范化序列化用本品。

@@ -1,6 +1,6 @@
-// SHA-256 (FIPS 180-4) self-implementation for the RDFC-1.0 battle
-// (spec.md section 8.132 route A; user ruling 2026-10-03: option b,
-// self-implementation self-certified against RFC 6234 official vectors).
+// SHA-256 (FIPS 180-4) self-implementation for RDFC-1.0
+// (spec.md section 8.132 route A; option b — self-certified against
+// RFC 6234 official vectors).
 // SHA-256 is a core dependency of the six-step algorithm, not a tail
 // piece: the hex string of first-degree / n-degree hashes IS the bnode
 // ordering key. Whole-buffer padding shape, 512-bit blocks, 64 rounds.

@@ -1,5 +1,5 @@
 ///|
-/// compaction 序列化器（J6——spec §8.41/§8.42）：expansion 的逆面，逐值递归，
+/// compaction 序列化器（spec §8.41/§8.42）：expansion 的逆面，逐值递归，
 /// 不建节点字典（F2 禁复用——§8.41 规则一）。覆盖面：精确 term / 最长前缀
 /// compact IRI / base 相对化（段界对齐）/ datatype+language 吸收 / 裸值缺省
 /// 塌缩 / @id-term 串塌缩 / @list 吸收 + @set 保形 + 数组塌缩 / 值去重 /
@@ -8,10 +8,9 @@
 /// 未实现面（deferred 在册）：scoped context 压缩（type/property-scoped term
 /// 选择——#tc001/#tc013 族）、容器逆形分组（@index/@id/@type/@language/@graph
 /// 容器——#tm001/#tla01 族）、@nest 链式/别名细化。
-/// 施工账：todo.md 覆盖率战役（役C2）· 性能役（役P1）。
 
 ///|
-/// 惰性索引取用（役P1 批3——性能内部实现；每 terms-map 身份至多建一次，规则②）。
+/// 惰性索引取用（性能内部实现；每 terms-map 身份至多建一次，规则②）。
 /// 构建谓词与扫描版逐字同源（规则①候选集等价）；末段排序不动（名唯一 ⇒
 /// 排序键全序 ⇒ 集合等价 ⇒ 序列等价）。compact_by_iri = Some 即整组已建。
 fn ensure_compact_index(
@@ -162,7 +161,7 @@ fn compact_iri_word(
       Some(vocab) =>
         if vocab.length() < iri.length() && iri.has_prefix(vocab) {
           // 撞词守门（#t0043 oracle——suffix 为在册 term 时重展开撞词，
-          // 跳过 vocab 步保全 IRI）。精化（役41/#tc027 兜底位）：suffix
+          // 跳过 vocab 步保全 IRI）。精化（#tc027 兜底位）：suffix
           // term 的 IRI **同于**被压 IRI 时非撞（即 exact term——键位词形
           // 照用，#tc027 "baz"）；异于才跳（#t0043 本案）
           let suffix = iri[vocab.length():].to_owned()
@@ -177,7 +176,7 @@ fn compact_iri_word(
       None => ()
     }
   }
-  // 最长前缀 compact IRI（役P1 批3：经倒排索引 prefixes 微清单——静态资格半
+  // 最长前缀 compact IRI（经倒排索引 prefixes 微清单——静态资格半
   // 预计算于 ensure_compact_index（逐字段同源），查询侧 = 动态半（长度/
   // has_prefix）+ 最长择优，谓词同源）
   let (_, _, prefixes) = ensure_compact_index(active)
@@ -205,7 +204,7 @@ fn compact_iri_word(
   match (best_name, best_prefix) {
     (Some(name), Some(pfx)) => {
       let suffix = iri[pfx.length():].to_owned()
-      // 撞词守门（役41/#t0007 oracle——前缀词为在册 term 名时重展开歧义，
+      // 撞词守门（#t0007——前缀词为在册 term 名时重展开歧义，
       // 跳前缀步保全 IRI；#t0043 vocab 步同族判据）。被拒 exact term 不得
       // 经前缀复得键位
       let word = name + ":" + suffix
@@ -228,7 +227,7 @@ fn compact_iri_word(
           if rest.has_prefix("#") {
             return rest
           }
-          // query 相对（役42/#t0066——iri = doc URL + "?…" ⇒ "?…"，与
+          // query 相对（#t0066——iri = doc URL + "?…" ⇒ "?…"，与
           // fragment 规则对称）
           if rest.has_prefix("?") {
             return rest
@@ -251,10 +250,10 @@ fn compact_iri_word(
         if boundary.length() < iri.length() && iri.has_prefix(boundary) {
           return iri[boundary.length():].to_owned()
         }
-        // ../ 上跳形（役42/#t0045 "../parent-node"/#t0066 "../"../../" 族——
+        // ../ 上跳形（#t0045 "../parent-node"/#t0066 "../"../../" 族——
         // 同 scheme 同 authority 下按目录段回溯：ups = base 目录段数 −
         // 公共段数；fragment/query 已被上两形截走）。十二点目标形见
-        // §8.88 勘察（tests/=1 上、root 文件=3 上——统一规则：
+        // §8.88（tests/=1 上、root 文件=3 上——统一规则：
         // 段级公共前缀对 base 目录段，均一成立）
         // 上跳前提：iri 自带 path（authority 后有 "/"）——裸 authority
         // （#t0076 "http://example.com"）恒绝对
@@ -327,7 +326,7 @@ fn compact_iri_word(
             let bd = segs_of(bp)
             let it = segs_of(ip)
             // bd pop 尾 ""（bp 尾斜杠目录标）；it 尾段是真实目标段——
-            // 不 pop（役42 施工勘误：误 pop 吃掉 parent-node ⇒ "../"）
+            // 不 pop（误 pop 吃掉 parent-node ⇒ "../"）
             if bd.length() > 0 {
               let _ = bd.pop()
             }
@@ -368,7 +367,7 @@ fn compact_iri_word(
 
 ///|
 /// 值 datatype 取形（排名特异性用——Value 取其 datatype；List 取**全项
-/// uniform** 的 datatype（役31 typed 值对象收集项——#t0018 term4/term5、
+/// uniform** 的 datatype（typed 值对象收集项——#t0018 term4/term5、
 /// #t0024 termTL1/TL2 排名位），混合/含非值项 → None；他形 None）
 fn literal_datatype_of(v : ExpandedValue) -> String? {
   match v {
@@ -785,7 +784,7 @@ fn compact_value_jv(
 
 ///|
 /// 排名估长器（无递归——断 compact_node_jv 定义环）：id_only 节点取**本
-/// term 塌缩词**长（役31——词形随候选项，最短词形排名的本职；塌缩旗标与
+/// term 塌缩词**长（词形随候选项，最短词形排名的本职；塌缩旗标与
 /// compact_value_item 串塌缩臂逐字同源，故 id_only 面即精确渲染长）+
 /// 词形级别（exact 0 < vocab 后缀 1 < 前缀词 2 < base 相对 3 < 全 IRI 4
 /// ——同长 tie-break，#t0044 DefinedTerm exact 胜 base 相对）；值取词长+8；
@@ -884,7 +883,7 @@ fn compact_word_rank(
 }
 
 ///|
-/// @reverse 值级分键（役31 从 compact_node_jv 内联抽出——@reverse 定义 term
+/// @reverse 值级分键（从 compact_node_jv 内联抽出——@reverse 定义 term
 /// 与普通 term 双路复用）：逐值 bare_fit + 最短词形排名（词长→词形级别）归
 /// term（#t0044 oracle——dave→knows 全词、DefinedTerm→knowsVocab exact 词；
 /// 同 IRI 双 term 按值拆键）；无 fit 值落 compact_property_pair 兜底键。
@@ -976,7 +975,7 @@ fn compact_value_item(
 ) -> Result[JsonValue, JsonLdError] {
   // property-scoped context 套用（压缩面——tc001/tc013 族：td @context 在
   // 节点有效链之上套用，值渲染全走此链；套用失败回退——定义期已校验）。
-  // key_active = 键选择链（役3 双链分立——#tc011：type-scoped 注销的别名
+  // key_active = 键选择链（双链分立——#tc011：type-scoped 注销的别名
   // 只在键链生效，{"@id"} 对象形键随此链；property-scoped 对两链同权套用）
   let active : ActiveContext = match td_opt {
     Some(td) =>
@@ -1072,7 +1071,7 @@ fn compact_value_item(
             }
           None => ()
         }
-        // 对象形：{@id键: 压缩词}；键走关键词压缩（役31——@id 别名 term
+        // 对象形：{@id键: 压缩词}；键走关键词压缩（@id 别名 term
         // 生效，#t0022 oracle："id":"@id" 别名下列项节点 {id:…} 非 {@id:…}；
         // 与值对象 @language 键同款旗标）；@-词转义（#t0111 oracle——
         // "@special" 重展开会被当关键字 ⇒ "./" 前缀逃逸）
@@ -1140,7 +1139,7 @@ fn compact_value_item(
 /// 值数组压缩（容器旗 + 去重 + 塌缩）：@set 保形；非容器单值塌缩（compactArrays
 /// 门）；同形值去重。**@list 容器吸收不在此**——单 List 值 → 裸数组与 1.0 嵌套
 /// list 报错由 `compact_value_item` 的 List 容器臂（本函数逐值调用它）承担；
-/// 本节原有一段同义吸收块，役C2批1 结束定论为**死分支**（反向容器白名单不含 @list）
+/// 反向容器白名单不含 @list——本节为**死分支**判据（勿删，防回归）
 /// 并拆除（拆前 1102-1129；行为零变更——该块与 compact_value_item 逐字同源）
 fn compact_property_values(
   vals : Array[ExpandedValue],
@@ -1176,7 +1175,7 @@ fn compact_property_values(
 }
 
 ///|
-/// 键位出口 scheme 撞名检测（役42/#te002 oracle——绝对 IRI 键的 scheme
+/// 键位出口 scheme 撞名检测（#te002——绝对 IRI 键的 scheme
 /// 恰为在册 term 名 ⇒ 重展开读成 curie、错 IRI，Err；term 名非绝对 IRI
 /// 形的键零涉）
 fn check_key_scheme_collision(
@@ -1187,7 +1186,7 @@ fn check_key_scheme_collision(
   if is_valid_absolute_iri(key) {
     match colon_index(key) {
       Some(at) => {
-        // 精化（役42 施工勘误——#t0006 前缀词 ex:term1 语法似绝对 IRI 且
+        // 精化（#t0006 前缀词 ex:term1 语法似绝对 IRI 且
         // "ex" 在册，但重展开同于原 IRI 非撞）；撞 = scheme term 重展开
         // **异于**原 IRI（#te002——tag:… 经 tag term → ns/tag/… ≠ 原 IRI）
         let scheme = key[:at].to_owned()
@@ -1197,7 +1196,7 @@ fn check_key_scheme_collision(
               Some(td_iri) => {
                 let rest = key[at + 1:].to_owned()
                 if td_iri + rest != pred {
-                  // 发射词自洽显式放行（役55 t0010 裁定——spec §8.127）：键词
+                  // 发射词自洽显式放行（t0010，spec §8.127）：键词
                   // 本身即在册 term 键 ⇒ 发射自洽于 term 查找序（term 命中
                   // 先于 CURIE 检查）；套件正例裁决 > REC 字面混淆错
                   // （jsonld.js compact/frame 双错与套件正例相悖，多实现
@@ -1241,7 +1240,7 @@ fn compact_property_pair(
     cs if cs.length() > 0 => cs[0]
     _ => compact_iri_word(pred, true, true, true, active, options)
   }
-  // 键位出口 scheme 撞名检测（役42/#te002——键位词为绝对 IRI 且其
+  // 键位出口 scheme 撞名检测（#te002——键位词为绝对 IRI 且其
   // scheme 恰为在册 term 名：重展开读成 curie ⇒ 错 IRI，Err）
   match check_key_scheme_collision(key, pred, active) {
     Ok(_) => ()
@@ -1315,7 +1314,7 @@ fn compact_node_jv(
       // 存续；type-scoped 只管键选择，值词形随外层——双链分立同款）
       types.push(
         JsonValue::String(
-          // @type 词形不走文档相对化（役42/#t0066——类型位只经 term/
+          // @type 词形不走文档相对化（#t0066——类型位只经 term/
           // vocab，oracle 全绝对）
           compact_iri_word(t, true, true, false, active, options),
         ),
@@ -1601,10 +1600,10 @@ fn compact_node_jv(
               active,
               options,
             )
-            // 特异性双维（役30 第二维 datatype）：language-mapping term
+            // 特异性双维（第二维 datatype）：language-mapping term
             // 不得抢 typed 值（#t0015）；td @type 与值 datatype 合 ⇒ +1
             // （#t0024 oracle——type1 项归 termTL1 非 termLL0）；列的
-            // datatype 位 = 全项 uniform 才计（役31 typed 值对象收集项）
+            // datatype 位 = 全项 uniform 才计（typed 值对象收集项）
             let v_dt = literal_datatype_of(v)
             let spec_lang = match (entry.1.language_mapping, v_dt) {
               (Some(_), None) => 1
@@ -1884,7 +1883,7 @@ fn compact_node_jv(
                 None => ()
               }
             }
-            // nest 接线（役43/#tn006-009——map 容器 × @nest 复合：map
+            // nest 接线（#tn006-009——map 容器 × @nest 复合：map
             // 对象入 nest 组并带 term 名中间键级 nestedindex→index→{…}；
             // 纯 map 路由原样顶层出）
             let map_nest = {
@@ -1920,7 +1919,7 @@ fn compact_node_jv(
         (Some(arr), Some(keep)) => {
           // @json 值直出（#tjs07 oracle——@json 原值即 JSON，容器/塌缩不包；
           // datatype 位是**关键字形** "@json"（丁批 #tjs01 同形），full IRI
-          // 形在管线中不存在——役34 勘察：旧守卫查 full IRI 恒不命中）
+          // 形在管线中不存在——旧守卫查 full IRI 恒不命中）
           let td_json = match group_tds.get(name) {
             Some(td) => td.datatype is Some("@json")
             None => false
@@ -1974,7 +1973,7 @@ fn compact_node_jv(
         scoped,
         options,
       )
-      // 键位出口 scheme 撞名检测（役42/#te002——leftover 兜底键同受检）
+      // 键位出口 scheme 撞名检测（#te002——leftover 兜底键同受检）
       match check_key_scheme_collision(fallback_key, pair.0, active) {
         Ok(_) => ()
         Err(e) => return Err(e)
@@ -2097,7 +2096,7 @@ fn compact_node_jv(
       } else {
         // 值级最短词形排名分键（#t0044 oracle——dave→knows 全词、
         // DefinedTerm→knowsVocab exact 词；同 IRI 双 term 按值拆键；
-        // 役31 抽 compact_reverse_split_pairs 双路复用）
+        // compact_reverse_split_pairs 双路复用）
         match
           compact_reverse_split_pairs(pair.0, cands, pair.1, active, options) {
           Ok(split_pairs) =>
@@ -2108,7 +2107,7 @@ fn compact_node_jv(
         }
       }
     } else {
-      // 无 @reverse 定义 term：正向 term 逐值分键（役31 #t0044 第二路——
+      // 无 @reverse 定义 term：正向 term 逐值分键（#t0044 第二路——
       // @type @id/@vocab 普通 term 在 @reverse 位同 IRI 双候选按值拆键，
       // 出形保 @reverse 包裹）；无正向候选落整体渲染兜底
       let fwd_cands = compact_term_candidates(pair.0, false, active)
@@ -2167,7 +2166,7 @@ fn compact_node_jv(
             None => ()
           }
         }
-        // 役42 施工勘误复回：reverse 映射组出键的原 push（拆错位 nest
+        // reverse 映射组出键的原 push（拆错位 nest
         // 接线时被一并抹除——#t0036 isKnownBy 顶层提升位）
         pairs.push((name, JsonValue::Object(sub_pairs)))
       }
@@ -2250,7 +2249,7 @@ fn compact_map_entry(
             variant.graph is None &&
             variant.included is None &&
             variant.index is None
-          // 键化 type 的 scoped context 预套（役37/#tm007——type-map 值
+          // 键化 type 的 scoped context 预套（#tm007——type-map 值
           // 渲染的键链：键化 type 的 type-scoped 定义须活于值位词形；
           // variant 已剥 types[0]，内层 apply 见不到）
           let keyed_chain = match child.types.get(0) {
@@ -2640,8 +2639,8 @@ fn compact_node_graph_value_jv(
 }
 
 ///|
-/// list 值 bare 适配（役30 从 bare_fit 内联链抽出——顶层具名函数规避
-/// 深嵌套 match 文法坑；役31 闸形与 Value 臂对齐——datatype 分支优先，
+/// list 值 bare 适配（从 bare_fit 内联链抽出——顶层具名函数规避
+/// 深嵌套 match 文法坑；闸形与 Value 臂对齐——datatype 分支优先，
 /// 语言只属无 @type 面）：index 闸 / @list 容器闸 / 方向闸 / type 闸
 /// （uniform 整列）/ 语言镜像（含标量免疫）
 fn compact_list_bare_fit(
@@ -2683,7 +2682,7 @@ fn compact_list_bare_fit(
         None => {
           // 无 @type：语言镜像（首项定调）+ 免注免疫（raw 标量 + typed 值
           // 对象——重展开不受缺省语言注入）；type 面恒容——typed 项以值
-          // 对象形居裸数组（役27 None⇒typed 值对象形；#t0024 termTL0 混合列）
+          // 对象形居裸数组（None⇒typed 值对象形；#t0024 termTL0 混合列）
           let first_lang = match items.get(0) {
             Some(ExpandedValue::Value(lit)) => lit.language
             _ => None

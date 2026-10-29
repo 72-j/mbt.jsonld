@@ -1,5 +1,5 @@
 // RDFC-1.0 (URDNA2015) canonicalization, W3C REC 2023-08-22
-// (spec.md section 8.132 route A; suite git anchor 15619df2fda7a4ca88308733789b6774517f9638).
+// (spec.md section 8.132 route A).
 // Six-step main algorithm per section 4.4.3 (main), 4.5.2 (issue
 // identifier), 4.6.3 (hash first degree quads), 4.7.3 (hash related
 // blank node), 4.8.3 (hash n-degree quads); output serialization per
@@ -7,7 +7,7 @@
 // N-Quads parser (nquads_parse.mbt); SHA-256 (sha256.mbt) supplies the
 // bnode ordering keys as lowercase hex strings. Suite anchors live in
 // canon_rdfc10_wbtest.mbt (byte-inlined suite pairs); the full 86-entry
-// harness is the next battle (canon_rdfc10_test.mbt).
+// harness is canon_rdfc10_test.mbt.
 
 ///|
 /// Identifier issuer (section 4.5.2): prefix + counter. `issued` maps
@@ -63,8 +63,7 @@ pub(all) enum C14nHashAlgorithm {
 } derive(Eq)
 
 ///|
-/// [0079] 消警：Eq 派生的 equal/not_equal 显式升格（const §5——derive 须同笔补
-/// extend；役59 漏此条，2026-10-03 deny-warn 门红暴露）
+/// [0079] 消警：Eq 派生的 equal/not_equal 显式升格（const §5——derive 须同笔补 extend）
 pub extend C14nHashAlgorithm with Eq::{not_equal, equal}
 
 ///|
@@ -659,12 +658,11 @@ fn C14nState::run(
 /// SHA384 variant pinned by suite test075. Output shape matches the
 /// mapping variant.
 ///
-/// **定位改判（役65 库化整形）**：本入口=RDFC-1.0 规范入口（库特征，
-/// 非 harness 专用）——hash 算法可配（SHA-256/384），返回规范形 + bnode
-/// 映射，是 RDFC-1.0 对外能力的直出口。原「非通用 API 承诺」（役62）随
-/// 库定位拍板解除；包内其余入口（`rdfc10_canonicalize` / `_with_mapping` /
+/// **定位**：本入口=RDFC-1.0 规范入口（库特征，非 harness 专用）——
+/// hash 算法可配（SHA-256/384），返回规范形 + bnode 映射，是 RDFC-1.0
+/// 对外能力的直出口。包内其余入口（`rdfc10_canonicalize` / `_with_mapping` /
 /// `sha256_hex` / `sha256_utf8_hex` / `sha384_hex` / `sha384_utf8_hex`）
-/// 真调用点逐处 grep 定性，役62 已收 `priv`。
+/// 为内部面，收 `priv`。
 pub fn rdfc10_canonicalize_with_hash(
   input_nquads : String,
   hash_algorithm : C14nHashAlgorithm,
