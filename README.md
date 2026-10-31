@@ -199,6 +199,25 @@ moon test
 测试语料为 W3C json-ld-api / json-ld-framing / rdf-canon 三套件，存于
 `.rdf-tests/`，由 `SHA256SUMS` 锁定版本。
 
+### quicktest 数据集守恒机
+
+`quicktest/` 内置随机状态机测试件（pbtgen QuickMachine 脚手架生成），以数据集
+守恒律为被测性质：
+
+- **字面集守恒**：`to_rdf(from_rdf(台账))` 输出的 quad 键集与台账键集等值
+  （空白节点标签在键面规约 `_:*` → `_:B`）；
+- **图同构守恒**：两轮 `from_rdf` 产物经 `isomorphic_for_suite` 判定同构，
+  空白节点结构身份保真。
+
+状态机 `Empty —Seed→ Ledgered`，环上 `AppendQuad`（载荷选取六条 quad 池：IRI
+宾词、朴素 / 语变 / 型标字面量、空白节点主词与宾词）与 `Roundtrip`；台账为
+集合语义，重复追加在生成期即被过滤。随机 60 例 + 固定脚本回归基线 + 覆盖门，
+native 与 wasm 读数一致（quicktest 13 例，计入全仓测试总数）。
+
+```bash
+moon test -p thy1016/jsonld/quicktest
+```
+
 版本沿革见 `CHANGELOG.md`。
 
 ## 许可证

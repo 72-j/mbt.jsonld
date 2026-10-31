@@ -5,7 +5,7 @@
 
 name = "thy1016/jsonld"
 
-version = "0.1.2"
+version = "0.1.3"
 
 repository = "https://www.gitlink.org.cn/thy7/mbt.jsonld"
 
