@@ -5,7 +5,7 @@
 
 name = "thy1016/jsonld"
 
-version = "0.1.1"
+version = "0.1.2"
 
 repository = "https://www.gitlink.org.cn/thy7/mbt.jsonld"
 
@@ -21,4 +21,8 @@ preferred_target = "native"
 
 import {
   "moonbitlang/async@0.22.4",
+  // quicktest 随机状态机脚手架（仅 jsonld/quicktest 测试面消费）
+  "moonbit-community/quickcheck_statemachine@0.0.1",
+  // quickcheck 统一最新（0.14.0 注册表 tarball 是旧格式 moon.mod.json，新工具链拒装）
+  "moonbitlang/quickcheck@0.15.1",
 }

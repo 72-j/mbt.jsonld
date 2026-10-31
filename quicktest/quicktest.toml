@@ -1,0 +1,74 @@
+# ==========================================================
+# QuickMachine **业务面**（纪律：与生成面分文件）
+# 管：业务分布 / 回归基线 / 覆盖率要求 —— [business] [random_check]
+#     [[assert_check]] [environment] [failure_detection] [report]
+# 生成面见同目录 quicktest_gen.toml
+#
+# ⚠ v1 守恒口径（系统侧 P0 落地，这里只声明分布与基线）：
+#   · 守恒律双口径——①字面集守恒：to_rdf(from_rdf(台账)) 的 quad 键集
+#     == 台账键集（bnode 标签跨桥可能重编，键里规约 "_:*" → "_:B"）；
+#     ②图同构守恒：两次 from_rdf 产物 isomorphic_for_suite 同构
+#     （bnode 结构身份由同构判定兜底，补 ① 的规约盲区）。
+#   · quad 池 6 条（ref_id_range = 6，索引一对一）：IRI 宾词 / 朴素字面量 /
+#     语变字面量 / 型标字面量 / bnode 主词 / bnode 宾词；Seed = 池[0]+池[1]。
+#   · 台账是集合语义：valid 挡重复追加（模型镜像索引集），池竭后
+#     Roundtrip 独活（无 Deadlock）。
+# ==========================================================
+[business]
+ref_id_range = 6
+
+[business.weights]
+Seed = 3
+AppendQuad = 5
+Roundtrip = 3
+
+[random_check]
+seed = 20261031
+cases = 60
+max_commands = 12
+max_tries = 20
+shrink = true
+max_shrinks = 60
+max_shrink_rounds = 16
+required_command_names = ["Seed", "AppendQuad", "Roundtrip"]
+
+[environment]
+isolation_strategy = "per_test_case"
+before_each = []
+after_each = []
+timeout_seconds = 30
+
+[failure_detection]
+failure_if = [
+  "postcondition fails",
+  "model != system observable state",
+  "unexpected error code",
+]
+
+[report]
+include_trace = true
+include_model = true
+include_responses = true
+
+# ==========================================================
+# 固定脚本（回归基线）：Seed → 双追加（非种子位 2/3）→ 重复追加（valid 挡，
+#   Prefilter 跳）→ Roundtrip。台账集合语义的重复挡板本身入基线。
+#   ⚠ 追加位不得撞 Seed 像 [0,1]——撞位即被集合口径全跳（守恒机首役实证）。
+# ==========================================================
+[[assert_check]]
+event = "Seed"
+
+[[assert_check]]
+event = "AppendQuad"
+id = 2
+
+[[assert_check]]
+event = "AppendQuad"
+id = 3
+
+[[assert_check]]
+event = "AppendQuad"
+id = 2
+
+[[assert_check]]
+event = "Roundtrip"

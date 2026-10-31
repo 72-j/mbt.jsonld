@@ -1,0 +1,49 @@
+# ==========================================================
+# jsonld 数据集守恒 FSM（QuickMachine 机器数据；手写领域机）
+# 体式承 pbtgen（fsm TOML = states/events/transitions；P4.2d 最小形）。
+# v1 口径：数据集台账位面（Empty/Ledgered + Seed/AppendQuad/Roundtrip）。
+#   守恒律是被测性质，不住转移表——系统侧每步过桥双验（字面集守恒 +
+#   图同构守恒），违律即 Error(1)；模型侧只镜像台账集合（索引级）。
+# ==========================================================
+
+[meta]
+name = "jsonld_dataset_ledger"
+version = "0.1.0"
+prefix = "Jq"
+trait_name = "Conservation"
+style = "mutable"
+
+[[states]]
+name = "Empty"
+is_initial = true
+
+[[states]]
+name = "Ledgered"
+
+[[events]]
+name = "Seed"
+
+[[events]]
+name = "AppendQuad"
+payload = [{ name = "quad", type = "Span" }]
+
+[[events]]
+name = "Roundtrip"
+
+[[transitions]]
+from = "Empty"
+to = "Ledgered"
+on = "Seed"
+action = "do_seed"
+
+[[transitions]]
+from = "Ledgered"
+to = "Ledgered"
+on = "AppendQuad"
+action = "do_append"
+
+[[transitions]]
+from = "Ledgered"
+to = "Ledgered"
+on = "Roundtrip"
+action = "do_roundtrip"

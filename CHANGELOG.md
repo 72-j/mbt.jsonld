@@ -1,10 +1,27 @@
-# Changelog
+## 0.1.2（2026-10-31）
 
-本文件面向**使用者**，记录每版对外可见的变化（API / 语义 / 工程）。
-内部战役账（役录、复核面、勘误沿革）见 `todo.md` / `review.md`，不在此重复。
+工程面版本：新增 quicktest 随机状态机测试件（**数据集守恒律机**）——pbtgen
+QuickMachine 三面 TOML（`quicktest/`）生成骨架 + P0 接框架真面；对外 API 零变化。
 
-数字单一来源纪律：套件通过计数一律引用 `suite-review.txt`（八面自报行），
-覆盖率读数一律引用 `coverage-baseline.txt`，本文件只转述、不另立。
+### 新增（测试面）
+
+- **`quicktest/` 数据集守恒机**：Empty→Seed→Ledgered 状态机，Ledgered 环上
+  `AppendQuad`（载荷选 quad 池）+ `Roundtrip`；被测性质 = 守恒律双口径——
+  ①字面集守恒（`to_rdf(from_rdf(台账))` 键集 == 台账键集，bnode 标签键面规约）
+  ②图同构守恒（两轮 `from_rdf` 产物 `isomorphic_for_suite` 同构，bnode
+  结构身份保真）。随机 60 例 + 固定脚本回归基线（含重复追加挡板见证）+
+  单例覆盖门；固定守恒罐四件（Seed 基线 / 全池含 bnode / 重复防御 /
+  模型-系统双执行同步）。
+- **模块依赖**：`moonbit-community/quickcheck_statemachine@0.0.1` +
+  `moonbitlang/quickcheck@0.15.1`（仅 quicktest 测试面消费，产品面零涟漪）。
+
+### 口径
+
+- 台账集合语义：`valid` 在生成期挡重复追加（模型镜像池索引集）；quad 池
+  6 条与 `ref_id_range` 一对一（IRI 宾词 / 朴素字面量 / 语变 / 型标 /
+  bnode 主词 / bnode 宾词）。
+- 读数：native 与 wasm 各 548/548（含 quicktest 13 例）；产品 `.mbti`
+  零漂移。
 
 ## 0.1.1（2026-10-09）
 

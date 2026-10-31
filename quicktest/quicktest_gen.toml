@@ -1,0 +1,72 @@
+# ==========================================================
+# QuickMachine **生成面**（纪律：与业务面分文件，同 pbtgen 双面体例）
+# 管：生成什么 / 生成到哪 / 怎么接线 —— [meta] [generator] [type_mapping]
+#     [artifacts] [defaults] [actions]
+# 业务面见同目录 quicktest.toml（[business] [random_check] [[assert_check]]
+#     [environment] [failure_detection] [report]）
+#
+# 引擎接线：skelgen_package = jsonld 真面目（from_rdf_document/to_rdf_document/
+#     isomorphic_for_suite 全在根包）——P0（system.mbt）调真引擎过桥执行，
+#     不重写转换语义（moonttl P4.2b / mooncmd 0.2.1 同款口径）。
+# ==========================================================
+[meta]
+name = "jsonld_conservation_machine"
+version = "0.1.0"
+description = "jsonld 数据集守恒 QuickMachine 测试骨架生成配置"
+prefix = "Jq"
+
+[generator]
+enabled = true
+fsm_toml = "jsonld/quicktest/quicktest_fsm.toml"
+skelgen_package = "thy1016/jsonld"
+engine_alias = "@jsonld"
+qcs_alias = "@qcs"
+output_dir = "jsonld/quicktest"
+# 生成头时间戳钉住（G6 口径：再生幂等）
+generated_at = 1793000000000
+
+[type_mapping]
+span_alias = "RefId"
+ref_type = "@qcs.Ref[RefId]"
+# v1 纯集合机：无 Span 槽（模型槽白名单只认 Span 型 context 字段；
+# 台账集合镜像走 P0 手扩 Model.quads，Array[Int] 非生成器槽型）
+model_slots = []
+# 守恒机不发射载荷——Effect 归一化留空表
+effect_maps = {}
+# 归一化码面：0 = 未定义转移（生成器 fallback 臂）；1 = 守恒律违（双口径任一破）；
+# 2 = 桥故障（from_rdf/to_rdf 非 Ok）；3 = 执行期引用未解（Symbolic 漏到系统侧）
+error_codes = { undefined_transition = 0, conservation_violation = 1, conversion_failed = 2, unbound_reference = 3 }
+
+[artifacts]
+types = true
+valid = true
+model_exec = true
+callbacks = false
+business = true
+metrics = false
+system = true
+state_machine = true
+runner = true
+assembly = "direct"
+
+[defaults]
+precondition = "valid_table"
+postcondition = "model_compare"
+invariant = "top"
+generator = "valid_weighted"
+shrinker = "none"
+mock = "model_execute"
+response_vars = "none"
+reify_command = "resolve_symbolic"
+bind_response = "passthrough"
+remap_command = "identity"
+
+# ==========================================================
+# [actions]：action → 意图表（生成面数据）
+# 三个 action 都是"台账操作 + 过桥双验"（无发射载荷）→ Continue；
+# 违律/桥故障走 error_codes 的 Error(Int)。
+# ==========================================================
+[actions]
+do_seed = "Continue"
+do_append = "Continue"
+do_roundtrip = "Continue"
