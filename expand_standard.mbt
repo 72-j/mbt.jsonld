@@ -28,7 +28,7 @@ fn is_valid_absolute_iri(value : String) -> Bool {
   let mut scheme_initial_alpha = false
   for ch in value {
     if i == 0 {
-      scheme_initial_alpha = ch is ('a'..='z' | 'A'..='Z')
+      scheme_initial_alpha = ch is ('a'..<='z' | 'A'..<='Z')
     }
     if ch is ':' && i > 0 {
       has_colon = true
@@ -84,7 +84,7 @@ fn has_keyword_form(value : String) -> Bool {
       for ch in value {
         if !seen_at {
           seen_at = true
-        } else if ch is ('a'..='z' | 'A'..='Z') {
+        } else if ch is ('a'..<='z' | 'A'..<='Z') {
           alpha_count += 1
         } else {
           all_alpha = false
@@ -112,7 +112,7 @@ fn is_bnode_label(value : String) -> Bool {
 
 ///|
 /// 首个冒号的代码单元索引（compact 分段用；冒号为 BMP ⇒ 切片边界必合法）
-fn colon_index(value : String) -> Int? {
+fn colon_index(value : String) -> Int32? {
   let mut i = 0
   for ch in value {
     if ch is ':' {
@@ -126,7 +126,7 @@ fn colon_index(value : String) -> Int? {
 ///|
 /// 冒号切分（平台中立：字符迭代拼装，避免 StringView 切片的抛错面差异）。
 /// 语义：at 位为冒号本身——prefix = at 之前、suffix = at 之后（冒号丢弃）
-fn split_first_colon(value : String, at : Int) -> (String, String) {
+fn split_first_colon(value : String, at : Int32) -> (String, String) {
   let pre = StringBuilder()
   let suf = StringBuilder()
   let mut i = 0
@@ -817,7 +817,7 @@ fn StandardExpander::expand_object(
   // （壬子批 #t0034/#t0114 oracle）原为逐键线性扫全量 properties ⇒ O(P²)。
   // 与 J2 nest 合并索引（函数尾 property_index）同纪律：整段建一次、由
   // merge_property_values 维护、顺序语义不变（先见者占位、逐值追加尾部）。
-  let property_index : Map[String, Int] = Map([])
+  let property_index : Map[String, Int32] = Map([])
   let reverse_props : Array[(String, Array[ExpandedValue])] = []
   let mut node_graph : Array[ExpandedValue]? = None
   // 节点/值对象位 @index（@index mapping 批——#t0036 oracle；值对象位在收尾挂字面量）
@@ -1858,11 +1858,11 @@ fn StandardExpander::expand_object(
   // 合并索引（@nest 异键合并索引化）：**整段建一次**（进入合并前按当前槽位），
   // 之后由 merge_property_values 维护 ⇒ 每条 incoming 对 O(1) 查/追加
   // （原实现每条都线性扫目标数组 ⇒ O(P·M) 二次方）
-  let property_index : Map[String, Int] = Map([])
+  let property_index : Map[String, Int32] = Map([])
   for i in 0..<properties.length() {
     property_index[properties[i].0] = i
   }
-  let reverse_index : Map[String, Int] = Map([])
+  let reverse_index : Map[String, Int32] = Map([])
   for i in 0..<reverse_props.length() {
     reverse_index[reverse_props[i].0] = i
   }
@@ -2020,7 +2020,7 @@ fn StandardExpander::expand_object(
 /// 类型数组的追加由调用方直推。
 fn merge_property_values(
   target : Array[(String, Array[ExpandedValue])],
-  index : Map[String, Int],
+  index : Map[String, Int32],
   pair : (String, Array[ExpandedValue]),
 ) -> Unit {
   match index.get(pair.0) {

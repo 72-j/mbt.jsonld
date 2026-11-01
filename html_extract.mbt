@@ -96,7 +96,7 @@ priv struct HtmlScanner {
   mut content : StringBuilder
   mut candidate : StringBuilder
   mut quote : Char
-  mut comment_dashes : Int
+  mut comment_dashes : Int32
   mut prev1 : Char
   mut prev2 : Char
   mut base_attr : String? // <base href> 属性暂存（te020——HTML 文档基）
@@ -392,12 +392,12 @@ fn html_percent_decode(input : String) -> String {
         }
         _ => {
           // 破形 → '%' 按字面
-          bytes.push((37 : Int).to_byte())
+          bytes.push((37 : Int32).to_byte())
           i = i + 1
         }
       }
     } else if code == 37 {
-      bytes.push((37 : Int).to_byte())
+      bytes.push((37 : Int32).to_byte())
       i = i + 1
     } else if code < 128 {
       bytes.push(code.to_byte())
@@ -415,7 +415,7 @@ fn html_percent_decode(input : String) -> String {
 
 ///|
 /// hex 位 → 0-15
-fn html_hex_nibble(ch : Char) -> Int? {
+fn html_hex_nibble(ch : Char) -> Int32? {
   let code = ch.to_int()
   if code >= 48 && code <= 57 {
     Some(code - 48)

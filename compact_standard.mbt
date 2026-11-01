@@ -436,7 +436,7 @@ fn lang_tag_eq(a : String, b : String) -> Bool {
 
 ///|
 /// ASCII 大小写折叠（lang_tag_eq 用——语言子序列恒 ASCII，A-Z ±32）
-fn ascii_fold_lower(c : Char) -> Int {
+fn ascii_fold_lower(c : Char) -> Int32 {
   let v = c.to_int()
   if v >= 65 && v <= 90 {
     v + 32
@@ -794,7 +794,7 @@ fn compact_rank_word_len(
   td_opt : TermDefinition?,
   active : ActiveContext,
   options : JsonLdOptions,
-) -> (Int, Int) {
+) -> (Int32, Int32) {
   match v {
     ExpandedValue::Node(child) => {
       let id_only = child.types.is_empty() &&
@@ -864,7 +864,7 @@ fn compact_word_rank(
   vocab_hit : Bool,
   active : ActiveContext,
   options : JsonLdOptions,
-) -> Int {
+) -> Int32 {
   if exact_hit {
     return 0
   }
@@ -897,7 +897,7 @@ fn compact_reverse_split_pairs(
 ) -> Result[Array[(String, JsonValue)], JsonLdError] {
   let rev_split : Map[String, Array[JsonValue]] = Map([])
   for v in vals {
-    let mut best : (String, TermDefinition, Int, Int)? = None
+    let mut best : (String, TermDefinition, Int32, Int32)? = None
     for name in cands {
       match active.terms.get(name) {
         Some(td) => {
@@ -1586,7 +1586,7 @@ fn compact_node_jv(
         // 排名键 = (词长, 词形级别, 特异性位降序)：同长时 exact/vocab 塌缩
         // 胜 base/全 IRI（#t0044），再同则 Set/Null 精确映射 > None 缺省
         // 对齐（#t0018/#t0024 oracle——en 项归 termLL1 非 termLL0）
-        let mut best : (String, TermDefinition, Int, Int, Int)? = None
+        let mut best : (String, TermDefinition, Int32, Int32, Int32)? = None
         for entry in cand_tds {
           let fits = if pass_bare {
             compact_bare_fit(v, entry.1, active)

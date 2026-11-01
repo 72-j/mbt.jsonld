@@ -280,7 +280,7 @@ async test "interface gate: every generated handler resolves to a declared trait
   for row in @jsonld.jsonld_iri_routes() {
     hooks.push(row.handler)
   }
-  let seen : Map[String, Int] = Map([])
+  let seen : Map[String, Int32] = Map([])
   for hook in hooks {
     match hook {
       Some(h) =>

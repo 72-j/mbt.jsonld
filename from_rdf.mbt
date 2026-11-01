@@ -697,7 +697,7 @@ fn from_rdf_render_literal(
           index_of_str_prefix(dt, from_i18n_datatype_prefix) {
           let suffix = dt[from_i18n_datatype_prefix.length():].to_owned()
           // 尾 '_' 切 lang/dir（dir = ltr/rtl；lang 可空可含 '-'）
-          let mut split_at : Int? = None
+          let mut split_at : Int32? = None
           for i in 0..<suffix.length() {
             if suffix[i] == 95 {
               split_at = Some(i)

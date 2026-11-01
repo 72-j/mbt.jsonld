@@ -19,7 +19,7 @@ priv struct C14nIssuer {
   prefix : String
   issued : Map[String, String]
   order : Array[String]
-  mut counter : Int
+  mut counter : Int32
 }
 
 ///|
@@ -75,15 +75,15 @@ pub extend C14nHashAlgorithm with Eq::{not_equal, equal}
 /// orders of magnitude below it).
 priv struct C14nState {
   quads : Array[NqQuad]
-  bnode_to_quads : Map[String, Array[Int]]
+  bnode_to_quads : Map[String, Array[Int32]]
   canonical_issuer : C14nIssuer
   hash_algorithm : C14nHashAlgorithm
-  mut work_budget : Int
+  mut work_budget : Int32
 }
 
 ///|
 /// Work budget in units of one hash-n-degree call or permutation attempt.
-const C14N_WORK_BUDGET : Int = 1000000
+const C14N_WORK_BUDGET : Int32 = 1000000
 
 ///|
 /// Steps 1-2: index every quad under each of its blank node components
@@ -104,7 +104,7 @@ fn C14nState::build(
       }
     }
   }
-  let bnode_to_quads : Map[String, Array[Int]] = Map([])
+  let bnode_to_quads : Map[String, Array[Int32]] = Map([])
   for quad_index, quad in unique_quads {
     for component in c14n_bnode_components(quad) {
       let (label, _position) = component
@@ -173,7 +173,7 @@ fn c14n_bnode_components(quad : NqQuad) -> Array[(String, String)] {
 /// Code point order comparison (the spec's universal ordering rule):
 /// walk both strings as code point sequences; Char::to_int is the code
 /// point. (String::compare is length-first — not the spec order.)
-fn c14n_compare(first : String, second : String) -> Int {
+fn c14n_compare(first : String, second : String) -> Int32 {
   let first_iter = first.iter()
   let second_iter = second.iter()
   let mut first_next = first_iter.next()
@@ -211,14 +211,14 @@ fn c14n_sorted_keys(source : Map[String, Array[String]]) -> Array[String] {
 ///|
 /// Uppercase hex digit for \uXXXX UCHAR forms (appendix A: HEX digits
 /// uppercase; the JCS helper nq_hex_char is lowercase and stays JCS-only).
-fn c14n_hex_upper(digit : Int) -> Char {
+fn c14n_hex_upper(digit : Int32) -> Char {
   let value = if digit < 10 { 48 + digit } else { 55 + digit }
-  Int::unsafe_to_char(value)
+  Int32::unsafe_to_char(value)
 }
 
 ///|
 /// Append one \uXXXX escape with uppercase HEX digits.
-fn c14n_write_uchar(out : StringBuilder, point : Int) -> Unit {
+fn c14n_write_uchar(out : StringBuilder, point : Int32) -> Unit {
   out.write_string("\\u")
   out.write_char(c14n_hex_upper(point / 4096 % 16))
   out.write_char(c14n_hex_upper(point / 256 % 16))
@@ -592,7 +592,7 @@ fn C14nState::run(
   let mut poisoned = false
   for first_degree in c14n_sorted_keys(hash_to_bnodes) {
     let identifier_list = hash_to_bnodes.get(first_degree).unwrap()
-    let hash_path_list : Array[(String, C14nIssuer, Int)] = []
+    let hash_path_list : Array[(String, C14nIssuer, Int32)] = []
     for n in identifier_list {
       match self.canonical_issuer.issued.get(n) {
         Some(_) => ()

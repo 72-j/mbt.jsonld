@@ -161,8 +161,8 @@ fn expand_top_values(
 fn push_top_value(
   out : Array[ExpandedValue],
   value : ExpandedValue,
-  frame_expansion? : Bool = false,
-  root? : Bool = true,
+  frame_expansion~ : Bool = false,
+  root~ : Bool = true,
 ) -> Unit {
   match value {
     // 顶层值对象即弃（#t0045："Top-level value objects are removed"）
@@ -415,8 +415,8 @@ fn canonical_suite_inner(
 
 ///|
 /// JsonValue 全序比较（套件无序数组排序用）：变体秩 -> 内容逐层
-fn json_total_compare(a : JsonValue, b : JsonValue) -> Int {
-  let rank = fn(v : JsonValue) -> Int {
+fn json_total_compare(a : JsonValue, b : JsonValue) -> Int32 {
+  let rank = fn(v : JsonValue) -> Int32 {
     match v {
       JsonValue::Null => 0
       JsonValue::Bool(_) => 1
@@ -631,7 +631,7 @@ fn jv_relabel_bnodes(
 fn jv_bnode_assign(
   left : Array[String],
   right : Array[String],
-  depth : Int,
+  depth : Int32,
   mapping : Map[String, String],
   used : Map[String, Bool],
   ours : JsonValue,
@@ -667,7 +667,7 @@ fn jv_bnode_assign(
 /// （scope → 成员对列表——"" = 顶层/default，"g:词面" = 具名图作用域）/
 /// 注册账（scope|term——同作用域同 id 只注册一次）/ 作用域防环账
 priv struct FlattenState {
-  mut counter : Int
+  mut counter : Int32
   visited : Map[String, Bool]
   members : Map[String, Array[Array[(String, JsonValue)]]]
   scopes : Map[String, Bool]
@@ -824,11 +824,11 @@ fn render_json_string(sv : String) -> String {
 
 ///|
 /// 0-15 → 十六进制位字符（大写；控制字符 \u 转义用）
-fn render_json_hex_digit(n : Int) -> Char {
+fn render_json_hex_digit(n : Int32) -> Char {
   if n < 10 {
-    Int::unsafe_to_char(48 + n)
+    Int32::unsafe_to_char(48 + n)
   } else {
-    Int::unsafe_to_char(55 + n)
+    Int32::unsafe_to_char(55 + n)
   }
 }
 

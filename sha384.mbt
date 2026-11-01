@@ -45,7 +45,7 @@ let sha384_initial_state : Array[UInt64] = [
 const SHA384_ALL_ONES : UInt64 = 0xFFFFFFFFFFFFFFFFUL
 
 ///|
-fn sha384_rotr(word : UInt64, count : Int) -> UInt64 {
+fn sha384_rotr(word : UInt64, count : Int32) -> UInt64 {
   (word >> count) | (word << (64 - count))
 }
 
@@ -102,12 +102,12 @@ fn sha384_words(data : Bytes) -> Array[UInt64] {
   for index in 0..<message_length {
     padded.push(data[index])
   }
-  padded.push((128 : Int).to_byte())
+  padded.push((128 : Int32).to_byte())
   while padded.length() % 128 != 112 {
-    padded.push((0 : Int).to_byte())
+    padded.push((0 : Int32).to_byte())
   }
   for _length_byte in 0..<8 {
-    padded.push((0 : Int).to_byte())
+    padded.push((0 : Int32).to_byte())
   }
   for shift in [56, 48, 40, 32, 24, 16, 8, 0] {
     padded.push((bit_length >> shift).to_uint().reinterpret_as_int().to_byte())
@@ -185,9 +185,9 @@ fn sha384_hex(data : Bytes) -> String {
     for shift in [60, 56, 52, 48, 44, 40, 36, 32, 28, 24, 20, 16, 12, 8, 4, 0] {
       let nibble = ((state[index] >> shift).to_uint() & 15).reinterpret_as_int()
       let digit_char = if nibble < 10 {
-        Int::unsafe_to_char(48 + nibble)
+        Int32::unsafe_to_char(48 + nibble)
       } else {
-        Int::unsafe_to_char(87 + nibble)
+        Int32::unsafe_to_char(87 + nibble)
       }
       builder.write_char(digit_char)
     }

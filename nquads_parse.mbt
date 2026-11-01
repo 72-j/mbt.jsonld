@@ -43,7 +43,7 @@ priv enum Nq2Mode {
 }
 
 ///|
-fn nq2_hex_digit(ch : Char) -> Int? {
+fn nq2_hex_digit(ch : Char) -> Int32? {
   let code = ch.to_int()
   if code >= 48 && code <= 57 {
     Some(code - 48)

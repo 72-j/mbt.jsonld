@@ -8,18 +8,18 @@
 
 ///|
 /// N-Quads 十六进制位解码（0..15；越面 → None）
-fn nq_hex_digit(ch : Char) -> Int? {
+fn nq_hex_digit(ch : Char) -> Int32? {
   match ch {
-    '0'..='9' => Some(ch.to_int() - '0'.to_int())
-    'a'..='f' => Some(ch.to_int() - 'a'.to_int() + 10)
-    'A'..='F' => Some(ch.to_int() - 'A'.to_int() + 10)
+    '0'..<='9' => Some(ch.to_int() - '0'.to_int())
+    'a'..<='f' => Some(ch.to_int() - 'a'.to_int() + 10)
+    'A'..<='F' => Some(ch.to_int() - 'A'.to_int() + 10)
     _ => None
   }
 }
 
 ///|
 /// 十六进制串 → 码点（4/8 位；含非法位 → None）
-fn nq_hex_to_codepoint(hex : String) -> Int? {
+fn nq_hex_to_codepoint(hex : String) -> Int32? {
   let mut value = 0
   for ch in hex {
     match nq_hex_digit(ch) {
@@ -32,7 +32,7 @@ fn nq_hex_to_codepoint(hex : String) -> Int? {
 
 ///|
 /// 码点 → 小写十六进制位（canonical \u 转义用）
-fn nq_hex_char(d : Int) -> Char {
+fn nq_hex_char(d : Int32) -> Char {
   // 入参受控 0..15（调用面保证）——None 不可达
   (if d < 10 { '0'.to_int() + d } else { 'a'.to_int() + d - 10 })
   .to_char()
@@ -547,7 +547,7 @@ fn nq_bind_quad(
 fn nq_bnode_quads_match(
   theirs : Array[@jsonld.JsonLdQuad],
   ours : Array[@jsonld.JsonLdQuad],
-  start : Int,
+  start : Int32,
   map : Map[String, String],
   used : Map[String, Bool],
 ) -> Bool {

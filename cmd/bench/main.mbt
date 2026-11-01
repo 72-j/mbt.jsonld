@@ -29,9 +29,9 @@ fn bench_all() -> Unit {
 
 ///|
 /// 计时轮：warmup 1 + k 次取中位数。返回（中位数 ms，各次读数展示串）。
-fn time_median(k : Int, f : () -> Unit) -> (Int, String) {
+fn time_median(k : Int32, f : () -> Unit) -> (Int32, String) {
   f() // warmup：页缓存 / 分配器稳定
-  let runs : Array[Int] = []
+  let runs : Array[Int32] = []
   for _ in 0..<k {
     let t0 = @async.now()
     f()
@@ -49,7 +49,7 @@ fn time_median(k : Int, f : () -> Unit) -> (Int, String) {
 }
 
 ///|
-fn report(scenario : String, n : Int, median : Int, runs : String) -> Unit {
+fn report(scenario : String, n : Int32, median : Int32, runs : String) -> Unit {
   println(
     "[bench] scenario=\{scenario} n=\{n} median=\{median}ms k=5 runs=\{runs}",
   )
@@ -84,7 +84,7 @@ fn bench_options() -> @jsonld.JsonLdOptions {
 ///|
 /// wide：单节点 N 属性（http://ex/p<i> = "v<i>"）。
 /// expand / compact / toRdf / flatten / parse 五场景共用形状。
-fn gen_wide_doc(n : Int) -> String {
+fn gen_wide_doc(n : Int32) -> String {
   let sb = StringBuilder()
   sb.write_string("{\"@id\":\"http://ex/root\"")
   for i in 0..<n {
@@ -100,7 +100,7 @@ fn gen_wide_doc(n : Int) -> String {
 
 ///|
 /// wide 配套 compact context：每属性一个短 term（p<i> → http://ex/p<i>）。
-fn gen_wide_ctx(n : Int) -> String {
+fn gen_wide_ctx(n : Int32) -> String {
   let sb = StringBuilder()
   sb.write_string("{")
   for i in 0..<n {
@@ -119,7 +119,7 @@ fn gen_wide_ctx(n : Int) -> String {
 
 ///|
 /// deep：链式嵌套 D 层（每层 http://ex/p + http://ex/n 下钻；底层哨兵 http://ex/bottom）。
-fn gen_deep_doc(depth : Int) -> String {
+fn gen_deep_doc(depth : Int32) -> String {
   let sb = StringBuilder()
   for _ in 0..<depth {
     sb.write_string("{\"http://ex/p\":\"v\",\"http://ex/n\":")
@@ -135,7 +135,7 @@ fn gen_deep_doc(depth : Int) -> String {
 /// nest：单节点 M 属性、每属性经 @nest 入**互异** nest 键（合并机制全展开）。
 /// nest 别名 term **前置 + 简单形**（勘察：td 对象形 + 前向引用 = 引擎拒——
 /// 别名查表只见已处理面；套件无 oracle，待办不扩，见 perf-baseline.txt §勘察发现）。
-fn gen_nest_ctx(m : Int) -> String {
+fn gen_nest_ctx(m : Int32) -> String {
   let sb = StringBuilder()
   sb.write_string("{")
   for i in 0..<m {
@@ -161,7 +161,7 @@ fn gen_nest_ctx(m : Int) -> String {
 
 ///|
 /// nest 配套文档：term 名直用——**发裸体**（无外括号；与 context 同拼一根对象）。
-fn gen_nest_doc(m : Int) -> String {
+fn gen_nest_doc(m : Int32) -> String {
   let sb = StringBuilder()
   for i in 0..<m {
     if i > 0 {
@@ -178,7 +178,7 @@ fn gen_nest_doc(m : Int) -> String {
 
 ///|
 /// fromRdf 语料：N 条独立三元组（s<i> p v<i>）。
-fn gen_nquads_flat(n : Int) -> String {
+fn gen_nquads_flat(n : Int32) -> String {
   let sb = StringBuilder()
   for i in 0..<n {
     sb.write_string("<http://ex/s")
@@ -192,7 +192,7 @@ fn gen_nquads_flat(n : Int) -> String {
 
 ///|
 /// canon 语料：N 环 bnode 链（每环 2 条：值 + 下钻）——n-degree 哈希沿线展开。
-fn gen_nquads_chain(n : Int) -> String {
+fn gen_nquads_chain(n : Int32) -> String {
   let sb = StringBuilder()
   for i in 0..<n {
     sb.write_string("_:b")

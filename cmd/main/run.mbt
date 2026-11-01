@@ -75,7 +75,7 @@ fn error_text(error : @jsonld.JsonLdError) -> String {
 /// 第 index 个位置输入：不足额或读不到文件时打错误（stderr）并返回 None。
 async fn load_positional(
   invocation : CliInvocation,
-  index : Int,
+  index : Int32,
   label : String,
 ) -> String? {
   if index >= invocation.positionals.length() {

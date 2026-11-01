@@ -367,7 +367,7 @@ pub fn jsonld_keyword_routes() -> Array[JsonLdKeywordRoute] {
 ///|
 /// IRI 规则路由行（[[iri_rules]]；handler = None 的行走骨架缺省实现）
 pub(all) struct JsonLdIriRoute {
-  order : Int
+  order : Int32
   kind : String
   condition : String
   action : String

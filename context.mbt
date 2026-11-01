@@ -115,7 +115,7 @@ pub(all) struct ContextFlags {
 /// REC 4.1.2 步 5.2.3 的 processor-defined limit（context overflow 触发深度）——
 /// 套件最深链 4，取 32 余量充足；validate=true 的文档级环靠此截断（有界装载，
 /// 无超时面）
-const CONTEXT_CHAIN_LIMIT : Int = 32
+const CONTEXT_CHAIN_LIMIT : Int32 = 32
 
 ///|
 /// type-scoped 应用面（REC 5.1.2：不传 override protected、`false for propagate`）——

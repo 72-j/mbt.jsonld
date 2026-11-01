@@ -16,7 +16,7 @@ priv struct FrameState {
   graph_map : Map[String, Map[String, ExpandedNode]]
   /// 无 id 节点铸号器（flatten_fresh_bnode 同款 "_:bN"；输入标签避撞预扫
   /// 随 bnode 簇批补）
-  mut bnode_counter : Int
+  mut bnode_counter : Int32
   /// embedded 旗（REC "copy of state with embedded=true" 的变异-恢复等价
   /// ——DFS 单链无交织面；§8.99 embed 状态机）
   mut embedded : Bool
@@ -1866,7 +1866,7 @@ pub fn frame_document(
     JsonLd11 => false
   }
   if !is_10 {
-    let counts : Map[String, Int] = Map([])
+    let counts : Map[String, Int32] = Map([])
     fn count_values(value : ExpandedValue) -> Unit {
       match value {
         ExpandedValue::Node(n) => {

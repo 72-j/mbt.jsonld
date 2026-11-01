@@ -53,7 +53,7 @@ const RDF_DIRECTION_IRI : String = "<http://www.w3.org/1999/02/22-rdf-syntax-ns#
 ///|
 /// toRDF 实现状态（J3.1——REC §6 对应物）：bnode 序号 / emit-once 账 / 产物
 priv struct ToRdfState {
-  mut counter : Int
+  mut counter : Int32
   emitted : Map[String, Bool]
   quads : Array[JsonLdQuad]
   mut reserved : Map[String, Bool]
@@ -204,7 +204,7 @@ fn nq_reserve_labels(value : ExpandedValue, into : Map[String, Bool]) -> Unit {
 /// emit-once 跳过（其贡献已并入首见）。匿名图节点（无 id 的图载体）按出现
 /// 序唯一化，互不合并。
 priv struct MergeCtx {
-  mut anon : Int
+  mut anon : Int32
   seen : Map[String, ExpandedNode]
 }
 
@@ -622,7 +622,7 @@ fn nq_lowercase(tag : String) -> String {
 
 ///|
 /// 十六进制位（JCS 转义 <0x20 用——入参受控 0..15）
-fn nq_hex_char(d : Int) -> Char {
+fn nq_hex_char(d : Int32) -> Char {
   (if d < 10 { '0'.to_int() + d } else { 'a'.to_int() + d - 10 })
   .to_char()
   .unwrap()
@@ -674,7 +674,7 @@ fn nq_jcs_array(items : Array[JsonValue]) -> String {
 ///|
 /// JCS 键序比较器（Unicode 码点序——#tjs13 oracle：U+F8DF < U+1F602；
 /// String::compare 为长度优先假序，不可用——tjs09 实证 sin/peach 逆序）
-fn nq_key_compare(a : String, b : String) -> Int {
+fn nq_key_compare(a : String, b : String) -> Int32 {
   let ca : Array[Char] = []
   for ch in a {
     ca.push(ch)
