@@ -118,7 +118,12 @@ async fn run_json_canonical(invocation : CliInvocation) -> Unit {
   match @jsonld.parse_json(text) {
     // JCS（RFC 8785）直出——评审役 R-1 处置（2026-10-09）：原经
     // json_canonical（比对归一器，长度序）误称 JCS，改接 jcs_serialize 真品
-    Ok(value) => println(@jsonld.jcs_serialize(value))
+    Ok(value) =>
+      println(
+        @jsonld.jcs_serialize(value) catch {
+          NonFinite(msg) => "JCS reject: \{msg}"
+        },
+      )
     Err(error) =>
       eprintln("jsonld json-canonical 失败：\{error_text(error)}")
   }

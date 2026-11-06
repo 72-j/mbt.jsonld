@@ -22,7 +22,7 @@ pub fn html_script_source(String, String?, String?, Bool) -> Result[HtmlScriptSo
 
 pub fn isomorphic_for_suite(JsonValue, JsonValue) -> Bool
 
-pub fn jcs_serialize(JsonValue) -> String
+pub fn jcs_serialize(JsonValue) -> String raise JcsError
 
 pub fn json_canonical(JsonValue) -> JsonValue
 
@@ -41,6 +41,9 @@ pub fn render_json(JsonValue) -> String
 pub fn to_rdf_document(String, JsonLdOptions) -> Result[Array[JsonLdQuad], JsonLdError]
 
 // Errors
+pub(all) suberror JcsError {
+  NonFinite(String)
+}
 
 // Types and methods
 pub(all) struct ActiveContext {

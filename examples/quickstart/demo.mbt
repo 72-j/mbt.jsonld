@@ -86,9 +86,13 @@ fn six_algorithm_report() -> String {
     Ok((canonical, _hashes)) => canonical
     Err(_) => ""
   }
-  // ⑦ JCS：context 原文规范化（RFC 8785 直出——键码点序 + 转义 + 数词形）
+  // ⑦ JCS：context 原文规范化（RFC 8785 直出——键 UTF-16 码元序 + 转义 + 数词形；
+  // 非有限数拒绝 = JcsError 翻译成说明行，demo 继续走）
   let jcs = match @jsonld.parse_json(context) {
-    Ok(value) => @jsonld.jcs_serialize(value)
+    Ok(value) =>
+      @jsonld.jcs_serialize(value) catch {
+        NonFinite(msg) => "JCS reject: \{msg}"
+      }
     Err(_) => ""
   }
   let mut report = ""

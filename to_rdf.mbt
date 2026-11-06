@@ -61,6 +61,10 @@ priv struct ToRdfState {
   direction_mode : String?
   /// J3.4：广义三元组放行（谓词位 bnode）
   generalized : Bool
+  /// JCS 非有限数门（RFC 8785 §3.2.2.3）：发射链 Option 静默形设计，
+  /// 错误经 state 旗回传 node_to_quads 尾点翻译成 JsonLdError（诚实失败
+  /// 不产非法词形）
+  mut jcs_error : String?
 }
 
 ///|
@@ -392,8 +396,15 @@ fn nq_literal_term_of(state : ToRdfState, l : ExpandedLiteral) -> String? {
       // J3.3（JCS——RFC 8785）：raw JSON → 规范词形 → rdf:JSON 字面量
       //（#tjs01~23 oracle；expand 侧 datatype 哨兵 "@json" 在此展开成真 IRI）
       match l.raw {
-        Some(jv) =>
-          Some("\"" + nq_emit_escape(nq_jcs(jv)) + "\"^^<" + RDF_JSON_IRI + ">")
+        Some(jv) => {
+          let canonical = nq_jcs(jv) catch {
+            NonFinite(msg) => {
+              state.jcs_error = Some(msg)
+              return None
+            }
+          }
+          Some("\"" + nq_emit_escape(canonical) + "\"^^<" + RDF_JSON_IRI + ">")
+        }
         None => None
       }
     Some(dt) => {
@@ -658,7 +669,7 @@ fn nq_jcs_escape(text : String) -> String {
 
 ///|
 /// JCS 数组（逗号连接，无空格）
-fn nq_jcs_array(items : Array[JsonValue]) -> String {
+fn nq_jcs_array(items : Array[JsonValue]) -> String raise JcsError {
   let parts = StringBuilder()
   parts.write_string("[")
   for i, item in items {
@@ -672,31 +683,28 @@ fn nq_jcs_array(items : Array[JsonValue]) -> String {
 }
 
 ///|
-/// JCS 键序比较器（Unicode 码点序——#tjs13 oracle：U+F8DF < U+1F602；
-/// String::compare 为长度优先假序，不可用——tjs09 实证 sin/peach 逆序）
+/// JCS 键序比较器（RFC 8785 §3.2.3：UTF-16 码元序——与 ECMAScript
+/// Array.sort 同律）。非 BMP 键以代理对首码元（0xD800..0xDBFF）参与排序，
+/// 故 U+E000..U+FFFF 段（含 PUA）反居非 BMP 之前；码点序会将其倒置
+/// （RFC 8785 例：U+1F600 < U+FB33，码点序则反）。
+/// String::compare = 长度优先假序，不可用（tjs09 实证 sin/peach 逆序）。
 fn nq_key_compare(a : String, b : String) -> Int32 {
-  let ca : Array[Char] = []
-  for ch in a {
-    ca.push(ch)
-  }
-  let cb : Array[Char] = []
-  for ch in b {
-    cb.push(ch)
-  }
-  let n = if ca.length() < cb.length() { ca.length() } else { cb.length() }
+  let na = a.length()
+  let nb = b.length()
+  let n = if na < nb { na } else { nb }
   for i in 0..<n {
-    let va = ca[i].to_int()
-    let vb = cb[i].to_int()
+    let va = a[i].to_int()
+    let vb = b[i].to_int()
     if va != vb {
       return va - vb
     }
   }
-  ca.length() - cb.length()
+  na - nb
 }
 
 ///|
-/// JCS 对象（键序 = nq_key_compare——码点序）
-fn nq_jcs_object(pairs : Array[(String, JsonValue)]) -> String {
+/// JCS 对象（键序 = nq_key_compare——UTF-16 码元序）
+fn nq_jcs_object(pairs : Array[(String, JsonValue)]) -> String raise JcsError {
   let sorted = pairs.map(fn(pair) { (pair.0, pair.1) })
   sorted.sort_by(fn(a, b) { nq_key_compare(a.0, b.0) })
   let parts = StringBuilder()
@@ -715,14 +723,27 @@ fn nq_jcs_object(pairs : Array[(String, JsonValue)]) -> String {
 }
 
 ///|
+/// JCS 序列化错误（RFC 8785 §3.2.2.3：非有限数——NaN/±Inf——不可表示，
+/// 序列化面拒绝不产词形；诚实失败门）
+pub(all) suberror JcsError {
+  NonFinite(String)
+}
+
+///|
 /// JCS 规范序列化（RFC 8785；J3.3——#tjs01~23 oracle）：数值词形 =
 /// ECMAScript Number::toString——MoonBit Double 显示即该形（探针实证：
-/// "1e+30"/"0.002"/"1e-7"/负零 → "0"）。
-fn nq_jcs(value : JsonValue) -> String {
+/// "1e+30"/"0.002"/"1e-7"/负零 → "0"）。非有限数（NaN/±Inf）不可表示
+/// ——拒绝（JcsError::NonFinite），不产 "Infinity" 非法词形。
+fn nq_jcs(value : JsonValue) -> String raise JcsError {
   match value {
     JsonValue::Null => "null"
     JsonValue::Bool(b) => if b { "true" } else { "false" }
-    JsonValue::Number(nv) => "\{nv}"
+    JsonValue::Number(nv) => {
+      if nv.is_nan() || nv.is_inf() {
+        raise JcsError::NonFinite("\{nv}")
+      }
+      "\{nv}"
+    }
     JsonValue::String(sv) => "\"" + nq_jcs_escape(sv) + "\""
     JsonValue::Array(items) => nq_jcs_array(items)
     JsonValue::Object(pairs) => nq_jcs_object(pairs)
@@ -730,11 +751,13 @@ fn nq_jcs(value : JsonValue) -> String {
 }
 
 ///|
-/// JCS 规范化序列化出口（RFC 8785；评审处置后晋 pub）：
-/// 键 = Unicode 码点序（nq_key_compare）、字符串转义 §3.2.2.2、数值词形 =
-/// ECMAScript Number::toString——本体 nq_jcs（J3.3，#tjs01~23 oracle 全绿）。
-/// 与 json_canonical（比对归一器，比对用）分账：对外规范化序列化用本品。
-pub fn jcs_serialize(value : JsonValue) -> String {
+/// JCS 规范化序列化出口（RFC 8785；评审处置后晋 pub）：键 = UTF-16
+/// 码元序（nq_key_compare，§3.2.3）、字符串转义 §3.2.2.2、数值词形 =
+/// ECMAScript Number::toString（J3.3，#tjs01~23 oracle 全绿）；非有限数
+/// （NaN/±Inf，如 1e9999 输入）拒绝 raise JcsError::NonFinite（§3.2.2.3
+/// ——不产 "Infinity" 非法词形）。与 json_canonical（比对归一器，比对
+/// 用）分账：对外规范化序列化用本品。
+pub fn jcs_serialize(value : JsonValue) -> String raise JcsError {
   nq_jcs(value)
 }
 
@@ -964,6 +987,7 @@ impl ToRdfProcessor for StandardExpander with fn node_to_quads(
     reserved,
     direction_mode: options.rdf_direction,
     generalized: options.produce_generalized_rdf,
+    jcs_error: None,
   }
   // bnode 标签预扫保留（#t0119 oracle：输入明写 "_:b0" 与新生 "_:b0" 撞号
   // ⇒ 同体合并假自指；新生序号跳过全部在册标签）
@@ -998,6 +1022,17 @@ impl ToRdfProcessor for StandardExpander with fn node_to_quads(
       seen[key] = true
       out.push(q)
     }
+  }
+  // JCS 非有限数门（RFC 8785 §3.2.2.3）：发射链 Option 静默形设计，错误经
+  // state.jcs_error 旗回传，此处翻译成 JsonLdError 诚实失败（不产非法词形）
+  match state.jcs_error {
+    Some(msg) =>
+      return Err(
+        JsonLdError::InvalidValue(
+          "JCS: non-finite number (\{msg}) cannot be canonically serialized",
+        ),
+      )
+    None => ()
   }
   Ok(out)
 }

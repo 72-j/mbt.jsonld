@@ -11,8 +11,9 @@ RDFC-1.0 数据集规范化、JCS（RFC 8785）规范化 JSON 序列化，以及
   上下文为可选参数，展平后可直接压缩。
 - RDFC-1.0 规范化：W3C RDF Dataset Canonicalization，SHA-256 / SHA-384
   双哈希档，返回规范化形与空白节点哈希表。
-- JCS（RFC 8785）：`jcs_serialize` 按 JSON 键码点序、RFC 8785 §3.2.2.2
-  转义规则与 ECMAScript 数值格式输出规范化 JSON。
+- JCS（RFC 8785）：`jcs_serialize` 按 JSON 键 UTF-16 码元序（§3.2.3）、
+  RFC 8785 §3.2.2.2 转义规则与 ECMAScript 数值格式输出规范化 JSON；
+  非有限数（NaN/±Inf）拒绝（`JcsError::NonFinite`）。
 - 自带 JSON 解析器：`parse_json` / `JsonValue` AST；库本身仅依赖 MoonBit
   标准库（`moonbitlang/async` 只用于测试与命令行工具）。
 - 强类型错误面：`JsonLdError` 九变体，可按变体 match 处理。

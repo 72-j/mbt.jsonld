@@ -80,8 +80,8 @@ test "e7: suite helper direct calls (370/435/440/484)" {
 }
 
 ///|
-test "jcs_serialize 钉（评审役 R-1）：键码点序 + JCS 直出" {
-  // 键序反例 = json_canonical 的长度序（@id/ex:p/@context）；JCS 码点序 =
+test "jcs_serialize 钉（评审役 R-1 改版）：键 UTF-16 码元序 + JCS 直出" {
+  // 键序反例 = json_canonical 的长度序（@id/ex:p/@context）；JCS 键序 =
   // @context < @id < ex:p——本校验改线即红
   let value = match
     parse_json("{\"ex:p\":1,\"@id\":\"a\",\"@context\":\"b\"}") {
@@ -89,7 +89,9 @@ test "jcs_serialize 钉（评审役 R-1）：键码点序 + JCS 直出" {
     Err(_) => fail("parse failed")
   }
   assert_eq(
-    jcs_serialize(value),
+    jcs_serialize(value) catch {
+      _ => fail("serialize failed")
+    },
     "{\"@context\":\"b\",\"@id\":\"a\",\"ex:p\":1}",
   )
   // JCS 转义形（§3.2.2.2 短转义）+ 数词形词样保真
@@ -97,7 +99,40 @@ test "jcs_serialize 钉（评审役 R-1）：键码点序 + JCS 直出" {
     Ok(value) => value
     Err(_) => fail("parse failed")
   }
-  assert_eq(jcs_serialize(value2), "{\"k\":\"a\\nb\",\"m\":0.002}")
+  assert_eq(
+    jcs_serialize(value2) catch {
+      _ => fail("serialize failed")
+    },
+    "{\"k\":\"a\\nb\",\"m\":0.002}",
+  )
+}
+
+///|
+test "jcs UTF-16 码元序判别罐 + 非有限数拒绝（RFC 8785）" {
+  // UTF-16 码元序判别罐：😀 U+1F600 = 代理对 D83D DE00，首码元
+  // 0xD83D(55357) < U+FB33(64307) → UTF-16 序 = 😀 在前；码点序会反置
+  // （U+1F600 128512 > U+FB33 64307）。js13 语料键集两序同序不判别——本罐
+  // 补判别位。RFC 8785 §3.2.3 排序例同形（emoji 居 U+FB33 前）。
+  let value = match parse_json("{\"דּ\":1,\"😀\":2}") {
+    Ok(v) => v
+    Err(_) => fail("parse failed")
+  }
+  assert_eq(
+    jcs_serialize(value) catch {
+      _ => fail("serialize failed")
+    },
+    "{\"😀\":2,\"דּ\":1}",
+  )
+  // 非有限数拒绝（§3.2.2.3）：1e9999 探针实证 core json 饱和成
+  // Number(Infinity) 流经全链；JCS 序列化面拒绝（不产 "Infinity" 非法词形）
+  let value2 = match parse_json("{\"a\":1e9999}") {
+    Ok(v) => v
+    Err(_) => fail("parse failed")
+  }
+  let verdict = jcs_serialize(value2) catch {
+    NonFinite(msg) => "rejected: \{msg}"
+  }
+  assert_eq(verdict, "rejected: Infinity")
 }
 
 ///|

@@ -1,3 +1,22 @@
+## 0.1.4（未发布）
+
+JCS（RFC 8785）勘误役：两处规范违反修正 + 判别罐补位。
+
+### 修正
+
+- **键序 = UTF-16 码元序（§3.2.3）**：`jcs_serialize` 键排序原按 Unicode
+  码点序——非 BMP 键（代理对首码元 0xD800..0xDBFF）与 U+E000..U+FFFF 段
+  反序（RFC 8785 例：😀 U+1F600 应居 U+FB33 前，码点序则反）。改按
+  UTF-16 码元序（与 ECMAScript `Array.sort` 同律），新增判别罐
+  （😀/דּ 字对——码点序即红）。#tjs13 语料键集两序同序不判别，旧罐漏检。
+- **非有限数拒绝（§3.2.2.3）**：`1e9999` 输入经 core json 饱和成
+  `Number(Infinity)`，原序列化输出非法词形 `"Infinity"`。现序列化面
+  拒绝：新错误型 `JcsError::NonFinite`，`jcs_serialize` 签名升
+  `-> String raise JcsError`（Breaking——调用方补 catch）；toRDF 链
+  内嵌 @json 字面量遇非有限数整体报 `JsonLdError::InvalidValue`
+  （不产含 Infinity 的 quad）。探针实证：core json 对 1e9999 饱和成
+  `Infinity` 流经全链（解析面不拒），拒绝点收在序列化面（RFC 管辖位）。
+
 ## 0.1.3（2026-10-31）
 
 文档面版本：README「测试与验证」补 quicktest 数据集守恒机说明（守恒律双
