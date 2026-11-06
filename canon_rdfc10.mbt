@@ -57,10 +57,11 @@ fn C14nIssuer::fresh_copy(self : C14nIssuer) -> C14nIssuer {
 ///|
 /// Hash algorithm option (REC section 3.1 hashAlgorithm; suite pins the
 /// SHA384 variant on test075). Default SHA256.
+#derive(Eq)
 pub(all) enum C14nHashAlgorithm {
   Sha256
   Sha384
-} derive(Eq)
+}
 
 ///|
 /// [0079] 消警：Eq 派生的 equal/not_equal 显式升格（const §5——derive 须同笔补 extend）

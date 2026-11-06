@@ -13,9 +13,10 @@
 
 ///|
 /// Span 的符号替身：生成期以 Symbolic(Var) 引用，执行期解析为 Concrete(RefId)
+#derive(Eq, Debug)
 priv struct RefId {
   id : Int32
-} derive(Eq, Debug)
+}
 
 ///|
 /// quad 池长（= ref_id_range, 索引一对一; 池内容见 business.quad_pool）
@@ -23,34 +24,38 @@ const QUAD_POOL_LEN : Int32 = 6
 
 ///|
 /// Command - 测试命令类型（源: [[events]]）
+#derive(Eq, Debug)
 priv enum Command {
   Seed
   AppendQuad(@qcs.Ref[RefId])
   Roundtrip
-} derive(Eq, Debug)
+}
 
 ///|
 /// Response - 测试响应类型（源: [[effects]] + 错误归一化）
+#derive(Eq, Debug)
 priv enum Response {
   Continue // 台账操作 + 过桥双验通过（无发射机器, 人工补）
   Error(Int32) // 引擎错误归一化（[type_mapping].error_codes）
-} derive(Eq, Debug)
+}
 
 ///|
 /// ModelState - 纯模型状态枚举（镜像引擎 State 枚举，独立于引擎包）
+#derive(Eq, Debug)
 priv enum ModelState {
   Empty
   Ledgered
-} derive(Eq, Debug)
+}
 
 ///|
 /// Model - 纯模型（规格而非被测实现）
 /// P0 手扩: quads = 台账的 quad 池索引集镜像（与系统 ledger 同构;
 /// 函数式更新——每臂造新数组, 不用 mut 字段）
+#derive(Eq, Debug)
 priv struct Model {
   state : ModelState
   quads : Array[Int32]
-} derive(Eq, Debug)
+}
 
 ///|
 /// 初始模型：Empty，台账空

@@ -1,6 +1,7 @@
 ///|
 /// JSON-LD 处理阶段的错误（derive(Eq, Debug)——assert_eq Result 需错误型
 /// 实现 Eq/Debug；变体全 String 包装，结构性成立）
+#derive(Eq, Debug)
 pub(all) enum JsonLdError {
   Syntax(String) // JSON 文本语法错误（解析层包装）
   InvalidContext(String) // context 处理失败
@@ -12,7 +13,7 @@ pub(all) enum JsonLdError {
   // HTML 面（REC 9.5——JSON-LD 1.1 API REC 错误码实名循包内先例）
   LoadingDocumentFailed(String) // 输入文档装载失败（fragment 未命中 / 无 JSON-LD script）
   InvalidScriptElement(String) // JSON-LD script 内容非合法 JSON（REC 9.5.2）
-} derive(Eq, Debug)
+}
 
 ///|
 /// [0079]：Eq/Debug 的隐式方法晋升弃用警告——extend 双清（显式晋升
@@ -83,14 +84,16 @@ pub extend ProcessingMode with @moonbitlang/core/debug.Debug::{to_repr}
 
 ///|
 /// 处理模式：json-ld-1.0 / json-ld-1.1
+#derive(Debug)
 pub(all) enum ProcessingMode {
   JsonLd10
   JsonLd11
-} derive(Debug)
+}
 
 ///|
 /// 展开后的节点对象（树递归的中间态）
 /// 字段只列骨架需要的；完整字段随覆盖面扩展
+#derive(Debug)
 pub(all) struct ExpandedNode {
   /// 节点标识（@container @id 映射批起为 mut：条目无 @id 时由 id map 索引写入——
   /// REC "if item does not have the entry @id, add …"，#tm001/#tm005 oracle）
@@ -107,17 +110,18 @@ pub(all) struct ExpandedNode {
   /// 节点 @index（@container 映射批：index map 应用——#tc013 oracle：index map
   /// 的键写入条目 @index；值对象位未落，挂后续 index 批）
   mut index : String?
-} derive(Debug)
+}
 
 ///|
 /// 展开后的值（@value / @list / @set / 节点）
+#derive(Debug)
 pub(all) enum ExpandedValue {
   Node(ExpandedNode)
   Value(ExpandedLiteral)
   /// index 槽（{@index,@list} 值对象贯通：展开收 index、压缩出
   /// {@list,@index} 形——#t0041 oracle；缺省 None 零扰动存量构造/匹配）
   List(Array[ExpandedValue], index~ : String?)
-} derive(Debug)
+}
 
 ///|
 /// @id 显式 null 哨兵（t0122/t0060 批——REC §5.2 IRI 展开：keyword 形非关键字
@@ -129,6 +133,7 @@ const EXPLICIT_NULL_ID : String = ""
 ///|
 /// 展开后的字面量
 /// datatype = @type（IRI）；数值/布尔字面量以词形入 value（xsd 词形挂 toRDF 面）
+#derive(Debug)
 pub(all) struct ExpandedLiteral {
   mut value : String
   mut datatype : String?
@@ -142,13 +147,14 @@ pub(all) struct ExpandedLiteral {
   /// Included Blocks 于值对象位保形（#tin05 oracle：值对象内 @included 不弃，
   /// 内层照节点对象展开——展开后随字面量携带，序列化还原 "@included" 键）
   mut included : Array[ExpandedNode]?
-} derive(Debug)
+}
 
 ///|
 /// RDF 四元组（与现有 trig/nquads 产物同形，便于复用发射层）
+#derive(Debug)
 pub(all) struct JsonLdQuad {
   subject : String
   predicate : String
   object : String
   graph : String?
-} derive(Debug)
+}

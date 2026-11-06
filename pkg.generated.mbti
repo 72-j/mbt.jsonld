@@ -55,10 +55,11 @@ pub(all) struct ActiveContext {
   mut compact_prefixes : Array[(String, String)]?
 }
 
+#derive(Eq)
 pub(all) enum C14nHashAlgorithm {
   Sha256
   Sha384
-} derive(Eq)
+}
 pub fn C14nHashAlgorithm::equal(Self, Self) -> Bool
 pub fn C14nHashAlgorithm::not_equal(Self, Self) -> Bool
 
@@ -83,6 +84,7 @@ pub fn ContextFlags::element() -> Self
 pub fn ContextFlags::property_scoped() -> Self
 pub fn ContextFlags::type_scoped() -> Self
 
+#derive(@debug.Debug)
 pub(all) struct ExpandedLiteral {
   mut value : String
   mut datatype : String?
@@ -91,9 +93,10 @@ pub(all) struct ExpandedLiteral {
   mut raw : JsonValue?
   mut index : String?
   mut included : Array[ExpandedNode]?
-} derive(@debug.Debug)
+}
 pub fn ExpandedLiteral::to_repr(Self) -> @debug.Repr
 
+#derive(@debug.Debug)
 pub(all) struct ExpandedNode {
   mut id : String?
   types : Array[String]
@@ -102,14 +105,15 @@ pub(all) struct ExpandedNode {
   mut graph : Array[ExpandedValue]?
   mut included : Array[ExpandedNode]?
   mut index : String?
-} derive(@debug.Debug)
+}
 pub fn ExpandedNode::to_repr(Self) -> @debug.Repr
 
+#derive(@debug.Debug)
 pub(all) enum ExpandedValue {
   Node(ExpandedNode)
   Value(ExpandedLiteral)
   List(Array[ExpandedValue], index~ : String?)
-} derive(@debug.Debug)
+}
 pub fn ExpandedValue::to_repr(Self) -> @debug.Repr
 
 pub struct HtmlScriptSource {
@@ -118,6 +122,7 @@ pub struct HtmlScriptSource {
   no_scripts : Bool
 }
 
+#derive(Eq, @debug.Debug)
 pub(all) enum JsonLdError {
   Syntax(String)
   InvalidContext(String)
@@ -128,7 +133,7 @@ pub(all) enum JsonLdError {
   ContextOverflow(String)
   LoadingDocumentFailed(String)
   InvalidScriptElement(String)
-} derive(Eq, @debug.Debug)
+}
 pub fn JsonLdError::equal(Self, Self) -> Bool
 pub fn JsonLdError::not_equal(Self, Self) -> Bool
 pub fn JsonLdError::to_repr(Self) -> @debug.Repr
@@ -166,12 +171,13 @@ pub(all) struct JsonLdOptions {
   use_rdf_type : Bool
 }
 
+#derive(@debug.Debug)
 pub(all) struct JsonLdQuad {
   subject : String
   predicate : String
   object : String
   graph : String?
-} derive(@debug.Debug)
+}
 pub fn JsonLdQuad::to_repr(Self) -> @debug.Repr
 
 pub(all) enum JsonLdStep {
@@ -188,6 +194,7 @@ pub fn JsonLdStep::handler(Self) -> String?
 pub fn JsonLdStep::id(Self) -> String
 pub fn JsonLdStep::next_step(Self) -> Self?
 
+#derive(Eq, @debug.Debug)
 pub(all) enum JsonValue {
   Null
   Bool(Bool)
@@ -195,7 +202,7 @@ pub(all) enum JsonValue {
   String(String)
   Array(Array[JsonValue])
   Object(Array[(String, JsonValue)])
-} derive(Eq, @debug.Debug)
+}
 pub fn JsonValue::equal(Self, Self) -> Bool
 pub fn JsonValue::not_equal(Self, Self) -> Bool
 pub fn JsonValue::to_repr(Self) -> @debug.Repr
@@ -211,10 +218,11 @@ pub(all) struct PreviousContext {
   terms : Map[String, TermDefinition]
 }
 
+#derive(@debug.Debug)
 pub(all) enum ProcessingMode {
   JsonLd10
   JsonLd11
-} derive(@debug.Debug)
+}
 pub fn ProcessingMode::to_repr(Self) -> @debug.Repr
 
 pub(all) struct StandardExpander {

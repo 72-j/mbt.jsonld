@@ -4,6 +4,7 @@
 /// （moonbitlang/core/json，工具链内置零依赖），不自建解析层。
 /// Object 收有序对——core 按 Map 折叠后转出：重复键 last-wins（占首现位）、
 /// 键序 ≈ 首现序（1.1 算法按属性排序 + 输出侧自排序）。
+#derive(Eq, Debug)
 pub(all) enum JsonValue {
   Null
   Bool(Bool)
@@ -12,7 +13,7 @@ pub(all) enum JsonValue {
   Array(Array[JsonValue])
   /// 对象：有序对数组而非 Map——模型面保「键 → 值」成对形状（core 侧折叠语义见上）
   Object(Array[(String, JsonValue)])
-} derive(Eq, Debug)
+}
 
 ///|
 /// [0079] 消警：Debug 派生的 to_repr 显式升格为常规方法（2026-09-25）
