@@ -155,12 +155,12 @@ async test "J4: steps coverage (entry dispatch + passthrough rows)" {
     @jsonld.JsonLdStep::ExpansionExpandArray.id(),
     @jsonld.JsonLdStep::ExpansionExpandObject.id(),
     @jsonld.JsonLdStep::ExpansionPostprocess.id(),
-    @jsonld.JsonLdStep::TorfEntry.id(),
-    @jsonld.JsonLdStep::TorfEmit.id(),
+    @jsonld.JsonLdStep::TordfEntry.id(),
+    @jsonld.JsonLdStep::TordfEmit.id(),
   ]
   assert_eq(ids.length(), 7)
   assert_true(ids.contains("expansion.entry"))
-  assert_true(ids.contains("torf.emit"))
+  assert_true(ids.contains("tordf.emit"))
 }
 
 ///|
@@ -236,8 +236,8 @@ async test "J4: skeleton-vs-handwritten divergence ledger" {
 }
 
 ///|
-/// torf 阶段值级件（torf.entry hook = node_to_quads；torf.emit = 出账直通行）
-async test "J4: torf steps value-level (entry hook + emit passthrough)" {
+/// tordf 阶段值级件（tordf.entry hook = node_to_quads；tordf.emit = 出账直通行）
+async test "J4: tordf steps value-level (entry hook + emit passthrough)" {
   let options : @jsonld.JsonLdOptions = {
     base: None,
     expand_context: None,
@@ -255,7 +255,7 @@ async test "J4: torf steps value-level (entry hook + emit passthrough)" {
   let doc = "{\"@id\":\"http://ex/s\",\"http://ex/p\":[{\"@value\":\"v\"}]}"
   let quads = match @jsonld.to_rdf_document(doc, options) {
     Ok(qs) => qs
-    Err(_) => fail("J4 torf: 管线报错")
+    Err(_) => fail("J4 tordf: 管线报错")
   }
   assert_eq(quads.length(), 1)
   assert_eq(quads[0].subject, "<http://ex/s>")

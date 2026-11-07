@@ -259,8 +259,8 @@ fn all_jsonld_steps() -> Array[@jsonld.JsonLdStep] {
     @jsonld.JsonLdStep::ExpansionExpandArray,
     @jsonld.JsonLdStep::ExpansionExpandObject,
     @jsonld.JsonLdStep::ExpansionPostprocess,
-    @jsonld.JsonLdStep::TorfEntry,
-    @jsonld.JsonLdStep::TorfEmit,
+    @jsonld.JsonLdStep::TordfEntry,
+    @jsonld.JsonLdStep::TordfEmit,
   ]
 }
 
@@ -362,7 +362,7 @@ async test "interface gate smoke: mock surface is callable" {
 test "gen surface: next_step table + dispatch fallback arms (35/55/57)" {
   let expect_next : Array[String] = [
     "", "expansion.postprocess", "expansion.postprocess", "expansion.postprocess",
-    "", "torf.emit", "",
+    "", "tordf.emit", "",
   ]
   let steps = all_jsonld_steps()
   for i in 0..<steps.length() {

@@ -1,5 +1,5 @@
 // ===== GENERATED FILE — DO NOT EDIT（生成物禁手写，const.md §7）=====
-// 源表：rdf/jsonld_gen/jsonld_gen.toml（schema 1.0）
+// 源表：../bitbang2/jsonld/jsonld_gen.toml（schema 1.0）
 // 再生：moon run rdf/jsonld_gen/cmd（改表 → 重跑 → 黄金门对拍）
 // 绑定器：rdf/jsonld_gen/jsonld_toml_gen.mbt（parse / validate / emit）
 
@@ -11,8 +11,8 @@ pub(all) enum JsonLdStep {
   ExpansionExpandArray
   ExpansionExpandObject
   ExpansionPostprocess
-  TorfEntry
-  TorfEmit
+  TordfEntry
+  TordfEmit
 }
 
 ///|
@@ -24,8 +24,8 @@ pub fn JsonLdStep::id(self : JsonLdStep) -> String {
     ExpansionExpandArray => "expansion.expand_array"
     ExpansionExpandObject => "expansion.expand_object"
     ExpansionPostprocess => "expansion.postprocess"
-    TorfEntry => "torf.entry"
-    TorfEmit => "torf.emit"
+    TordfEntry => "tordf.entry"
+    TordfEmit => "tordf.emit"
   }
 }
 
@@ -38,8 +38,8 @@ pub fn JsonLdStep::next_step(self : JsonLdStep) -> JsonLdStep? {
     ExpansionExpandArray => Some(ExpansionPostprocess)
     ExpansionExpandObject => Some(ExpansionPostprocess)
     ExpansionPostprocess => None
-    TorfEntry => Some(TorfEmit)
-    TorfEmit => None
+    TordfEntry => Some(TordfEmit)
+    TordfEmit => None
   }
 }
 
@@ -67,8 +67,8 @@ pub fn JsonLdStep::handler(self : JsonLdStep) -> String? {
     ExpansionExpandArray => Some("Expander::expand_array")
     ExpansionExpandObject => None
     ExpansionPostprocess => Some("Expander::postprocess_value")
-    TorfEntry => Some("ToRdfProcessor::node_to_quads")
-    TorfEmit => None
+    TordfEntry => Some("ToRdfProcessor::node_to_quads")
+    TordfEmit => None
   }
 }
 
