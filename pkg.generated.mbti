@@ -189,8 +189,8 @@ pub(all) enum JsonLdStep {
   ExpansionExpandArray
   ExpansionExpandObject
   ExpansionPostprocess
-  TorfEntry
-  TorfEmit
+  TordfEntry
+  TordfEmit
 }
 pub fn JsonLdStep::dispatch(Self, String) -> Self?
 pub fn JsonLdStep::handler(Self) -> String?

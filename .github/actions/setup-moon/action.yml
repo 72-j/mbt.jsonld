@@ -47,8 +47,10 @@ runs:
       run: |
         moon --version
         moon version --all
-        # 本仓已知良好工具链（2026-10-30 wasm+native 双档 535 全绿所录）；偏差只警告，不阻塞。
-        known_good="0.1.20261023"
+        # 本仓已知良好工具链（2026-11-07 .mbti 漂移修正役本地全腿实测所录：
+        # check --deny-warn 30 任务净 + 套件自报 ≡ 入库表 + quickstart 冒烟绿；
+        # 前值 20261023 = 2026-10-30 双档 535 全绿所录）；偏差只警告，不阻塞。
+        known_good="0.1.20261104"
         installed="$(moon --version | head -n 1 | awk '{print $2}')"
         if [ "$installed" != "$known_good" ]; then
           echo "::warning::MoonBit $installed ≠ 已知良好 $known_good——先本地复跑 check/test 再按需更新本 action"
